@@ -56,7 +56,7 @@ async function setupDatabase() {
     },
     {
       name: 'Delivery Log',
-      headers: ['Delivery ID', 'Date', 'Project Number', 'Supplier ID', 'Supplier Name', 'Materials Delivered', 'Delivery Time', 'Received By', 'Notes', 'Report ID'],
+      headers: ['Delivery ID', 'Date', 'Project Number', 'Supplier ID', 'Supplier Name', 'Materials Delivered', 'Delivery Time', 'Status', 'Received By', 'Notes', 'Report ID'],
       sampleData: []
     },
     {

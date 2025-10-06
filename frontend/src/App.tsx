@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AdminLogin from './components/AdminLogin';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 
 interface Manager {
   id: string;
@@ -14,7 +15,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'login' | 'recording' | 'reports';
+type Screen = 'login' | 'recording' | 'reports' | 'analytics';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
@@ -51,6 +52,10 @@ function App() {
     setCurrentScreen('reports');
   };
 
+  const handleViewAnalytics = () => {
+    setCurrentScreen('analytics');
+  };
+
   const handleBackToRecording = () => {
     setCurrentScreen('recording');
   };
@@ -69,12 +74,23 @@ function App() {
     );
   }
 
+  if (currentScreen === 'analytics') {
+    return (
+      <AnalyticsDashboard
+        manager={manager!}
+        project={project!}
+        onBack={handleBackToRecording}
+      />
+    );
+  }
+
   return (
     <VoiceReportingScreen
       manager={manager!}
       project={project!}
       onChangeProject={handleLogout}
       onViewReports={handleViewReports}
+      onViewAnalytics={handleViewAnalytics}
     />
   );
 }

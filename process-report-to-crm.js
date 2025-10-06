@@ -487,22 +487,38 @@ async function writeToDynamoDB_Vendors(extracted, context) {
 
   if (extracted.vendors.length === 0) return;
 
-  const batchItems = extracted.vendors.map(vendor => ({
-    PutRequest: {
-      Item: {
-        PK: `VENDOR#${vendor.companyName}`,
-        SK: `DELIVERY#${reportDate}#${reportId}`,
-        company_name: vendor.companyName || vendor.name || 'Unknown',
-        materials_delivered: vendor.materialsDelivered || '',
-        delivery_time: vendor.deliveryTime || '',
-        notes: vendor.notes || '',
-        project_id: projectId,
-        report_date: reportDate,
-        report_id: reportId,
-        created_at: new Date().toISOString()
-      }
+  const batchItems = extracted.vendors.map(vendor => {
+    // Determine delivery status
+    let deliveryStatus = 'On-Time';
+    const notes = String(vendor.notes || vendor.extractedFromText || '');
+    const notesLower = notes.toLowerCase();
+
+    if (notesLower.includes('late') || notesLower.includes('delayed') || notesLower.includes('back-ordered')) {
+      deliveryStatus = 'Late';
+    } else if (notesLower.includes('early') || notesLower.includes('ahead')) {
+      deliveryStatus = 'Early';
+    } else if (notesLower.includes('cancel')) {
+      deliveryStatus = 'Canceled';
     }
-  }));
+
+    return {
+      PutRequest: {
+        Item: {
+          PK: `VENDOR#${vendor.companyName}`,
+          SK: `DELIVERY#${reportDate}#${reportId}`,
+          company_name: vendor.companyName || vendor.name || 'Unknown',
+          materials_delivered: vendor.materialsDelivered || '',
+          delivery_time: vendor.deliveryTime || '',
+          delivery_status: deliveryStatus, // NEW: Status field
+          notes: vendor.notes || '',
+          project_id: projectId,
+          report_date: reportDate,
+          report_id: reportId,
+          created_at: new Date().toISOString()
+        }
+      }
+    };
+  });
 
   for (let i = 0; i < batchItems.length; i += 25) {
     const batch = batchItems.slice(i, i + 25);
@@ -649,6 +665,19 @@ async function populateDatabase(extracted, context) {
   for (const vendor of extracted.vendors) {
     const suppId = await findOrCreateSupplier(vendor);
 
+    // Determine delivery status based on notes or explicit status
+    let deliveryStatus = 'On-Time'; // Default
+    const notes = String(vendor.notes || vendor.extractedFromText || '');
+    const notesLower = notes.toLowerCase();
+
+    if (notesLower.includes('late') || notesLower.includes('delayed') || notesLower.includes('back-ordered')) {
+      deliveryStatus = 'Late';
+    } else if (notesLower.includes('early') || notesLower.includes('ahead')) {
+      deliveryStatus = 'Early';
+    } else if (notesLower.includes('cancel')) {
+      deliveryStatus = 'Canceled';
+    }
+
     const delivId = generateShortId('DEL', deliveryCounter++);
     deliveryRows.push([
       delivId,
@@ -658,6 +687,7 @@ async function populateDatabase(extracted, context) {
       vendor.companyName,
       vendor.materialsDelivered,
       vendor.deliveryTime || '',
+      deliveryStatus, // NEW: Status column
       vendor.receivedBy || '',
       typeof vendor.extractedFromText === 'string' ? vendor.extractedFromText.substring(0, 200) : '',
       reportId
