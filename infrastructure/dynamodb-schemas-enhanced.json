@@ -1,0 +1,654 @@
+{
+  "reports_table": {
+    "TableName": "sitelogix-reports",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "project_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "manager_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "report_date",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "status",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "timestamp",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-ProjectIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "project_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "report_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-ManagerIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "manager_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "report_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI3-StatusIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "status",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "timestamp",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 10,
+      "WriteCapacityUnits": 10
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0-Enhanced"
+      }
+    ]
+  },
+  "personnel_table": {
+    "TableName": "sitelogix-personnel",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "full_name",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "status",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "dateLastSeen",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-NameIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "full_name",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-StatusIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "status",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "dateLastSeen",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0-Enhanced"
+      }
+    ]
+  },
+  "vendors_table": {
+    "TableName": "sitelogix-vendors",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "company_name",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "vendor_type",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "dateLastSeen",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-CompanyIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "company_name",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-TypeIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "vendor_type",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "dateLastSeen",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0-Enhanced"
+      }
+    ]
+  },
+  "constraints_table": {
+    "TableName": "sitelogix-constraints",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "category",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "dateIdentified",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "status",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "severity",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "project_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "report_date",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-CategoryIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "category",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "dateIdentified",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-StatusIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "status",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "severity",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI3-ProjectDateIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "project_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "report_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0-Enhanced"
+      }
+    ]
+  },
+  "work_logs_table": {
+    "TableName": "sitelogix-work-logs",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "project_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "report_date",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "team_id",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-ProjectDateIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "project_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "report_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-TeamIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "team_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "report_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0-Enhanced"
+      }
+    ]
+  },
+  "ai_analysis_cache_table": {
+    "TableName": "sitelogix-ai-analysis-cache",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "analysisType",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "createdAt",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "modelUsed",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-TypeIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "analysisType",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "createdAt",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-ModelIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "modelUsed",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "createdAt",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 10,
+      "WriteCapacityUnits": 10
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0-Enhanced"
+      }
+    ]
+  }
+}

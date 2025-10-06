@@ -1,0 +1,42 @@
+{
+  "name": "sitelogix-backend",
+  "version": "1.0.0",
+  "description": "SiteLogix backend Lambda functions",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "build": "tsc",
+    "deploy": "cdk deploy",
+    "watch": "tsc -w"
+  },
+  "keywords": ["construction", "reporting", "voice", "aws-lambda"],
+  "author": "Impact Consulting",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "@aws-sdk/client-ses": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "axios": "^1.6.2",
+    "googleapis": "^128.0.0",
+    "openai": "^4.47.0",
+    "@anthropic-ai/sdk": "^0.20.0",
+    "fuzzball": "^2.1.2",
+    "joi": "^17.11.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.7",
+    "@types/jest": "^29.5.11",
+    "typescript": "^5.3.3",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1",
+    "aws-sdk-client-mock": "^3.0.1"
+  }
+}

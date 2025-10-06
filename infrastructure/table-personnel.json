@@ -1,0 +1,49 @@
+{
+  "TableName": "sitelogix-personnel",
+  "KeySchema": [
+    {"AttributeName": "PK", "KeyType": "HASH"},
+    {"AttributeName": "SK", "KeyType": "RANGE"}
+  ],
+  "AttributeDefinitions": [
+    {"AttributeName": "PK", "AttributeType": "S"},
+    {"AttributeName": "SK", "AttributeType": "S"},
+    {"AttributeName": "full_name", "AttributeType": "S"},
+    {"AttributeName": "project_id", "AttributeType": "S"}
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI1-NameIndex",
+      "KeySchema": [
+        {"AttributeName": "full_name", "KeyType": "HASH"}
+      ],
+      "Projection": {"ProjectionType": "ALL"},
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    },
+    {
+      "IndexName": "GSI2-ProjectIndex",
+      "KeySchema": [
+        {"AttributeName": "project_id", "KeyType": "HASH"}
+      ],
+      "Projection": {"ProjectionType": "ALL"},
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    }
+  ],
+  "BillingMode": "PROVISIONED",
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 5,
+    "WriteCapacityUnits": 5
+  },
+  "SSESpecification": {
+    "Enabled": true
+  },
+  "Tags": [
+    {"Key": "Project", "Value": "SiteLogix"},
+    {"Key": "Environment", "Value": "Production"}
+  ]
+}

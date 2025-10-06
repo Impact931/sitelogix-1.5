@@ -1,0 +1,44 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@theme {
+  /* Colors */
+  --color-dark-bg: #0f0f0f;
+  --color-dark-surface: #1a1a1a;
+  --color-dark-lighter: #2d2d2d;
+  --color-gold: #fbbf24;
+  --color-gold-light: #fcd34d;
+  --color-gold-dark: #f59e0b;
+  --color-construction-orange: #ff8c00;
+
+  /* Fonts */
+  --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-display: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0f0f0f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Glass morphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-gold {
+  background: rgba(251, 191, 36, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
