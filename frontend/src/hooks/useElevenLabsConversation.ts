@@ -50,6 +50,7 @@ export const useElevenLabsConversation = ({
 
       const conversation = await Conversation.startSession({
         agentId,
+        connectionType: "webrtc",
         // Pass dynamic variables for personalization
         dynamicVariables: Object.keys(dynamicVars).length > 0 ? dynamicVars : undefined,
         onConnect: (data) => {
@@ -84,7 +85,7 @@ export const useElevenLabsConversation = ({
         },
         onError: (error) => {
           console.error('ElevenLabs error:', error);
-          const err = error instanceof Error ? error : new Error(String(error));
+          const err = typeof error === 'object' && error instanceof Error ? error : new Error(String(error));
           onError?.(err);
         },
         onModeChange: (mode) => {
