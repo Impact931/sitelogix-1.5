@@ -25,18 +25,19 @@ export const useElevenLabsConversation = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const conversationRef = useRef<Conversation | null>(null);
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
   const startConversation = useCallback(async () => {
     try {
       // Request microphone permission
-      await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
         }
       });
+
+      console.log('🎤 Microphone access granted', stream.getTracks());
 
       onStatusChange?.('Connecting to Roxy...');
 
@@ -49,14 +50,19 @@ export const useElevenLabsConversation = ({
       if (customContext?.projectName) dynamicVars.project_name = customContext.projectName;
       if (customContext?.projectLocation) dynamicVars.project_location = customContext.projectLocation;
 
+      console.log('🔧 Starting ElevenLabs session with config:', {
+        agentId,
+        connectionType: 'webrtc',
+        dynamicVariables: dynamicVars
+      });
+
       const conversation = await Conversation.startSession({
         agentId,
-        connectionType: "webrtc",
         // Pass dynamic variables for personalization
         dynamicVariables: Object.keys(dynamicVars).length > 0 ? dynamicVars : undefined,
         onConnect: (data) => {
-          console.log('Connected to ElevenLabs agent', data);
-          console.log('Full conversation object:', conversationRef.current);
+          console.log('✅ Connected to ElevenLabs agent', data);
+          console.log('Conversation object:', conversationRef.current);
 
           // Try multiple ways to get conversation ID
           let convId = null;
@@ -77,48 +83,6 @@ export const useElevenLabsConversation = ({
 
           setIsConnected(true);
           onStatusChange?.('Connected');
-
-          // Set up audio output now that connection is established
-          setTimeout(() => {
-            try {
-              if (!audioElementRef.current) {
-                audioElementRef.current = new Audio();
-                audioElementRef.current.autoplay = true;
-                audioElementRef.current.volume = 1.0;
-              }
-
-              const conv = conversationRef.current as any;
-
-              // Try to access the audio stream from the conversation's peer connection
-              if (conv && conv.peerConnection) {
-                const receivers = conv.peerConnection.getReceivers();
-                console.log('Found receivers:', receivers.length);
-
-                const audioReceiver = receivers.find((receiver: RTCRtpReceiver) =>
-                  receiver.track && receiver.track.kind === 'audio'
-                );
-
-                if (audioReceiver && audioReceiver.track) {
-                  console.log('Found audio track:', audioReceiver.track);
-                  const stream = new MediaStream([audioReceiver.track]);
-                  audioElementRef.current.srcObject = stream;
-
-                  // Ensure audio element is playing
-                  audioElementRef.current.play().catch((playError) => {
-                    console.warn('Audio autoplay prevented:', playError);
-                  });
-
-                  console.log('✅ Audio output stream connected');
-                } else {
-                  console.warn('⚠️  No audio receiver found');
-                }
-              } else {
-                console.warn('⚠️  No peer connection available');
-              }
-            } catch (audioError) {
-              console.error('Error setting up audio:', audioError);
-            }
-          }, 500); // Give peer connection time to establish
         },
         onDisconnect: () => {
           console.log('Disconnected from ElevenLabs agent');
@@ -147,7 +111,9 @@ export const useElevenLabsConversation = ({
       conversationRef.current = conversation;
 
       // Set audio output to maximum volume
+      console.log('🔊 Setting volume to maximum...');
       await conversation.setVolume({ volume: 1.0 });
+      console.log('✅ Volume set successfully');
 
     } catch (error) {
       console.error('Failed to start conversation:', error);
@@ -159,18 +125,13 @@ export const useElevenLabsConversation = ({
   const endConversation = useCallback(async () => {
     try {
       if (conversationRef.current) {
+        console.log('🛑 Ending conversation...');
         await conversationRef.current.endSession();
         conversationRef.current = null;
         setIsConnected(false);
         setIsSpeaking(false);
         onStatusChange?.('Ended');
-      }
-
-      // Clean up audio element
-      if (audioElementRef.current) {
-        audioElementRef.current.pause();
-        audioElementRef.current.srcObject = null;
-        audioElementRef.current = null;
+        console.log('✅ Conversation ended');
       }
     } catch (error) {
       console.error('Failed to end conversation:', error);
