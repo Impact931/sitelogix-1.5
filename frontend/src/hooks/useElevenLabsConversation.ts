@@ -25,6 +25,7 @@ export const useElevenLabsConversation = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const conversationRef = useRef<Conversation | null>(null);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
   const startConversation = useCallback(async () => {
     try {
@@ -76,6 +77,48 @@ export const useElevenLabsConversation = ({
 
           setIsConnected(true);
           onStatusChange?.('Connected');
+
+          // Set up audio output now that connection is established
+          setTimeout(() => {
+            try {
+              if (!audioElementRef.current) {
+                audioElementRef.current = new Audio();
+                audioElementRef.current.autoplay = true;
+                audioElementRef.current.volume = 1.0;
+              }
+
+              const conv = conversationRef.current as any;
+
+              // Try to access the audio stream from the conversation's peer connection
+              if (conv && conv.peerConnection) {
+                const receivers = conv.peerConnection.getReceivers();
+                console.log('Found receivers:', receivers.length);
+
+                const audioReceiver = receivers.find((receiver: RTCRtpReceiver) =>
+                  receiver.track && receiver.track.kind === 'audio'
+                );
+
+                if (audioReceiver && audioReceiver.track) {
+                  console.log('Found audio track:', audioReceiver.track);
+                  const stream = new MediaStream([audioReceiver.track]);
+                  audioElementRef.current.srcObject = stream;
+
+                  // Ensure audio element is playing
+                  audioElementRef.current.play().catch((playError) => {
+                    console.warn('Audio autoplay prevented:', playError);
+                  });
+
+                  console.log('✅ Audio output stream connected');
+                } else {
+                  console.warn('⚠️  No audio receiver found');
+                }
+              } else {
+                console.warn('⚠️  No peer connection available');
+              }
+            } catch (audioError) {
+              console.error('Error setting up audio:', audioError);
+            }
+          }, 500); // Give peer connection time to establish
         },
         onDisconnect: () => {
           console.log('Disconnected from ElevenLabs agent');
@@ -103,7 +146,7 @@ export const useElevenLabsConversation = ({
 
       conversationRef.current = conversation;
 
-      // Set audio output
+      // Set audio output to maximum volume
       await conversation.setVolume({ volume: 1.0 });
 
     } catch (error) {
@@ -121,6 +164,13 @@ export const useElevenLabsConversation = ({
         setIsConnected(false);
         setIsSpeaking(false);
         onStatusChange?.('Ended');
+      }
+
+      // Clean up audio element
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.srcObject = null;
+        audioElementRef.current = null;
       }
     } catch (error) {
       console.error('Failed to end conversation:', error);
