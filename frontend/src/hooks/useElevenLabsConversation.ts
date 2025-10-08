@@ -58,6 +58,7 @@ export const useElevenLabsConversation = ({
 
       const conversation = await Conversation.startSession({
         agentId,
+        connectionType: "webrtc",
         // Pass dynamic variables for personalization
         dynamicVariables: Object.keys(dynamicVars).length > 0 ? dynamicVars : undefined,
         onConnect: (data) => {
