@@ -116,6 +116,56 @@ export const useElevenLabsConversation = ({
       await conversation.setVolume({ volume: 1.0 });
       console.log('✅ Volume set successfully');
 
+      // Try to set the audio output device to the default device
+      try {
+        // Get all audio output devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+
+        console.log('🔊 Available audio output devices:', audioOutputs.map(d => ({
+          deviceId: d.deviceId,
+          label: d.label,
+          groupId: d.groupId
+        })));
+
+        // Find the default audio output (usually the first one or one marked as default)
+        const defaultOutput = audioOutputs.find(d => d.deviceId === 'default') || audioOutputs[0];
+
+        if (defaultOutput) {
+          console.log('🎯 Setting audio output to:', defaultOutput.label || defaultOutput.deviceId);
+
+          // The ElevenLabs SDK should have an audio element we can access
+          // Try to set the sink ID on any audio elements in the conversation
+          const conv = conversation as any;
+
+          // Method 1: Try to access audio element from the conversation object
+          if (conv.audioElement) {
+            if (typeof conv.audioElement.setSinkId === 'function') {
+              await conv.audioElement.setSinkId(defaultOutput.deviceId);
+              console.log('✅ Audio output device set via conversation.audioElement');
+            }
+          }
+
+          // Method 2: Find all audio elements on the page and set their output
+          const audioElements = document.querySelectorAll('audio');
+          console.log(`Found ${audioElements.length} audio elements on page`);
+
+          for (const audioEl of audioElements) {
+            if (typeof audioEl.setSinkId === 'function') {
+              try {
+                await audioEl.setSinkId(defaultOutput.deviceId);
+                console.log('✅ Audio output device set on audio element');
+              } catch (sinkError) {
+                console.warn('Could not set sink ID on audio element:', sinkError);
+              }
+            }
+          }
+        }
+      } catch (deviceError) {
+        console.warn('Could not set audio output device:', deviceError);
+        // Non-critical error, conversation can still work
+      }
+
     } catch (error) {
       console.error('Failed to start conversation:', error);
       const err = error instanceof Error ? error : new Error(String(error));
