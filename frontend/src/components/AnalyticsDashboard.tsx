@@ -42,8 +42,8 @@ interface AnalyticsDashboardProps {
   onBack: () => void;
 }
 
-const ANALYTICS_API = import.meta.env.VITE_ANALYTICS_API_URL || 'http://localhost:3002/api/analytics';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const ANALYTICS_API = `${API_BASE_URL}/analytics`;
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, project, onBack }) => {
   const [insights, setInsights] = useState<Insights | null>(null);
