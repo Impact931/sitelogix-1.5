@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "aws-api": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      }
+    },
+    "aws-lambda": {
+      "command": "uvx",
+      "args": ["awslabs.lambda-mcp-server@latest"],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      }
+    },
+    "aws-knowledge": {
+      "command": "uvx",
+      "args": ["awslabs.aws-knowledge-mcp-server@latest"],
+      "env": {
+        "AWS_REGION": "us-east-1"
+      }
+    }
+  }
+}
