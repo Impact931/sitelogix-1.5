@@ -23,6 +23,8 @@ interface VoiceReportingScreenProps {
   onViewAnalytics?: () => void;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+
 const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   manager,
   project,
@@ -257,7 +259,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     try {
       // Open HTML report served directly by API
       const reportDate = new Date().toISOString().split('T')[0];
-      const url = `http://localhost:3001/api/reports/${lastReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
+      const url = `${API_BASE_URL}/reports/${lastReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
       window.open(url, '_blank');
     } catch (err) {
       console.error('Error opening report:', err);

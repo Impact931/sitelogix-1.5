@@ -42,7 +42,8 @@ interface AnalyticsDashboardProps {
   onBack: () => void;
 }
 
-const ANALYTICS_API = 'http://localhost:3002/api/analytics';
+const ANALYTICS_API = import.meta.env.VITE_ANALYTICS_API_URL || 'http://localhost:3002/api/analytics';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, project, onBack }) => {
   const [insights, setInsights] = useState<Insights | null>(null);
@@ -782,7 +783,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                                   className="flex items-center space-x-1 text-gold hover:text-gold-light transition"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    const url = `http://localhost:3001/api/reports/${constraint.reportId}/html?projectId=${constraint.projectId}&reportDate=${constraint.reportDate}`;
+                                    const url = `${API_BASE_URL}/reports/${constraint.reportId}/html?projectId=${constraint.projectId}&reportDate=${constraint.reportDate}`;
                                     window.open(url, '_blank');
                                   }}
                                 >

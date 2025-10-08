@@ -4,7 +4,7 @@
  */
 
 const { google } = require('googleapis');
-const { DynamoDBClient, ScanCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall } = require('@aws-sdk/util-dynamodb');
 
 // Initialize DynamoDB
@@ -130,6 +130,88 @@ function getProjectName(projectId) {
 }
 
 /**
+ * Fetch reports from DynamoDB
+ */
+async function getReports(queryParams = {}) {
+  try {
+    console.log('📊 Fetching reports from DynamoDB...', queryParams);
+
+    let command;
+
+    // Query by project_id if provided
+    if (queryParams.projectId) {
+      command = new QueryCommand({
+        TableName: 'sitelogix-reports',
+        KeyConditionExpression: 'project_id = :projectId',
+        ExpressionAttributeValues: {
+          ':projectId': { S: queryParams.projectId }
+        }
+      });
+    }
+    // Scan with filter for manager_id if provided
+    else if (queryParams.managerId) {
+      command = new ScanCommand({
+        TableName: 'sitelogix-reports',
+        FilterExpression: 'manager_id = :managerId',
+        ExpressionAttributeValues: {
+          ':managerId': { S: queryParams.managerId }
+        }
+      });
+    }
+    // Otherwise scan all reports
+    else {
+      command = new ScanCommand({
+        TableName: 'sitelogix-reports'
+      });
+    }
+
+    const result = await dynamoClient.send(command);
+    const reports = result.Items.map(item => unmarshall(item));
+
+    console.log(`✅ Found ${reports.length} reports`);
+    return { success: true, reports };
+  } catch (error) {
+    console.error('❌ Error fetching reports:', error.message);
+    return { success: false, error: error.message, reports: [] };
+  }
+}
+
+/**
+ * Fetch a single report's HTML content
+ */
+async function getReportHtml(reportId, projectId, reportDate) {
+  try {
+    console.log(`📄 Fetching HTML for report ${reportId}...`);
+
+    const command = new GetItemCommand({
+      TableName: 'sitelogix-reports',
+      Key: {
+        project_id: { S: projectId },
+        report_date: { S: reportDate }
+      }
+    });
+
+    const result = await dynamoClient.send(command);
+
+    if (!result.Item) {
+      return { success: false, error: 'Report not found' };
+    }
+
+    const report = unmarshall(result.Item);
+
+    if (!report.report_html) {
+      return { success: false, error: 'Report HTML not found' };
+    }
+
+    console.log(`✅ Retrieved HTML for report ${reportId}`);
+    return { success: true, html: report.report_html };
+  } catch (error) {
+    console.error('❌ Error fetching report HTML:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Lambda handler - main entry point
  */
 exports.handler = async (event) => {
@@ -170,6 +252,53 @@ exports.handler = async (event) => {
 
     if (path.endsWith('/projects') && method === 'GET') {
       const result = await getProjects();
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/reports/:reportId/html
+    if (path.match(/\/reports\/[^/]+\/html$/) && method === 'GET') {
+      const reportId = path.split('/')[path.split('/').length - 2];
+      const queryParams = event.queryStringParameters || {};
+      const projectId = queryParams.projectId;
+      const reportDate = queryParams.reportDate;
+
+      if (!projectId || !reportDate) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Missing projectId or reportDate' })
+        };
+      }
+
+      const result = await getReportHtml(reportId, projectId, reportDate);
+
+      if (!result.success) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify(result)
+        };
+      }
+
+      // Return HTML content directly
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': 'text/html'
+        },
+        body: result.html
+      };
+    }
+
+    // GET /api/reports
+    if (path.endsWith('/reports') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      const result = await getReports(queryParams);
       return {
         statusCode: 200,
         headers,
