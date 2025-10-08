@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ChecklistItem,
+  type ChecklistItem,
   getChecklistItems,
   saveChecklistItems,
   resetChecklistToDefaults,
@@ -9,7 +9,6 @@ import {
 
 const ChecklistAdmin: React.FC = () => {
   const [items, setItems] = useState<ChecklistItem[]>(getChecklistItems());
-  const [editingItem, setEditingItem] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
 
   const handleSave = () => {

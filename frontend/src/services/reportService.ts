@@ -62,7 +62,6 @@ export const saveReport = async (params: SaveReportParams) => {
     managerName,
     projectId,
     projectName,
-    projectLocation,
     reportDate,
     conversationId,
   } = params;

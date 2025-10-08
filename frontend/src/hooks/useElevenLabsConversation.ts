@@ -29,7 +29,7 @@ export const useElevenLabsConversation = ({
   const startConversation = useCallback(async () => {
     try {
       // Request microphone permission
-      const stream = await navigator.mediaDevices.getUserMedia({
+      await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -98,13 +98,14 @@ export const useElevenLabsConversation = ({
       conversationRef.current = conversation;
 
       // Set audio output
-      await conversation.setVolume(1.0);
+      await conversation.setVolume({ volume: 1.0 });
 
     } catch (error) {
       console.error('Failed to start conversation:', error);
-      onError?.(error as Error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      onError?.(err);
     }
-  }, [agentId, onStatusChange, onError]);
+  }, [agentId, onStatusChange, onError, onMessage, customContext]);
 
   const endConversation = useCallback(async () => {
     try {

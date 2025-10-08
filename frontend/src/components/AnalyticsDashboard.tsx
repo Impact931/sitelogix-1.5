@@ -53,7 +53,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const [chatResponse, setChatResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [reportModal, setReportModal] = useState<{type: string, data: any} | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
   const [vendorDetailModal, setVendorDetailModal] = useState<any>(null);
   const [editingResolution, setEditingResolution] = useState<{[key: string]: string}>({});
   const [savingResolution, setSavingResolution] = useState<string | null>(null);
@@ -127,7 +126,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
 
   const openReport = async (reportType: string) => {
     try {
-      setReportLoading(true);
       const response = await fetch(`${ANALYTICS_API}/reports/${reportType}`);
       const data = await response.json();
 
@@ -138,8 +136,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
       }
     } catch (error) {
       console.error('Error fetching report:', error);
-    } finally {
-      setReportLoading(false);
     }
   };
 

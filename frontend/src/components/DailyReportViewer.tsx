@@ -20,7 +20,6 @@ export const DailyReportViewer: React.FC<DailyReportViewerProps> = ({
   reportDate
 }) => {
   const [htmlReportUrl, setHtmlReportUrl] = useState<string | null>(reportUrl || null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
