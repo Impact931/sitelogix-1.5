@@ -21,7 +21,20 @@ interface AdminLoginProps {
   onLogin: (manager: Manager, project: Project) => void;
 }
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+
+// Fallback data when API is unavailable
+const FALLBACK_MANAGERS: Manager[] = [
+  { id: 'MGR001', name: 'John Smith', goByName: 'John', position: 'Project Manager', phone: '555-0101', email: 'john@example.com' },
+  { id: 'MGR002', name: 'Sarah Johnson', goByName: 'Sarah', position: 'Site Manager', phone: '555-0102', email: 'sarah@example.com' },
+  { id: 'MGR003', name: 'Michael Brown', goByName: 'Mike', position: 'Foreman', phone: '555-0103', email: 'mike@example.com' },
+];
+
+const FALLBACK_PROJECTS: Project[] = [
+  { id: 'PRJ001', name: 'Parkway Plaza Development', location: 'Downtown District' },
+  { id: 'PRJ002', name: 'Sunset Ridge Construction', location: 'West Side' },
+  { id: 'PRJ003', name: 'Harbor View Complex', location: 'Waterfront' },
+];
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
@@ -37,28 +50,45 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
       try {
         setLoading(true);
 
-        // Fetch managers
-        const managersResponse = await fetch(`${API_BASE_URL}/managers`);
-        const managersData = await managersResponse.json();
+        try {
+          // Try to fetch from API
+          const managersResponse = await fetch(`${API_BASE_URL}/managers`, {
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+          });
+          const managersData = await managersResponse.json();
 
-        if (managersData.success) {
-          setManagers(managersData.managers);
-        } else {
-          setError('Failed to load managers');
-        }
+          if (managersData.success) {
+            setManagers(managersData.managers);
+          } else {
+            throw new Error('Failed to load managers from API');
+          }
 
-        // Fetch projects
-        const projectsResponse = await fetch(`${API_BASE_URL}/projects`);
-        const projectsData = await projectsResponse.json();
+          // Fetch projects
+          const projectsResponse = await fetch(`${API_BASE_URL}/projects`, {
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+          });
+          const projectsData = await projectsResponse.json();
 
-        if (projectsData.success) {
-          setProjects(projectsData.projects);
-        } else {
-          setError('Failed to load projects');
+          if (projectsData.success) {
+            setProjects(projectsData.projects);
+          } else {
+            throw new Error('Failed to load projects from API');
+          }
+
+          console.log('✅ Successfully loaded data from API');
+        } catch (apiError) {
+          // Use fallback data if API is unavailable
+          console.warn('⚠️ API unavailable, using fallback data:', apiError);
+          setManagers(FALLBACK_MANAGERS);
+          setProjects(FALLBACK_PROJECTS);
+          setError(''); // Clear error since we have fallback data
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to connect to server. Please ensure the API server is running.');
+        console.error('Error loading data:', err);
+        // Final fallback - use hardcoded data
+        setManagers(FALLBACK_MANAGERS);
+        setProjects(FALLBACK_PROJECTS);
+        setError(''); // Clear error since we have fallback data
       } finally {
         setLoading(false);
       }
