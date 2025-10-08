@@ -116,54 +116,79 @@ export const useElevenLabsConversation = ({
       await conversation.setVolume({ volume: 1.0 });
       console.log('✅ Volume set successfully');
 
-      // Try to set the audio output device to the default device
+      // Set audio output to default device (for phones, computers, any device)
+      // We use "default" deviceId to always route to the system's default audio output
       try {
-        // Get all audio output devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
 
         console.log('🔊 Available audio output devices:', audioOutputs.map(d => ({
           deviceId: d.deviceId,
-          label: d.label,
-          groupId: d.groupId
+          label: d.label
         })));
 
-        // Find the default audio output (usually the first one or one marked as default)
-        const defaultOutput = audioOutputs.find(d => d.deviceId === 'default') || audioOutputs[0];
+        // ALWAYS use "default" deviceId - this routes to system default output
+        const defaultDeviceId = 'default';
+        console.log('🎯 Using audio output: "default" (system default device)');
 
-        if (defaultOutput) {
-          console.log('🎯 Setting audio output to:', defaultOutput.label || defaultOutput.deviceId);
-
-          // The ElevenLabs SDK should have an audio element we can access
-          // Try to set the sink ID on any audio elements in the conversation
-          const conv = conversation as any;
-
-          // Method 1: Try to access audio element from the conversation object
-          if (conv.audioElement) {
-            if (typeof conv.audioElement.setSinkId === 'function') {
-              await conv.audioElement.setSinkId(defaultOutput.deviceId);
-              console.log('✅ Audio output device set via conversation.audioElement');
+        // Function to set sink ID on audio elements
+        const setAudioOutputDevice = async (audioElement: HTMLAudioElement) => {
+          if (typeof audioElement.setSinkId === 'function') {
+            try {
+              await audioElement.setSinkId(defaultDeviceId);
+              console.log('✅ Audio routed to default device:', audioElement);
+              return true;
+            } catch (sinkError) {
+              console.warn('⚠️  Could not set sink ID:', sinkError);
+              return false;
             }
           }
+          return false;
+        };
 
-          // Method 2: Find all audio elements on the page and set their output
-          const audioElements = document.querySelectorAll('audio');
-          console.log(`Found ${audioElements.length} audio elements on page`);
+        // Method 1: Try to set on existing audio elements
+        let audioElements = document.querySelectorAll('audio');
+        console.log(`Found ${audioElements.length} audio elements on page initially`);
+
+        for (const audioEl of audioElements) {
+          await setAudioOutputDevice(audioEl as HTMLAudioElement);
+        }
+
+        // Method 2: Watch for new audio elements (ElevenLabs creates them dynamically)
+        // Check again after a short delay
+        setTimeout(async () => {
+          console.log('🔍 Checking for audio elements again after 500ms...');
+          audioElements = document.querySelectorAll('audio');
+          console.log(`Found ${audioElements.length} audio elements on page now`);
 
           for (const audioEl of audioElements) {
-            if (typeof audioEl.setSinkId === 'function') {
-              try {
-                await audioEl.setSinkId(defaultOutput.deviceId);
-                console.log('✅ Audio output device set on audio element');
-              } catch (sinkError) {
-                console.warn('Could not set sink ID on audio element:', sinkError);
-              }
-            }
+            await setAudioOutputDevice(audioEl as HTMLAudioElement);
           }
-        }
+        }, 500);
+
+        // Method 3: Set up a MutationObserver to catch audio elements as they're added
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (node.nodeName === 'AUDIO') {
+                console.log('🎤 New audio element detected, setting output device...');
+                setAudioOutputDevice(node as HTMLAudioElement);
+              }
+            });
+          });
+        });
+
+        // Start observing the document for audio elements
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+
+        // Store observer reference to clean up later
+        (conversationRef.current as any)._audioObserver = observer;
+
       } catch (deviceError) {
         console.warn('Could not set audio output device:', deviceError);
-        // Non-critical error, conversation can still work
       }
 
     } catch (error) {
@@ -177,6 +202,14 @@ export const useElevenLabsConversation = ({
     try {
       if (conversationRef.current) {
         console.log('🛑 Ending conversation...');
+
+        // Clean up the audio observer
+        const observer = (conversationRef.current as any)._audioObserver;
+        if (observer) {
+          observer.disconnect();
+          console.log('🔇 Audio observer disconnected');
+        }
+
         await conversationRef.current.endSession();
         conversationRef.current = null;
         setIsConnected(false);
