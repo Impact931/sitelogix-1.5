@@ -83,9 +83,11 @@ export const useElevenLabsConversation = ({
           setIsSpeaking(false);
           onStatusChange?.('Disconnected');
         },
-        onError: (error) => {
+        onError: (error: unknown) => {
           console.error('ElevenLabs error:', error);
-          const err = typeof error === 'object' && error instanceof Error ? error : new Error(String(error));
+          const err = error && typeof error === 'object' && 'message' in error
+            ? new Error((error as { message: string }).message)
+            : new Error(String(error));
           onError?.(err);
         },
         onModeChange: (mode) => {
