@@ -127,16 +127,27 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
 
   const openReport = async (reportType: string) => {
     try {
+      console.log('Opening report:', reportType);
       const response = await fetch(`${ANALYTICS_API}/reports/${reportType}`);
-      const data = await response.json();
 
-      if (data.success) {
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Report data received:', data);
+
+      if (data.success && data.report) {
         setReportModal({ type: reportType, data: data.report });
         // Clear editing state when opening a new report
         setEditingResolution({});
+      } else {
+        console.error('Invalid report data:', data);
+        setError(`Failed to load ${reportType} report`);
       }
     } catch (error) {
       console.error('Error fetching report:', error);
+      setError('Failed to load report. Please try again.');
     }
   };
 
@@ -668,46 +679,51 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
               {/* Constraints Report */}
-              {reportModal.type === 'constraints' && (
+              {reportModal.type === 'constraints' && reportModal.data && (
                 <div className="space-y-6">
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-white">{reportModal.data.summary.total}</div>
-                      <div className="text-sm text-gray-400">Total Constraints</div>
+                  {reportModal.data.summary && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="glass rounded-xl p-4">
+                        <div className="text-2xl font-bold text-white">{reportModal.data.summary.total || 0}</div>
+                        <div className="text-sm text-gray-400">Total Constraints</div>
+                      </div>
+                      <div className="glass rounded-xl p-4">
+                        <div className="text-2xl font-bold text-yellow-400">{reportModal.data.summary.open || 0}</div>
+                        <div className="text-sm text-gray-400">Open</div>
+                      </div>
+                      <div className="glass rounded-xl p-4">
+                        <div className="text-2xl font-bold text-red-400">{reportModal.data.summary.critical || 0}</div>
+                        <div className="text-sm text-gray-400">Critical</div>
+                      </div>
+                      <div className="glass rounded-xl p-4">
+                        <div className="text-2xl font-bold text-green-400">{reportModal.data.summary.resolved || 0}</div>
+                        <div className="text-sm text-gray-400">Resolved</div>
+                      </div>
                     </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-yellow-400">{reportModal.data.summary.open}</div>
-                      <div className="text-sm text-gray-400">Open</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-red-400">{reportModal.data.summary.critical}</div>
-                      <div className="text-sm text-gray-400">Critical</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-green-400">{reportModal.data.summary.resolved}</div>
-                      <div className="text-sm text-gray-400">Resolved</div>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Constraints by Type */}
-                  <div className="glass rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">By Type</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {reportModal.data.byType.map((type: any, i: number) => (
-                        <div key={i} className="bg-white/5 rounded-lg p-3">
-                          <div className="text-white font-semibold">{type.type}</div>
-                          <div className="text-sm text-gray-400">{type.count} total, {type.critical} critical</div>
-                        </div>
-                      ))}
+                  {reportModal.data.byType && reportModal.data.byType.length > 0 && (
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-white mb-4">By Type</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {reportModal.data.byType.map((type: any, i: number) => (
+                          <div key={i} className="bg-white/5 rounded-lg p-3">
+                            <div className="text-white font-semibold">{type.type || 'Unknown'}</div>
+                            <div className="text-sm text-gray-400">{type.count || 0} total, {type.critical || 0} critical</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Constraints Table */}
-                  <div className="glass rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">All Constraints - High Priority First</h3>
-                    <div className="space-y-2">
-                      {reportModal.data.constraints
+                  {reportModal.data.constraints && reportModal.data.constraints.length > 0 ? (
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-white mb-4">All Constraints - High Priority First</h3>
+                      <div className="space-y-2">
+                        {reportModal.data.constraints
                         .sort((a: any, b: any) => {
                           // Sort by severity: High > Medium > Low
                           const severityOrder: any = { 'high': 3, 'medium': 2, 'low': 1 };
@@ -847,6 +863,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                         })}
                     </div>
                   </div>
+                  ) : (
+                    <div className="glass rounded-xl p-12 text-center">
+                      <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <h3 className="text-xl font-semibold text-white mb-2">No Constraints Found</h3>
+                      <p className="text-gray-400">There are no constraints recorded in your reports yet.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
