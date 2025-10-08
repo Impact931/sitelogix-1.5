@@ -41,15 +41,17 @@ export const useElevenLabsConversation = ({
 
       // Initialize ElevenLabs conversation with dynamic variables
       // Dynamic variables inject runtime data into agent's context
+      // Build dynamic variables object, filtering out undefined values
+      const dynamicVars: Record<string, string | number | boolean> = {};
+      if (customContext?.managerName) dynamicVars.manager_name = customContext.managerName;
+      if (customContext?.managerId) dynamicVars.manager_id = customContext.managerId;
+      if (customContext?.projectName) dynamicVars.project_name = customContext.projectName;
+      if (customContext?.projectLocation) dynamicVars.project_location = customContext.projectLocation;
+
       const conversation = await Conversation.startSession({
         agentId,
         // Pass dynamic variables for personalization
-        dynamicVariables: customContext ? {
-          manager_name: customContext.managerName,
-          manager_id: customContext.managerId,
-          project_name: customContext.projectName,
-          project_location: customContext.projectLocation,
-        } : undefined,
+        dynamicVariables: Object.keys(dynamicVars).length > 0 ? dynamicVars : undefined,
         onConnect: (data) => {
           console.log('Connected to ElevenLabs agent', data);
           console.log('Full conversation object:', conversationRef.current);
@@ -82,7 +84,8 @@ export const useElevenLabsConversation = ({
         },
         onError: (error) => {
           console.error('ElevenLabs error:', error);
-          onError?.(error as Error);
+          const err = error instanceof Error ? error : new Error(String(error));
+          onError?.(err);
         },
         onModeChange: (mode) => {
           console.log('Mode changed:', mode);
