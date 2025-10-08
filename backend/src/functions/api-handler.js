@@ -6,7 +6,7 @@
 const { google } = require('googleapis');
 const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 // Initialize DynamoDB and S3
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -535,6 +535,121 @@ async function updateConstraintStatus(constraintId, status, updatedBy) {
 }
 
 /**
+ * Save report to S3 and DynamoDB
+ */
+async function saveReport(reportData) {
+  try {
+    const {
+      audioBase64,
+      transcript,
+      managerId,
+      managerName,
+      projectId,
+      projectName,
+      projectLocation,
+      reportDate,
+      conversationId,
+    } = reportData;
+
+    // Generate report ID
+    const timestamp = new Date().getTime();
+    const reportId = `rpt_${reportDate.replace(/-/g, '')}_${managerId}_${timestamp}`;
+
+    console.log('💾 Saving report:', reportId);
+
+    const BUCKET_NAME = 'sitelogix-prod';
+
+    // Helper function to build S3 paths
+    const buildS3Path = (type) => {
+      const date = new Date(reportDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `SITELOGIX/projects/${projectId}/reports/${year}/${month}/${day}/${reportId}/${type}`;
+    };
+
+    // 1. Upload audio to S3 (if available)
+    let audioPath = null;
+    if (audioBase64) {
+      audioPath = buildS3Path('audio.webm');
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+
+      const audioCommand = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: audioPath,
+        Body: audioBuffer,
+        ContentType: 'audio/webm',
+        Metadata: {
+          projectId,
+          managerId,
+          reportDate,
+          reportId,
+          conversationId,
+        },
+      });
+
+      await s3Client.send(audioCommand);
+      console.log('✅ Audio uploaded to S3:', audioPath);
+    } else {
+      console.log('ℹ️  No audio provided, skipping audio upload');
+    }
+
+    // 2. Save transcript to S3
+    const transcriptPath = buildS3Path('transcript.json');
+    const transcriptCommand = new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: transcriptPath,
+      Body: JSON.stringify(transcript, null, 2),
+      ContentType: 'application/json',
+      Metadata: {
+        projectId,
+        managerId,
+        reportDate,
+        reportId,
+        conversationId,
+      },
+    });
+
+    await s3Client.send(transcriptCommand);
+    console.log('✅ Transcript uploaded to S3:', transcriptPath);
+
+    // 3. Create DynamoDB entry
+    const dynamoCommand = new PutItemCommand({
+      TableName: 'sitelogix-reports',
+      Item: marshall({
+        PK: `PROJECT#${projectId}`,
+        SK: `REPORT#${reportDate}#${reportId}`,
+        report_id: reportId,
+        project_id: projectId,
+        project_name: projectName,
+        manager_id: managerId,
+        manager_name: managerName,
+        report_date: reportDate,
+        conversation_id: conversationId,
+        audio_s3_path: audioPath ? `s3://${BUCKET_NAME}/${audioPath}` : null,
+        transcript_s3_path: `s3://${BUCKET_NAME}/${transcriptPath}`,
+        status: 'uploaded',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+
+    await dynamoClient.send(dynamoCommand);
+    console.log('✅ Report entry created in DynamoDB');
+
+    return {
+      success: true,
+      reportId,
+      audioPath,
+      transcriptPath,
+    };
+  } catch (error) {
+    console.error('❌ Error saving report:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Lambda handler - main entry point
  */
 exports.handler = async (event) => {
@@ -544,7 +659,7 @@ exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Content-Type': 'application/json'
   };
 
@@ -616,6 +731,35 @@ exports.handler = async (event) => {
         },
         body: result.html
       };
+    }
+
+    // POST /api/reports - save a new report
+    if (path.endsWith('/reports') && method === 'POST') {
+      try {
+        const body = JSON.parse(event.body || '{}');
+        const result = await saveReport(body);
+
+        if (!result.success) {
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify(result)
+          };
+        }
+
+        return {
+          statusCode: 201,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        console.error('Error in POST /api/reports:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
     }
 
     // GET /api/reports

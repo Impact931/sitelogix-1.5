@@ -1,27 +1,5 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-
-// Initialize AWS clients
-const s3Client = new S3Client({
-  region: import.meta.env.VITE_AWS_REGION,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY,
-  },
-});
-
-const dynamoClient = new DynamoDBClient({
-  region: import.meta.env.VITE_AWS_REGION,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_AWS_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY,
-  },
-});
-
-const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
-const BUCKET_NAME = import.meta.env.VITE_S3_BUCKET || 'sitelogix-prod';
+// API configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 interface SaveReportParams {
   audioBlob: Blob | null;
@@ -35,23 +13,18 @@ interface SaveReportParams {
   conversationId: string;
 }
 
-// Generate S3 paths based on unified SITELOGIX structure
-const buildS3AudioPath = (projectId: string, reportDate: string, reportId: string): string => {
-  const date = new Date(reportDate);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `SITELOGIX/projects/${projectId}/reports/${year}/${month}/${day}/${reportId}/audio.webm`;
-};
-
-const buildS3TranscriptPath = (projectId: string, reportDate: string, reportId: string): string => {
-  const date = new Date(reportDate);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `SITELOGIX/projects/${projectId}/reports/${year}/${month}/${day}/${reportId}/transcript.json`;
+// Helper function to convert Blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      // Remove the data URL prefix (e.g., "data:audio/webm;base64,")
+      const base64 = (reader.result as string).split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 };
 
 export const saveReport = async (params: SaveReportParams) => {
@@ -62,94 +35,54 @@ export const saveReport = async (params: SaveReportParams) => {
     managerName,
     projectId,
     projectName,
+    projectLocation,
     reportDate,
     conversationId,
   } = params;
 
-  // Generate report ID
-  const timestamp = new Date().getTime();
-  const reportId = `rpt_${reportDate.replace(/-/g, '')}_${managerId}_${timestamp}`;
-
-  console.log('Saving report:', reportId);
+  console.log('💾 Saving report via API...');
 
   try {
-    // 1. Upload audio to S3 (if available)
-    let audioPath = null;
+    // Convert audio blob to base64 if available
+    let audioBase64 = null;
     if (audioBlob && audioBlob.size > 0) {
-      audioPath = buildS3AudioPath(projectId, reportDate, reportId);
-      const audioBuffer = await audioBlob.arrayBuffer();
-
-      const audioCommand = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: audioPath,
-        Body: new Uint8Array(audioBuffer),
-        ContentType: 'audio/webm',
-        Metadata: {
-          projectId,
-          managerId,
-          reportDate,
-          reportId,
-          conversationId,
-        },
-      });
-
-      await s3Client.send(audioCommand);
-      console.log('Audio uploaded to S3:', audioPath);
+      console.log('🎵 Converting audio to base64...');
+      audioBase64 = await blobToBase64(audioBlob);
+      console.log(`✅ Audio converted (${audioBase64.length} characters)`);
     } else {
-      console.log('No audio available, skipping audio upload');
+      console.log('ℹ️  No audio available');
     }
 
-    // 2. Save transcript to S3
-    const transcriptPath = buildS3TranscriptPath(projectId, reportDate, reportId);
-    const transcriptCommand = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: transcriptPath,
-      Body: JSON.stringify(transcript, null, 2),
-      ContentType: 'application/json',
-      Metadata: {
-        projectId,
+    // Send to API endpoint
+    const response = await fetch(`${API_BASE_URL}/reports`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        audioBase64,
+        transcript,
         managerId,
+        managerName,
+        projectId,
+        projectName,
+        projectLocation,
         reportDate,
-        reportId,
         conversationId,
-      },
+      }),
     });
 
-    await s3Client.send(transcriptCommand);
-    console.log('Transcript uploaded to S3:', transcriptPath);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
 
-    // 3. Create DynamoDB entry
-    const dynamoCommand = new PutCommand({
-      TableName: 'sitelogix-reports',
-      Item: {
-        PK: `PROJECT#${projectId}`,
-        SK: `REPORT#${reportDate}#${reportId}`,
-        report_id: reportId,
-        project_id: projectId,
-        project_name: projectName,
-        manager_id: managerId,
-        manager_name: managerName,
-        report_date: reportDate,
-        conversation_id: conversationId,
-        audio_s3_path: audioPath ? `s3://${BUCKET_NAME}/${audioPath}` : null,
-        transcript_s3_path: `s3://${BUCKET_NAME}/${transcriptPath}`,
-        status: 'uploaded',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    });
+    const result = await response.json();
+    console.log('✅ Report saved successfully:', result);
 
-    await docClient.send(dynamoCommand);
-    console.log('Report entry created in DynamoDB');
-
-    return {
-      success: true,
-      reportId,
-      audioPath,
-      transcriptPath,
-    };
+    return result;
   } catch (error) {
-    console.error('Error saving report:', error);
+    console.error('❌ Error saving report:', error);
     throw error;
   }
 };
