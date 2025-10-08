@@ -78,13 +78,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
 
   const handleViewReport = async (report: Report) => {
     try {
-      // If report has direct S3 URL, use that
-      if (report.report_html_url) {
-        window.open(report.report_html_url, '_blank');
-        return;
-      }
-
-      // Otherwise try to fetch through API
+      // Always use API endpoint - it will proxy from S3 if needed
       const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}`;
       window.open(url, '_blank');
     } catch (err) {

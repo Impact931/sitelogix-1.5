@@ -6,9 +6,11 @@
 const { google } = require('googleapis');
 const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 
-// Initialize DynamoDB
+// Initialize DynamoDB and S3
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 
 // Google Sheets configuration
 const SPREADSHEET_ID = '1lb8nmFjvKdWmoqSLaowEKWEzGzNUPw7CuTTZ7k1FIg4';
@@ -138,13 +140,13 @@ async function getReports(queryParams = {}) {
 
     let command;
 
-    // Query by project_id if provided
+    // Query by project_id if provided (using correct PK format)
     if (queryParams.projectId) {
       command = new QueryCommand({
         TableName: 'sitelogix-reports',
-        KeyConditionExpression: 'project_id = :projectId',
+        KeyConditionExpression: 'PK = :pk',
         ExpressionAttributeValues: {
-          ':projectId': { S: queryParams.projectId }
+          ':pk': { S: `PROJECT#${queryParams.projectId}` }
         }
       });
     }
@@ -183,11 +185,12 @@ async function getReportHtml(reportId, projectId, reportDate) {
   try {
     console.log(`📄 Fetching HTML for report ${reportId}...`);
 
+    // Use correct DynamoDB key schema
     const command = new GetItemCommand({
       TableName: 'sitelogix-reports',
       Key: {
-        project_id: { S: projectId },
-        report_date: { S: reportDate }
+        PK: { S: `PROJECT#${projectId}` },
+        SK: { S: `REPORT#${reportDate}#${reportId}` }
       }
     });
 
@@ -199,12 +202,39 @@ async function getReportHtml(reportId, projectId, reportDate) {
 
     const report = unmarshall(result.Item);
 
-    if (!report.report_html) {
-      return { success: false, error: 'Report HTML not found' };
+    // If report has S3 URL, fetch from S3
+    if (report.report_html_url) {
+      console.log(`Fetching HTML from S3: ${report.report_html_url}`);
+
+      try {
+        // Parse S3 URL to get bucket and key
+        const url = new URL(report.report_html_url);
+        const bucket = url.hostname.split('.')[0];
+        const key = url.pathname.substring(1); // Remove leading slash
+
+        const s3Command = new GetObjectCommand({
+          Bucket: bucket,
+          Key: key
+        });
+
+        const s3Result = await s3Client.send(s3Command);
+        const html = await s3Result.Body.transformToString();
+
+        console.log(`✅ Retrieved HTML from S3 for report ${reportId}`);
+        return { success: true, html };
+      } catch (s3Error) {
+        console.error('❌ Error fetching from S3:', s3Error.message);
+        // Fall through to check for inline HTML
+      }
     }
 
-    console.log(`✅ Retrieved HTML for report ${reportId}`);
-    return { success: true, html: report.report_html };
+    // Fall back to inline HTML if available
+    if (report.report_html) {
+      console.log(`✅ Retrieved inline HTML for report ${reportId}`);
+      return { success: true, html: report.report_html };
+    }
+
+    return { success: false, error: 'Report HTML not found' };
   } catch (error) {
     console.error('❌ Error fetching report HTML:', error.message);
     return { success: false, error: error.message };

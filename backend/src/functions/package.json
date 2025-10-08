@@ -5,6 +5,7 @@
   "main": "api-handler.js",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.535.0",
+    "@aws-sdk/client-s3": "^3.535.0",
     "@aws-sdk/util-dynamodb": "^3.535.0",
     "googleapis": "^134.0.0"
   }
