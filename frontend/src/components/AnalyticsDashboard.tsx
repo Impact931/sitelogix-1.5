@@ -387,7 +387,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
             {activeTab === 'overview' && insights && (
               <div className="space-y-6">
                 {/* Alerts */}
-                {insights.alerts.length > 0 && (
+                {insights.alerts && insights.alerts.length > 0 && (
                   <div className="glass-gold rounded-2xl p-6 border border-red-500/30">
                     <h2 className="text-lg font-display font-bold text-white mb-4 flex items-center">
                       <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -414,7 +414,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                             <span className={`px-2 py-1 rounded text-xs font-semibold ${
                               alert.type === 'critical' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
                             }`}>
-                              {alert.type.toUpperCase()}
+                              {(alert.type || 'warning').toUpperCase()}
                             </span>
                             <div className="flex-1">
                               <p className="text-white font-semibold text-sm flex items-center">
@@ -503,20 +503,30 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                 {/* Vendor Performance */}
                 <div className="glass rounded-xl p-6">
                   <h2 className="text-lg font-display font-bold text-white mb-4">Top Vendors by Volume</h2>
-                  <div className="space-y-3">
-                    {insights.vendors.slice(0, 5).map((vendor, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <div className="flex-1">
-                          <p className="text-white font-semibold text-sm">{vendor.name}</p>
-                          <p className="text-gray-500 text-xs">{vendor.deliveries} deliveries</p>
+                  {insights.vendors && insights.vendors.length > 0 ? (
+                    <div className="space-y-3">
+                      {insights.vendors.slice(0, 5).map((vendor, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">{vendor.name}</p>
+                            <p className="text-gray-500 text-xs">{vendor.deliveries} deliveries</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-gold font-bold">{vendor.onTimeRate}</p>
+                            <p className="text-gray-500 text-xs">on-time</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-gold font-bold">{vendor.onTimeRate}%</p>
-                          <p className="text-gray-500 text-xs">on-time</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <svg className="w-12 h-12 text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                      <p className="text-gray-400 text-sm">No vendor data available yet</p>
+                      <p className="text-gray-500 text-xs mt-1">Create reports with delivery information to see vendor analytics</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
