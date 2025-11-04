@@ -219,18 +219,19 @@ async function getReportHtml(reportId, projectId, reportDate) {
   try {
     console.log(`📄 Fetching HTML for report ${reportId}...`);
 
-    // Use correct DynamoDB key schema
+    // Use current key schema: PK: REPORT#{reportId}, SK: METADATA
     const command = new GetItemCommand({
       TableName: 'sitelogix-reports',
       Key: {
-        PK: { S: `PROJECT#${projectId}` },
-        SK: { S: `REPORT#${reportDate}#${reportId}` }
+        PK: { S: `REPORT#${reportId}` },
+        SK: { S: 'METADATA' }
       }
     });
 
     const result = await dynamoClient.send(command);
 
     if (!result.Item) {
+      console.warn(`⚠️ Report ${reportId} not found with key structure`);
       return { success: false, error: 'Report not found' };
     }
 
@@ -268,11 +269,147 @@ async function getReportHtml(reportId, projectId, reportDate) {
       return { success: true, html: report.report_html };
     }
 
+    // Generate HTML from extracted_data if available
+    if (report.extracted_data) {
+      console.log(`📝 Generating HTML from extracted data for report ${reportId}`);
+
+      let extractedData;
+      try {
+        extractedData = typeof report.extracted_data === 'string'
+          ? JSON.parse(report.extracted_data)
+          : report.extracted_data;
+      } catch (parseError) {
+        console.error('Failed to parse extracted_data:', parseError);
+        return { success: false, error: 'Invalid extracted data format' };
+      }
+
+      const html = generateReportHTML(report, extractedData);
+      return { success: true, html };
+    }
+
     return { success: false, error: 'Report HTML not found' };
   } catch (error) {
     console.error('❌ Error fetching report HTML:', error.message);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Generate HTML report from extracted data
+ */
+function generateReportHTML(report, extractedData) {
+  const date = new Date(report.report_date).toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Report - ${date}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; padding: 30px; border-radius: 12px; margin-bottom: 30px; }
+    .header h1 { margin: 0 0 10px 0; font-size: 2.5em; }
+    .header p { margin: 5px 0; opacity: 0.9; }
+    .section { background: rgba(255,255,255,0.05); padding: 25px; margin-bottom: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+    .section h2 { color: #d4af37; margin-top: 0; font-size: 1.5em; border-bottom: 2px solid #d4af37; padding-bottom: 10px; }
+    .section ul { margin: 10px 0; padding-left: 20px; }
+    .section li { margin: 8px 0; color: #cbd5e1; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 0.85em; font-weight: 600; margin-right: 8px; }
+    .badge-success { background: rgba(34,197,94,0.2); color: #86efac; }
+    .badge-warning { background: rgba(251,191,36,0.2); color: #fde047; }
+    .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    .badge-info { background: rgba(59,130,246,0.2); color: #93c5fd; }
+    .confidence { text-align: right; font-size: 0.9em; color: #94a3b8; margin-top: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 15px 0; }
+    .stat-card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 8px; border: 1px solid rgba(212,175,55,0.2); }
+    .stat-card h3 { margin: 0 0 5px 0; font-size: 0.9em; color: #94a3b8; }
+    .stat-card p { margin: 0; font-size: 1.8em; font-weight: bold; color: #d4af37; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 Daily Construction Report</h1>
+    <p><strong>Date:</strong> ${date}</p>
+    <p><strong>Project:</strong> ${report.project_name || 'Unknown'}</p>
+    <p><strong>Reporter:</strong> ${report.reporter_name || 'Unknown'}</p>
+  </div>
+
+  ${extractedData.work_completed && extractedData.work_completed.length > 0 ? `
+  <div class="section">
+    <h2>✅ Work Completed</h2>
+    <span class="badge badge-success">${extractedData.work_completed.length} Tasks</span>
+    <ul>
+      ${extractedData.work_completed.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+
+  ${extractedData.work_in_progress && extractedData.work_in_progress.length > 0 ? `
+  <div class="section">
+    <h2>🔨 Work In Progress</h2>
+    <span class="badge badge-info">${extractedData.work_in_progress.length} Items</span>
+    <ul>
+      ${extractedData.work_in_progress.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+
+  ${extractedData.issues && extractedData.issues.length > 0 ? `
+  <div class="section">
+    <h2>⚠️ Issues & Constraints</h2>
+    <span class="badge badge-danger">${extractedData.issues.length} Issues</span>
+    <ul>
+      ${extractedData.issues.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+
+  ${extractedData.vendors && extractedData.vendors.length > 0 ? `
+  <div class="section">
+    <h2>📦 Vendor Deliveries</h2>
+    <span class="badge badge-info">${extractedData.vendors.length} Deliveries</span>
+    <ul>
+      ${extractedData.vendors.map(v => `<li><strong>${v.company || 'Unknown'}:</strong> ${v.delivery_type || 'Delivery'} at ${v.time || 'TBD'}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+
+  ${extractedData.additional_personnel && extractedData.additional_personnel.length > 0 ? `
+  <div class="section">
+    <h2>👷 Personnel On Site</h2>
+    <div class="grid">
+      ${extractedData.additional_personnel.map(p => `
+        <div class="stat-card">
+          <h3>${p.name || p.canonical_name || 'Unknown'}</h3>
+          <p>${p.hours || 0} hrs</p>
+          ${p.role ? `<p style="font-size: 0.9em; color: #94a3b8; margin-top: 5px;">${p.role}</p>` : ''}
+        </div>
+      `).join('')}
+    </div>
+    <p style="margin-top: 15px; color: #94a3b8;">
+      <strong>Total Hours:</strong> ${report.total_hours || extractedData.additional_personnel.reduce((sum, p) => sum + (p.hours || 0), 0)} hours
+    </p>
+  </div>
+  ` : ''}
+
+  ${extractedData.ambiguities && extractedData.ambiguities.length > 0 ? `
+  <div class="section">
+    <h2>ℹ️ Notes & Ambiguities</h2>
+    <span class="badge badge-warning">${extractedData.ambiguities.length} Items</span>
+    <ul>
+      ${extractedData.ambiguities.map(item => `<li>${item}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+
+  <div class="confidence">
+    <p>🤖 Extracted by Roxy AI | Confidence: ${((report.extraction_confidence || 0.9) * 100).toFixed(0)}% | ${new Date(report.created_at).toLocaleString()}</p>
+  </div>
+</body>
+</html>`;
 }
 
 /**
