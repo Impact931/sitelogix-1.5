@@ -295,7 +295,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
             <p className="text-gray-400">
               {filter === 'all' && 'No daily reports have been created yet.'}
               {filter === 'project' && `No reports found for ${project.name}.`}
-              {filter === 'manager' && 'You haven\'t created any reports yet.'}
+              {filter === 'myreports' && 'You haven\'t created any reports yet.'}
             </p>
           </div>
         ) : (
