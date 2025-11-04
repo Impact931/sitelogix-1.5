@@ -133,27 +133,13 @@ fi
 
 echo ""
 
-# Step 4: Get environment variables from .env
-echo "🔧 Configuring environment variables..."
-
-if [ -f ".env" ]; then
-    GOOGLE_CLIENT_ID=$(grep GOOGLE_CLIENT_ID .env | cut -d '=' -f2)
-    GOOGLE_CLIENT_SECRET=$(grep GOOGLE_CLIENT_SECRET .env | cut -d '=' -f2)
-    GOOGLE_REFRESH_TOKEN=$(grep -i "refresh.token" .env | cut -d '=' -f2)
-
-    # Update environment variables (AWS_REGION is automatically set by Lambda)
-    aws lambda update-function-configuration \
-        --function-name $FUNCTION_NAME \
-        --environment Variables="{GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET,GOOGLE_REFRESH_TOKEN=$GOOGLE_REFRESH_TOKEN}" \
-        --region $REGION \
-        > /dev/null
-
-    echo "✅ Environment variables configured"
-else
-    echo "⚠️  .env file not found - environment variables not set"
-    echo "   You'll need to configure them manually in the Lambda console"
-fi
-
+# Step 4: Environment variables now in AWS Secrets Manager
+echo "🔧 Environment configuration..."
+echo "✅ Using AWS Secrets Manager for sensitive credentials"
+echo "   Secrets configured:"
+echo "   - sitelogix/google-oauth"
+echo "   - sitelogix/google-sheets"
+echo "   - sitelogix/elevenlabs"
 echo ""
 
 # Step 5: Create or update API Gateway (HTTP API)
@@ -170,7 +156,7 @@ if [ -z "$API_ID" ]; then
     API_ID=$(aws apigatewayv2 create-api \
         --name $API_NAME \
         --protocol-type HTTP \
-        --cors-configuration AllowOrigins='*',AllowMethods='GET,OPTIONS',AllowHeaders='*' \
+        --cors-configuration AllowOrigins='https://main.d2mp0300tkuah.amplifyapp.com',AllowMethods='GET,POST,OPTIONS',AllowHeaders='Content-Type,X-Amz-Date,Authorization,X-Api-Key' \
         --region $REGION \
         --query ApiId \
         --output text)
@@ -193,8 +179,8 @@ INTEGRATION_ID=$(aws apigatewayv2 create-integration \
 
 echo "✅ Integration configured: $INTEGRATION_ID"
 
-# Create routes
-for ROUTE in "/api/managers" "/api/projects" "/api/health"; do
+# Create GET routes
+for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/elevenlabs/agent-config"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='GET $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
@@ -207,6 +193,23 @@ for ROUTE in "/api/managers" "/api/projects" "/api/health"; do
         echo "✅ Route created: GET $ROUTE"
     else
         echo "✅ Route already exists: GET $ROUTE"
+    fi
+done
+
+# Create POST routes
+for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{constraintId}/resolution" "/api/analytics/constraints/{constraintId}/status" "/api/elevenlabs/conversation"; do
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='POST $ROUTE'].RouteId" --output text)
+
+    if [ -z "$ROUTE_ID" ]; then
+        aws apigatewayv2 create-route \
+            --api-id $API_ID \
+            --route-key "POST $ROUTE" \
+            --target "integrations/$INTEGRATION_ID" \
+            --region $REGION \
+            > /dev/null
+        echo "✅ Route created: POST $ROUTE"
+    else
+        echo "✅ Route already exists: POST $ROUTE"
     fi
 done
 

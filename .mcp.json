@@ -13,13 +13,6 @@
       "env": {
         "AWS_REGION": "us-east-1"
       }
-    },
-    "aws-knowledge": {
-      "command": "uvx",
-      "args": ["awslabs.aws-knowledge-mcp-server@latest"],
-      "env": {
-        "AWS_REGION": "us-east-1"
-      }
     }
   }
 }

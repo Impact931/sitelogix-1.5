@@ -45,7 +45,25 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   const [checklistItems, setChecklistItems] = useState(() => getChecklistItems());
   const [checklistKeywords, setChecklistKeywords] = useState(() => getChecklistKeywords(checklistItems));
 
-  const agentId = import.meta.env.VITE_ELEVEN_LABS_AGENT_ID || '';
+  const [agentId, setAgentId] = useState<string>('');
+
+  // Fetch ElevenLabs agent ID from backend (secure - API key not exposed)
+  useEffect(() => {
+    const fetchAgentConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/elevenlabs/agent-config`);
+        const data = await response.json();
+        if (data.success && data.agentId) {
+          setAgentId(data.agentId);
+        }
+      } catch (error) {
+        console.error('Failed to fetch ElevenLabs config:', error);
+        // Fallback to env var for development
+        setAgentId(import.meta.env.VITE_ELEVEN_LABS_AGENT_ID || '');
+      }
+    };
+    fetchAgentConfig();
+  }, []);
 
   // Reload checklist if it changes (e.g., admin updates it)
   useEffect(() => {

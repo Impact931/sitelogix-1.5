@@ -7,26 +7,55 @@ const { google } = require('googleapis');
 const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
-// Initialize DynamoDB and S3
+// Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+const secretsClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-// Google Sheets configuration
-const SPREADSHEET_ID = '1lb8nmFjvKdWmoqSLaowEKWEzGzNUPw7CuTTZ7k1FIg4';
+// Cache for secrets to avoid repeated API calls
+const secretsCache = {};
+
+/**
+ * Get secret from AWS Secrets Manager with caching
+ */
+async function getSecret(secretName) {
+  if (secretsCache[secretName]) {
+    return secretsCache[secretName];
+  }
+
+  try {
+    const command = new GetSecretValueCommand({ SecretId: secretName });
+    const response = await secretsClient.send(command);
+    const secret = JSON.parse(response.SecretString);
+    secretsCache[secretName] = secret;
+    return secret;
+  } catch (error) {
+    console.error(`Error retrieving secret ${secretName}:`, error);
+    throw error;
+  }
+}
 
 /**
  * Initialize Google Sheets API client
  */
 async function getGoogleSheetsClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+  // Get credentials from Secrets Manager
+  const googleOAuth = await getSecret('sitelogix/google-oauth');
+  const sheetsConfig = await getSecret('sitelogix/google-sheets');
 
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, 'http://localhost:3000');
-  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  const oauth2Client = new google.auth.OAuth2(
+    googleOAuth.client_id,
+    googleOAuth.client_secret,
+    'http://localhost:3000'
+  );
+  oauth2Client.setCredentials({ refresh_token: googleOAuth.refresh_token });
 
-  return google.sheets({ version: 'v4', auth: oauth2Client });
+  return {
+    client: google.sheets({ version: 'v4', auth: oauth2Client }),
+    spreadsheetId: sheetsConfig.spreadsheet_id
+  };
 }
 
 /**
@@ -35,10 +64,10 @@ async function getGoogleSheetsClient() {
 async function getManagers() {
   try {
     console.log('📋 Fetching managers from Employee Roster...');
-    const sheets = await getGoogleSheetsClient();
+    const { client: sheets, spreadsheetId } = await getGoogleSheetsClient();
 
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId,
       range: 'Employee Roster!A2:J100', // Skip header row
     });
 
@@ -655,9 +684,9 @@ async function saveReport(reportData) {
 exports.handler = async (event) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
 
-  // CORS headers
+  // CORS headers - restrict to Amplify domain
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': 'https://main.d2mp0300tkuah.amplifyapp.com',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Content-Type': 'application/json'
@@ -827,6 +856,61 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify(result)
       };
+    }
+
+    // POST /api/elevenlabs/conversation - Proxy for ElevenLabs conversation API
+    if (path.endsWith('/elevenlabs/conversation') && method === 'POST') {
+      try {
+        const elevenLabsSecret = await getSecret('sitelogix/elevenlabs');
+        const body = JSON.parse(event.body || '{}');
+
+        // Forward the request to ElevenLabs with our API key
+        const elevenLabsResponse = await fetch('https://api.elevenlabs.io/v1/convai/conversation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': elevenLabsSecret.api_key
+          },
+          body: JSON.stringify(body)
+        });
+
+        const data = await elevenLabsResponse.json();
+
+        return {
+          statusCode: elevenLabsResponse.status,
+          headers,
+          body: JSON.stringify(data)
+        };
+      } catch (error) {
+        console.error('Error proxying ElevenLabs request:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // GET /api/elevenlabs/agent-config - Get ElevenLabs agent ID
+    if (path.endsWith('/elevenlabs/agent-config') && method === 'GET') {
+      try {
+        const elevenLabsSecret = await getSecret('sitelogix/elevenlabs');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            agentId: elevenLabsSecret.agent_id
+          })
+        };
+      } catch (error) {
+        console.error('Error fetching ElevenLabs config:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
     }
 
     if (path.endsWith('/health') && method === 'GET') {

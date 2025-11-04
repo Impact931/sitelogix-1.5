@@ -3,25 +3,20 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
-import { buildAudioPath, buildTranscriptPath, buildS3Url } from '../utils/s3-paths';
+import { buildAudioPath, buildS3Url } from '../utils/s3-paths';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' }));
 
-const BUCKET_NAME = process.env.S3_BUCKET || 'sitelogix-prod';
+const AUDIO_BUCKET = process.env.AUDIO_BUCKET || 'sitelogix-audio-files-prod';
 const REPORTS_TABLE = process.env.REPORTS_TABLE || 'sitelogix-reports';
 
 interface UploadRequest {
   projectId: string;
-  projectName: string;
-  projectLocation: string;
   managerId: string;
-  managerName: string;
-  reportDate: string;
-  conversationId: string;
-  audioData?: string; // base64 encoded, optional
-  audioFormat?: string;
-  transcript: any; // Full ElevenLabs transcript object
+  date: string;
+  audioData: string; // base64 encoded
+  audioFormat: string;
 }
 
 export const handler: APIGatewayProxyHandler = async (event) => {
@@ -30,21 +25,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     // Parse request body
     const body: UploadRequest = JSON.parse(event.body || '{}');
-    const {
-      projectId,
-      projectName,
-      projectLocation,
-      managerId,
-      managerName,
-      reportDate,
-      conversationId,
-      audioData,
-      audioFormat,
-      transcript
-    } = body;
+    const { projectId, managerId, date, audioData, audioFormat } = body;
 
     // Validate required fields
-    if (!projectId || !managerId || !reportDate || !conversationId || !transcript) {
+    if (!projectId || !managerId || !date || !audioData) {
       return {
         statusCode: 400,
         headers: {
@@ -53,78 +37,51 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         },
         body: JSON.stringify({
           error: 'ValidationError',
-          message: 'Missing required fields: projectId, managerId, reportDate, conversationId, transcript'
+          message: 'Missing required fields: projectId, managerId, date, audioData'
         })
       };
     }
 
     // Generate report ID
-    const reportId = `rpt_${reportDate.replace(/-/g, '')}_${managerId}_${Date.now()}`;
+    const reportId = `rpt_${date.replace(/-/g, '')}_${managerId}_${uuidv4().slice(0, 8)}`;
     const timestamp = new Date().toISOString();
 
-    // Upload transcript to S3
-    const transcriptKey = buildTranscriptPath(projectId, reportDate, reportId);
-    const transcriptCommand = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: transcriptKey,
-      Body: JSON.stringify(transcript, null, 2),
-      ContentType: 'application/json',
+    // Decode base64 audio data
+    const audioBuffer = Buffer.from(audioData, 'base64');
+
+    // Build S3 path using utility (ensures SiteLogix root folder structure)
+    const s3Key = buildAudioPath(projectId, date, reportId, audioFormat || 'webm');
+
+    const s3Command = new PutObjectCommand({
+      Bucket: AUDIO_BUCKET,
+      Key: s3Key,
+      Body: audioBuffer,
+      ContentType: `audio/${audioFormat || 'webm'}`,
       Metadata: {
         projectId,
         managerId,
-        reportDate,
+        reportDate: date,
         reportId,
-        conversationId,
         sitelogixVersion: '1.5'
       }
     });
 
-    await s3Client.send(transcriptCommand);
-    const transcriptFileUrl = buildS3Url(BUCKET_NAME, transcriptKey);
+    await s3Client.send(s3Command);
 
-    // Upload audio to S3 if provided
-    let audioFileUrl = null;
-    let audioSizeBytes = 0;
-    if (audioData) {
-      const audioBuffer = Buffer.from(audioData, 'base64');
-      audioSizeBytes = audioBuffer.length;
-
-      const audioKey = buildAudioPath(projectId, reportDate, reportId, audioFormat || 'webm');
-      const audioCommand = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: audioKey,
-        Body: audioBuffer,
-        ContentType: `audio/${audioFormat || 'webm'}`,
-        Metadata: {
-          projectId,
-          managerId,
-          reportDate,
-          reportId,
-          conversationId,
-          sitelogixVersion: '1.5'
-        }
-      });
-
-      await s3Client.send(audioCommand);
-      audioFileUrl = buildS3Url(BUCKET_NAME, audioKey);
-    }
+    const audioFileUrl = buildS3Url(AUDIO_BUCKET, s3Key);
 
     // Create initial report record in DynamoDB
     const reportItem = {
-      PK: `PROJECT#${projectId}`,
-      SK: `REPORT#${reportDate}#${reportId}`,
-      report_id: reportId,
+      PK: `REPORT#${projectId}#${date}`,
+      SK: `MANAGER#${managerId}#${timestamp}`,
+      reportId,
       project_id: projectId,
-      project_name: projectName,
       manager_id: managerId,
-      manager_name: managerName,
-      report_date: reportDate,
-      conversation_id: conversationId,
+      report_date: date,
       status: 'uploaded',
-      transcript_s3_path: transcriptFileUrl,
-      audio_s3_path: audioFileUrl,
+      audio_file_url: audioFileUrl,
       audio_format: audioFormat || 'webm',
-      audio_size_bytes: audioSizeBytes,
+      audio_size_bytes: audioBuffer.length,
       created_at: timestamp,
       updated_at: timestamp
     };
@@ -145,12 +102,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       },
       body: JSON.stringify({
         reportId,
-        conversationId,
-        transcriptFileUrl,
         audioFileUrl,
         uploadedAt: timestamp,
         status: 'uploaded',
-        nextStep: 'AI processing'
+        nextStep: 'transcription'
       })
     };
 
