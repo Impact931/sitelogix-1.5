@@ -51,26 +51,41 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
         setLoading(true);
 
         try {
-          // Try to fetch from API
-          const managersResponse = await fetch(`${API_BASE_URL}/managers`, {
+          // Try to fetch personnel from DynamoDB
+          const managersResponse = await fetch(`${API_BASE_URL}/personnel`, {
             signal: AbortSignal.timeout(5000) // 5 second timeout
           });
           const managersData = await managersResponse.json();
 
-          if (managersData.success) {
-            setManagers(managersData.managers);
+          if (managersData.success && managersData.personnel) {
+            // Map personnel to manager format
+            const mappedManagers = managersData.personnel.map((p: any) => ({
+              id: p.personnel_id,
+              name: p.full_name,
+              position: p.role || 'Foreman',
+              phone: p.phone || '',
+              email: p.email || ''
+            }));
+            setManagers(mappedManagers);
           } else {
-            throw new Error('Failed to load managers from API');
+            throw new Error('Failed to load personnel from API');
           }
 
-          // Fetch projects
-          const projectsResponse = await fetch(`${API_BASE_URL}/projects`, {
+          // Fetch projects from master data
+          const projectsResponse = await fetch(`${API_BASE_URL}/extract/master-data`, {
             signal: AbortSignal.timeout(5000) // 5 second timeout
           });
           const projectsData = await projectsResponse.json();
 
-          if (projectsData.success) {
-            setProjects(projectsData.projects);
+          if (projectsData.success && projectsData.projects) {
+            // Map master projects to project format
+            const mappedProjects = Object.entries(projectsData.projects).map(([id, proj]: [string, any]) => ({
+              id,
+              name: proj.canonical_name,
+              location: proj.location || 'TBD',
+              managerId: proj.primary_manager
+            }));
+            setProjects(mappedProjects);
           } else {
             throw new Error('Failed to load projects from API');
           }

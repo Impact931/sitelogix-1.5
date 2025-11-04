@@ -106,7 +106,7 @@ fi
 # Create deployment package
 echo "Creating zip file..."
 rm -f $PACKAGE_FILE
-zip -r $PACKAGE_FILE api-handler.js node_modules/ > /dev/null 2>&1
+zip -r $PACKAGE_FILE api-handler.js entityNormalizationService.js node_modules/ > /dev/null 2>&1
 
 echo "✅ Deployment package created: $(du -h $PACKAGE_FILE | cut -f1)"
 echo ""
@@ -143,9 +143,31 @@ fi
 
 echo ""
 
-# Step 4: Environment variables now in AWS Secrets Manager
-echo "🔧 Environment configuration..."
-echo "✅ Using AWS Secrets Manager for sensitive credentials"
+# Step 4: Push environment variables from .env to Lambda
+echo "🔧 Configuring environment variables..."
+
+if [ -f ".env" ]; then
+    echo "📄 Loading environment variables from .env..."
+
+    # Extract key environment variables
+    source .env
+
+    # Update Lambda environment variables (AWS_REGION is reserved, Lambda sets it automatically)
+    aws lambda update-function-configuration \
+        --function-name $FUNCTION_NAME \
+        --environment "Variables={ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,NODE_ENV=production}" \
+        --region $REGION \
+        > /dev/null
+
+    echo "✅ Environment variables updated in Lambda"
+    echo "   - ANTHROPIC_API_KEY: ✓"
+    echo "   - NODE_ENV: production"
+    echo "   - AWS_REGION: $REGION (auto-set by Lambda)"
+else
+    echo "⚠️  No .env file found - using Secrets Manager fallback"
+fi
+
+echo "✅ Using AWS Secrets Manager for Google/ElevenLabs credentials"
 echo "   Secrets configured:"
 echo "   - sitelogix/google-oauth"
 echo "   - sitelogix/google-sheets"
@@ -256,6 +278,42 @@ for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}"; do
         echo "✅ Route already exists: DELETE $ROUTE"
     fi
 done
+
+echo ""
+echo "🤖 Creating Roxy AI extraction routes..."
+
+# Create extraction POST routes
+for ROUTE in "/api/extract/batch" "/api/extract/personnel/seed"; do
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='POST $ROUTE'].RouteId" --output text)
+
+    if [ -z "$ROUTE_ID" ]; then
+        aws apigatewayv2 create-route \
+            --api-id $API_ID \
+            --route-key "POST $ROUTE" \
+            --target "integrations/$INTEGRATION_ID" \
+            --region $REGION \
+            > /dev/null
+        echo "✅ Route created: POST $ROUTE"
+    else
+        echo "✅ Route already exists: POST $ROUTE"
+    fi
+done
+
+# Create extraction GET routes
+ROUTE="/api/extract/master-data"
+ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='GET $ROUTE'].RouteId" --output text)
+
+if [ -z "$ROUTE_ID" ]; then
+    aws apigatewayv2 create-route \
+        --api-id $API_ID \
+        --route-key "GET $ROUTE" \
+        --target "integrations/$INTEGRATION_ID" \
+        --region $REGION \
+        > /dev/null
+    echo "✅ Route created: GET $ROUTE"
+else
+    echo "✅ Route already exists: GET $ROUTE"
+fi
 
 # Create default stage
 STAGE_NAME='$default'

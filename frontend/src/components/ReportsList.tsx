@@ -11,6 +11,15 @@ interface Project {
   location: string;
 }
 
+interface ExtractedData {
+  work_completed?: string[];
+  work_in_progress?: string[];
+  issues?: string[];
+  vendors?: any[];
+  additional_personnel?: any[];
+  ambiguities?: string[];
+}
+
 interface Report {
   report_id: string;
   project_id: string;
@@ -24,6 +33,9 @@ interface Report {
   report_html_url: string;
   status: string;
   created_at: string;
+  extracted_data?: string | ExtractedData; // Can be JSON string or parsed object
+  reporter_name?: string;
+  extraction_confidence?: number;
 }
 
 interface ReportsListProps {
@@ -39,6 +51,21 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'project' | 'manager'>('all');
+
+  // Helper to parse extracted_data if it's a JSON string
+  const getExtractedData = (report: Report): ExtractedData | null => {
+    if (!report.extracted_data) return null;
+
+    try {
+      if (typeof report.extracted_data === 'string') {
+        return JSON.parse(report.extracted_data);
+      }
+      return report.extracted_data;
+    } catch (err) {
+      console.error('Failed to parse extracted_data:', err);
+      return null;
+    }
+  };
 
   useEffect(() => {
     fetchReports();
@@ -218,7 +245,10 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
                 </h2>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {monthReports.map((report) => (
+                  {monthReports.map((report) => {
+                    const extracted = getExtractedData(report);
+
+                    return (
                     <div
                       key={report.report_id}
                       className="glass rounded-xl p-5 hover:bg-white/10 transition cursor-pointer group"
@@ -237,7 +267,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
                           </div>
                         </div>
                         <div className={`px-2 py-1 rounded text-xs font-semibold ${
-                          report.status === 'Generated'
+                          report.status === 'processed'
                             ? 'bg-green-500/20 text-green-400'
                             : 'bg-yellow-500/20 text-yellow-400'
                         }`}>
@@ -245,30 +275,95 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
                         </div>
                       </div>
 
-                      {/* Report Stats */}
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="bg-white/5 rounded-lg p-2">
-                          <p className="text-gray-500 text-xs">Personnel</p>
-                          <p className="text-white font-bold">{report.total_personnel || 0}</p>
-                        </div>
-                        <div className="bg-white/5 rounded-lg p-2">
-                          <p className="text-gray-500 text-xs">Reg Hrs</p>
-                          <p className="text-white font-bold">{report.total_regular_hours || 0}</p>
-                        </div>
-                        <div className="bg-white/5 rounded-lg p-2">
-                          <p className="text-gray-500 text-xs">OT Hrs</p>
-                          <p className="text-white font-bold">{report.total_overtime_hours || 0}</p>
-                        </div>
+                      {/* Reporter & Project */}
+                      <div className="text-xs text-gray-400 space-y-1 mb-3">
+                        <p className="flex items-center">
+                          <span className="mr-1">👤</span>
+                          <span className="text-white font-semibold">{report.reporter_name || report.manager_name || 'Unknown'}</span>
+                        </p>
+                        <p className="flex items-center">
+                          <span className="mr-1">📍</span>
+                          {report.project_name || report.project_id}
+                        </p>
                       </div>
 
-                      {/* Project Info */}
-                      <div className="text-xs text-gray-400 space-y-1">
-                        <p>📍 {report.project_name || report.project_id}</p>
-                        <p>👤 {report.manager_name || report.manager_id}</p>
-                      </div>
+                      {/* Extracted Data Highlights */}
+                      {extracted && (
+                        <div className="space-y-2 mb-3">
+                          {/* Work Completed */}
+                          {extracted.work_completed && extracted.work_completed.length > 0 && (
+                            <div className="bg-green-500/10 rounded-lg p-2 border border-green-500/20">
+                              <div className="flex items-center space-x-1 mb-1">
+                                <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-green-400 font-semibold text-xs">
+                                  {extracted.work_completed.length} tasks completed
+                                </span>
+                              </div>
+                              <p className="text-gray-300 text-xs line-clamp-2">
+                                {extracted.work_completed[0]}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Issues */}
+                          {extracted.issues && extracted.issues.length > 0 && (
+                            <div className="bg-red-500/10 rounded-lg p-2 border border-red-500/20">
+                              <div className="flex items-center space-x-1 mb-1">
+                                <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-red-400 font-semibold text-xs">
+                                  {extracted.issues.length} issue{extracted.issues.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <p className="text-gray-300 text-xs line-clamp-2">
+                                {extracted.issues[0]}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-3 gap-1">
+                            {extracted.work_in_progress && extracted.work_in_progress.length > 0 && (
+                              <div className="bg-blue-500/10 rounded px-2 py-1 border border-blue-500/20">
+                                <p className="text-blue-400 text-xs font-semibold">{extracted.work_in_progress.length}</p>
+                                <p className="text-gray-400 text-[10px]">in progress</p>
+                              </div>
+                            )}
+                            {extracted.vendors && extracted.vendors.length > 0 && (
+                              <div className="bg-purple-500/10 rounded px-2 py-1 border border-purple-500/20">
+                                <p className="text-purple-400 text-xs font-semibold">{extracted.vendors.length}</p>
+                                <p className="text-gray-400 text-[10px]">vendors</p>
+                              </div>
+                            )}
+                            {extracted.additional_personnel && extracted.additional_personnel.length > 0 && (
+                              <div className="bg-gold/10 rounded px-2 py-1 border border-gold/20">
+                                <p className="text-gold text-xs font-semibold">{extracted.additional_personnel.length}</p>
+                                <p className="text-gray-400 text-[10px]">personnel</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Confidence Badge */}
+                      {report.extraction_confidence && (
+                        <div className="mb-3">
+                          <div className="flex items-center space-x-1">
+                            <svg className="w-3 h-3 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                            <span className="text-xs text-gray-500">
+                              AI Confidence: {(report.extraction_confidence * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* View Button */}
-                      <div className="mt-4 flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
                         <span className="text-xs text-gray-500">
                           {new Date(report.created_at).toLocaleTimeString('en-US', {
                             hour: '2-digit',
@@ -276,14 +371,15 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
                           })}
                         </span>
                         <div className="flex items-center text-gold text-sm font-semibold group-hover:translate-x-1 transition">
-                          View Report
+                          View Full Report
                           <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}

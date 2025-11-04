@@ -6,14 +6,18 @@
 const { google } = require('googleapis');
 const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand, PutItemCommand, UpdateItemCommand, DeleteItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
-const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { LambdaClient, InvokeCommand } = require('@aws-sdk/client-lambda');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { v4: uuidv4 } = require('uuid');
+const Anthropic = require('@anthropic-ai/sdk');
+const { normalizeExtractedData, getMasterPersonnel, getMasterProjects } = require('./entityNormalizationService');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 const secretsClient = new SecretsManagerClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
 // Cache for secrets to avoid repeated API calls
 const secretsCache = {};
@@ -1036,6 +1040,362 @@ async function deleteVendor(vendorId) {
   }
 }
 
+// ============================================================================
+// DATA EXTRACTION Operations (Roxy AI)
+// ============================================================================
+
+/**
+ * Extract structured data from transcript using Claude AI
+ */
+async function extractFromTranscript(transcriptText, filename = '') {
+  try {
+    console.log('🤖 Roxy extracting data from transcript...');
+
+    // Get Anthropic API key from environment variables
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+
+    if (!anthropicApiKey) {
+      throw new Error('ANTHROPIC_API_KEY not found in environment variables');
+    }
+
+    const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+
+    const ROXY_EXTRACTION_PROMPT = `You are Roxy, an AI agent specialized in extracting structured data from construction daily reports.
+
+REQUIRED FIELDS:
+1. report_date (YYYY-MM-DD format)
+2. reporter_name (first + last if available)
+3. project_name (full name, not abbreviation)
+4. total_hours (decimal format)
+
+OPTIONAL FIELDS:
+5. additional_personnel[] - Array of {name, hours, role}
+6. work_completed[] - Array of tasks
+7. work_in_progress[] - Array of tasks
+8. issues[] - Array of problems
+9. vendors[] - Array of {company, delivery_type, time}
+10. weather_notes
+
+NORMALIZATION RULES (Projects):
+- "CC" = "Cortex Commons"
+- "MM" = "Mellow Mushroom" or "Monsanto" (if Scott is reporter)
+- "Nash Twr 2" = "Nashville Yards Tower 2"
+- "SLU Res" = "Saint Louis University Residence"
+- "Sx Partners" = "Surgery Partners"
+- "Meharry" = "Meharry Medical College"
+
+NORMALIZATION RULES (Personnel):
+- "Owen glass burner" = "Owen Glassburn"
+- "Bryan" = "Brian"
+- "Ken" = "Kenny"
+
+EXTRACTION RULES:
+1. Use context to expand abbreviations
+2. Normalize similar names
+3. If "I" or "myself" mentioned, attribute to reporter
+4. Sum hours for same person
+5. Flag ambiguous items with [UNCLEAR: ...]
+
+OUTPUT FORMAT: Return ONLY valid JSON:
+{
+  "report_date": "YYYY-MM-DD",
+  "reporter_name": "Name",
+  "project_name": "Full Project Name",
+  "total_hours": 8.0,
+  "additional_personnel": [],
+  "work_completed": [],
+  "work_in_progress": [],
+  "issues": [],
+  "vendors": [],
+  "weather_notes": "",
+  "extraction_confidence": 0.85,
+  "ambiguities": []
+}`;
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      temperature: 0,
+      messages: [
+        {
+          role: 'user',
+          content: `${ROXY_EXTRACTION_PROMPT}
+
+FILENAME: ${filename}
+
+TRANSCRIPT:
+${transcriptText}
+
+Extract structured data. Return ONLY valid JSON.`
+        }
+      ]
+    });
+
+    const responseText = message.content[0].text;
+    let extractedData;
+
+    try {
+      extractedData = JSON.parse(responseText);
+    } catch (parseError) {
+      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        extractedData = JSON.parse(jsonMatch[1]);
+      } else {
+        throw new Error('Could not extract valid JSON from response');
+      }
+    }
+
+    extractedData.extraction_timestamp = new Date().toISOString();
+    extractedData.original_filename = filename;
+
+    console.log(`   ✅ Extraction complete (confidence: ${extractedData.extraction_confidence || 'N/A'})`);
+
+    return { success: true, data: extractedData };
+
+  } catch (error) {
+    console.error('❌ Extraction error:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Parse date from training transcript filename
+ * Examples: "7.1.22 Jim Sx Partners_transcript.txt" → "2022-07-01"
+ */
+function parseDateFromFilename(filename) {
+  // Match patterns like "7.1.22", "7.15.22", "7.5.22"
+  const dateMatch = filename.match(/(\d{1,2})\.(\d{1,2})\.(\d{2})/);
+
+  if (dateMatch) {
+    const [_, month, day, year] = dateMatch;
+    const fullYear = `20${year}`; // Convert "22" to "2022"
+    const paddedMonth = month.padStart(2, '0');
+    const paddedDay = day.padStart(2, '0');
+    return `${fullYear}-${paddedMonth}-${paddedDay}`;
+  }
+
+  return null;
+}
+
+/**
+ * Store extracted report data in DynamoDB
+ */
+async function storeExtractedReport(normalizedData, s3Key, filename) {
+  const reportId = s3Key.split('/').pop().replace('.txt', '');
+  const timestamp = new Date().toISOString();
+
+  // Try to parse date from filename first, fallback to extracted date
+  const filenameDate = parseDateFromFilename(filename);
+  const reportDate = filenameDate || normalizedData.report_date || timestamp.split('T')[0];
+
+  const reportItem = {
+    PK: `REPORT#${reportId}`,
+    SK: 'METADATA',
+    report_id: reportId,
+    report_date: reportDate,
+    project_id: normalizedData.project_id || 'proj_001',
+    project_name: normalizedData.project_canonical_name || normalizedData.project_name || 'Unknown',
+    reporter_personnel_id: normalizedData.reporter_personnel_id,
+    reporter_name: normalizedData.reporter_canonical_name || normalizedData.reporter_name,
+    total_hours: normalizedData.total_hours || 0,
+    weather_notes: normalizedData.weather_notes || '',
+    transcript_s3_key: s3Key,
+    extraction_confidence: normalizedData.extraction_confidence || 0,
+    extraction_timestamp: normalizedData.extraction_timestamp,
+    normalization_timestamp: normalizedData.normalization_timestamp,
+    created_at: timestamp,
+    updated_at: timestamp,
+    status: 'processed',
+    extracted_data: JSON.stringify({
+      work_completed: normalizedData.work_completed || [],
+      work_in_progress: normalizedData.work_in_progress || [],
+      issues: normalizedData.issues || [],
+      vendors: normalizedData.vendors || [],
+      additional_personnel: normalizedData.additional_personnel || [],
+      ambiguities: normalizedData.ambiguities || []
+    })
+  };
+
+  const command = new PutItemCommand({
+    TableName: 'sitelogix-reports',
+    Item: marshall(reportItem, { removeUndefinedValues: true })
+  });
+
+  await dynamoClient.send(command);
+  return reportItem;
+}
+
+/**
+ * Seed master personnel to database
+ */
+async function seedMasterPersonnel() {
+  console.log('👥 Seeding master personnel...');
+
+  const masterPersonnel = getMasterPersonnel();
+  let created = 0;
+
+  for (const [personnelId, data] of Object.entries(masterPersonnel)) {
+    // Check if exists
+    const existsCheck = await dynamoClient.send(new GetItemCommand({
+      TableName: 'sitelogix-personnel',
+      Key: {
+        PK: { S: `PERSONNEL#${personnelId}` },
+        SK: { S: 'METADATA' }
+      }
+    }));
+
+    if (!existsCheck.Item) {
+      await createPersonnel({
+        personnel_id: personnelId,
+        full_name: data.canonical_name,
+        role: data.role,
+        status: 'active'
+      });
+      created++;
+    }
+  }
+
+  console.log(`   ✅ Seeded ${created} personnel`);
+  return { created };
+}
+
+/**
+ * Process batch of transcripts from S3
+ * For batches > 2, processes first 2 synchronously, queues rest async to avoid API timeout
+ */
+async function processBatchTranscripts(options = {}) {
+  try {
+    const { limit = 102, prefix = 'projects/proj_001/transcripts/raw/2025/11/', offset = 0, async = false } = options;
+
+    const effectiveLimit = async ? limit : Math.min(limit, 2); // Max 2 for sync to avoid timeout
+    console.log(`🚀 Starting batch extraction (limit: ${effectiveLimit}, offset: ${offset}, async: ${async})...`);
+
+    // List ALL transcripts from S3 first
+    const listCommand = new ListObjectsV2Command({
+      Bucket: 'sitelogix-prod',
+      Prefix: prefix
+    });
+
+    const listResult = await s3Client.send(listCommand);
+
+    if (!listResult.Contents || listResult.Contents.length === 0) {
+      return { success: false, error: 'No transcripts found' };
+    }
+
+    const allTranscripts = listResult.Contents.filter(item => item.Key.endsWith('.txt'));
+    console.log(`   📋 Found ${allTranscripts.length} total transcripts`);
+
+    // Apply offset and limit
+    const transcriptsToProcess = allTranscripts.slice(offset, offset + effectiveLimit);
+    console.log(`   📄 Processing ${transcriptsToProcess.length} transcripts (offset: ${offset})`);
+
+    // Seed personnel first
+    await seedMasterPersonnel();
+
+    // Process each transcript
+    const results = [];
+    for (const item of transcriptsToProcess) {
+      console.log(`\n   📄 Processing: ${item.Key}`);
+
+      try {
+        // Read transcript from S3
+        const getCommand = new GetObjectCommand({
+          Bucket: 'sitelogix-prod',
+          Key: item.Key
+        });
+        const getResult = await s3Client.send(getCommand);
+        const content = await getResult.Body.transformToString();
+
+        // Extract data with Roxy
+        const extraction = await extractFromTranscript(content, item.Key.split('/').pop());
+
+        if (!extraction.success) {
+          results.push({ filename: item.Key, success: false, error: extraction.error });
+          continue;
+        }
+
+        // Normalize entities
+        const normalized = normalizeExtractedData(extraction.data);
+
+        // Store in DynamoDB
+        const filename = item.Key.split('/').pop();
+        await storeExtractedReport(normalized, item.Key, filename);
+
+        results.push({
+          filename: item.Key,
+          success: true,
+          confidence: normalized.extraction_confidence
+        });
+
+      } catch (error) {
+        console.error(`   ❌ Error processing ${item.Key}:`, error.message);
+        results.push({ filename: item.Key, success: false, error: error.message });
+      }
+
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    const succeeded = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+
+    console.log(`\n✅ Batch complete: ${succeeded} succeeded, ${failed} failed`);
+
+    // If there are more transcripts to process and we're not in async mode, queue next batch
+    const remaining = allTranscripts.length - (offset + effectiveLimit);
+    let queuedJob = null;
+
+    if (remaining > 0 && !async && limit > effectiveLimit) {
+      const nextOffset = offset + effectiveLimit;
+      const nextLimit = Math.min(limit - effectiveLimit, remaining);
+
+      console.log(`\n🔄 Queuing ${nextLimit} more transcripts asynchronously (offset: ${nextOffset})...`);
+
+      // Invoke Lambda asynchronously for next batch
+      const invokeCommand = new InvokeCommand({
+        FunctionName: 'sitelogix-api',
+        InvocationType: 'Event', // Async invocation
+        Payload: JSON.stringify({
+          requestContext: {
+            http: {
+              method: 'POST',
+              path: '/api/extract/batch'
+            }
+          },
+          body: JSON.stringify({
+            limit: nextLimit,
+            offset: nextOffset,
+            async: true // Mark as async to allow full batch processing
+          })
+        })
+      });
+
+      await lambdaClient.send(invokeCommand);
+      queuedJob = {
+        offset: nextOffset,
+        limit: nextLimit,
+        status: 'queued'
+      };
+    }
+
+    return {
+      success: true,
+      total: results.length,
+      succeeded,
+      failed,
+      results,
+      totalTranscripts: allTranscripts.length,
+      processed: offset + results.length,
+      remaining,
+      queuedJob
+    };
+
+  } catch (error) {
+    console.error('❌ Batch processing error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 /**
  * Lambda handler - main entry point
  */
@@ -1418,6 +1778,60 @@ exports.handler = async (event) => {
         statusCode: result.success ? 200 : 400,
         headers,
         body: JSON.stringify(result)
+      };
+    }
+
+    // =====================================================================
+    // EXTRACTION Routes (Roxy AI)
+    // =====================================================================
+
+    // POST /api/extract/batch - Process batch of transcripts
+    if (path.endsWith('/extract/batch') && method === 'POST') {
+      try {
+        const body = JSON.parse(event.body || '{}');
+        const result = await processBatchTranscripts(body);
+        return {
+          statusCode: result.success ? 200 : 500,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // POST /api/extract/personnel/seed - Seed master personnel
+    if (path.endsWith('/extract/personnel/seed') && method === 'POST') {
+      try {
+        const result = await seedMasterPersonnel();
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, result })
+        };
+      } catch (error) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // GET /api/extract/master-data - Get master personnel and projects
+    if (path.endsWith('/extract/master-data') && method === 'GET') {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          personnel: getMasterPersonnel(),
+          projects: getMasterProjects()
+        })
       };
     }
 
