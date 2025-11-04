@@ -408,6 +408,18 @@ function generateReportHTML(report, extractedData) {
   <div class="confidence">
     <p>🤖 Extracted by Roxy AI | Confidence: ${((report.extraction_confidence || 0.9) * 100).toFixed(0)}% | ${new Date(report.created_at).toLocaleString()}</p>
   </div>
+
+  <!-- Navigation Buttons -->
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: space-between;">
+    <button onclick="window.close(); window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+      ← Back to Reports
+    </button>
+    <a href="${report.transcript_s3_key ? '#' : '#'}"
+       onclick="if('${report.transcript_s3_key}') { window.open('/api/reports/${report.report_id}/transcript', '_blank'); return false; }"
+       style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block;">
+      📄 View Original Transcript
+    </a>
+  </div>
 </body>
 </html>`;
 }
@@ -1615,6 +1627,75 @@ exports.handler = async (event) => {
         },
         body: result.html
       };
+    }
+
+    // GET /api/reports/:reportId/transcript - View raw transcript
+    if (path.match(/\/reports\/[^/]+\/transcript$/) && method === 'GET') {
+      const reportId = path.split('/')[path.split('/').length - 2];
+
+      try {
+        const getCommand = new GetItemCommand({
+          TableName: 'sitelogix-reports',
+          Key: {
+            PK: { S: `REPORT#${reportId}` },
+            SK: { S: 'METADATA' }
+          }
+        });
+
+        const result = await dynamoClient.send(getCommand);
+
+        if (!result.Item) {
+          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
+        }
+
+        const report = unmarshall(result.Item);
+
+        if (!report.transcript_s3_key) {
+          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Transcript not found' }) };
+        }
+
+        const s3Command = new GetObjectCommand({
+          Bucket: 'sitelogix-prod',
+          Key: report.transcript_s3_key
+        });
+
+        const s3Result = await s3Client.send(s3Command);
+        const transcriptText = await s3Result.Body.transformToString();
+
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transcript - ${report.report_date}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; line-height: 1.8; max-width: 900px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0 0 10px 0; font-size: 1.8em; }
+    .transcript { background: rgba(255,255,255,0.05); padding: 30px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); white-space: pre-wrap; font-size: 14px; line-height: 1.6; }
+    .nav { margin-top: 20px; }
+    .btn { padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📄 Original Transcript</h1>
+    <p><strong>Report Date:</strong> ${report.report_date}</p>
+    <p><strong>Project:</strong> ${report.project_name || 'Unknown'}</p>
+    <p><strong>Reporter:</strong> ${report.reporter_name || 'Unknown'}</p>
+  </div>
+  <div class="transcript">${transcriptText}</div>
+  <div class="nav">
+    <button onclick="window.close(); window.history.back();" class="btn">← Back to Report</button>
+  </div>
+</body>
+</html>`;
+
+        return { statusCode: 200, headers: { ...headers, 'Content-Type': 'text/html' }, body: html };
+      } catch (error) {
+        console.error('Error fetching transcript:', error);
+        return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+      }
     }
 
     // POST /api/reports - save a new report
