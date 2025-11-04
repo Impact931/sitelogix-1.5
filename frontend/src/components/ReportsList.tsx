@@ -50,7 +50,9 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'project' | 'manager'>('all');
+  const [filter, setFilter] = useState<'all' | 'project' | 'myreports'>('myreports');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
 
   // Helper to parse extracted_data if it's a JSON string
   const getExtractedData = (report: Report): ExtractedData | null => {
@@ -69,28 +71,45 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
 
   useEffect(() => {
     fetchReports();
-  }, [filter]);
+  }, [filter, selectedProject, sortBy]);
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      let url = `${API_BASE_URL}/reports`;
-      if (filter === 'project') {
-        url += `?projectId=${project.id}`;
-      } else if (filter === 'manager') {
-        url += `?managerId=${manager.id}`;
-      }
-
+      const url = `${API_BASE_URL}/reports`;
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
-        // Sort by date (newest first)
-        const sortedReports = data.reports.sort((a: Report, b: Report) => {
-          return new Date(b.report_date).getTime() - new Date(a.report_date).getTime();
+        let filteredReports = data.reports;
+
+        // Filter by ownership (My Reports vs All)
+        if (filter === 'myreports') {
+          filteredReports = filteredReports.filter((r: Report) =>
+            r.reporter_name === manager.name || r.manager_name === manager.name
+          );
+        } else if (filter === 'project') {
+          filteredReports = filteredReports.filter((r: Report) =>
+            r.project_id === project.id
+          );
+        }
+
+        // Filter by selected project (if not 'all')
+        if (selectedProject !== 'all') {
+          filteredReports = filteredReports.filter((r: Report) =>
+            r.project_id === selectedProject
+          );
+        }
+
+        // Sort by date
+        const sortedReports = filteredReports.sort((a: Report, b: Report) => {
+          const dateA = new Date(a.report_date).getTime();
+          const dateB = new Date(b.report_date).getTime();
+          return sortBy === 'date-desc' ? dateB - dateA : dateA - dateB;
         });
+
         setReports(sortedReports);
       } else {
         setError(data.error || 'Failed to load reports');
@@ -101,6 +120,15 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get unique projects from reports for filter dropdown
+  const uniqueProjects = Array.from(new Set(reports.map(r => r.project_id)));
+
+  const handleViewTranscript = (report: Report, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${API_BASE_URL}/reports/${report.report_id}/transcript`;
+    window.open(url, '_blank');
   };
 
   const handleViewReport = async (report: Report) => {
@@ -170,40 +198,77 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Filters */}
-        <div className="mb-6 glass rounded-xl p-4">
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-semibold text-gray-400">Filter:</span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  filter === 'all'
-                    ? 'bg-gold text-dark-bg'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                }`}
+        <div className="mb-6 glass rounded-xl p-6">
+          {/* Main Filter Tabs */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-semibold text-gray-400">View:</span>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setFilter('myreports')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    filter === 'myreports'
+                      ? 'bg-gold text-dark-bg'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  My Reports
+                </button>
+                <button
+                  onClick={() => setFilter('project')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    filter === 'project'
+                      ? 'bg-gold text-dark-bg'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  This Project
+                </button>
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    filter === 'all'
+                      ? 'bg-gold text-dark-bg'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  All Reports
+                </button>
+              </div>
+            </div>
+            <span className="text-sm text-gray-500">{reports.length} reports</span>
+          </div>
+
+          {/* Secondary Filters */}
+          <div className="flex items-center space-x-4 pt-4 border-t border-white/10">
+            {/* Project Filter */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm text-gray-400">Project:</label>
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none"
               >
-                All Reports
-              </button>
-              <button
-                onClick={() => setFilter('project')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  filter === 'project'
-                    ? 'bg-gold text-dark-bg'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                }`}
+                <option value="all" className="bg-dark-surface">All Projects</option>
+                {uniqueProjects.map(projectId => (
+                  <option key={projectId} value={projectId} className="bg-dark-surface">
+                    {reports.find(r => r.project_id === projectId)?.project_name || projectId}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Sort */}
+            <div className="flex items-center space-x-2">
+              <label className="text-sm text-gray-400">Sort:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'date-desc' | 'date-asc')}
+                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none"
               >
-                This Project
-              </button>
-              <button
-                onClick={() => setFilter('manager')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  filter === 'manager'
-                    ? 'bg-gold text-dark-bg'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                My Reports
-              </button>
+                <option value="date-desc" className="bg-dark-surface">Newest First</option>
+                <option value="date-asc" className="bg-dark-surface">Oldest First</option>
+              </select>
             </div>
           </div>
         </div>
@@ -362,7 +427,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
                         </div>
                       )}
 
-                      {/* View Button */}
+                      {/* Action Buttons */}
                       <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
                         <span className="text-xs text-gray-500">
                           {new Date(report.created_at).toLocaleTimeString('en-US', {
@@ -370,11 +435,25 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
                             minute: '2-digit'
                           })}
                         </span>
-                        <div className="flex items-center text-gold text-sm font-semibold group-hover:translate-x-1 transition">
-                          View Full Report
-                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                        <div className="flex items-center space-x-2">
+                          {/* View Transcript Button */}
+                          <button
+                            onClick={(e) => handleViewTranscript(report, e)}
+                            className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold text-gray-300 hover:bg-white/10 hover:text-white hover:border-gold/30 transition flex items-center space-x-1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Transcript</span>
+                          </button>
+
+                          {/* View Report Button */}
+                          <div className="flex items-center text-gold text-sm font-semibold group-hover:translate-x-1 transition">
+                            View Report
+                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
                         </div>
                       </div>
                     </div>
