@@ -4,10 +4,11 @@
  */
 
 const { google } = require('googleapis');
-const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand, PutItemCommand, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, ScanCommand, QueryCommand, GetItemCommand, PutItemCommand, UpdateItemCommand, DeleteItemCommand } = require('@aws-sdk/client-dynamodb');
 const { unmarshall, marshall } = require('@aws-sdk/util-dynamodb');
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const { v4: uuidv4 } = require('uuid');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -678,6 +679,363 @@ async function saveReport(reportData) {
   }
 }
 
+// ============================================================================
+// PERSONNEL CRUD Operations
+// ============================================================================
+
+/**
+ * List all personnel with optional filtering
+ */
+async function listPersonnel(queryParams = {}) {
+  try {
+    console.log('👥 Fetching personnel...', queryParams);
+    const { projectId, limit = 50, lastEvaluatedKey } = queryParams;
+
+    let command;
+    if (projectId) {
+      command = new QueryCommand({
+        TableName: 'sitelogix-personnel',
+        IndexName: 'GSI2-ProjectIndex',
+        KeyConditionExpression: 'project_id = :projectId',
+        ExpressionAttributeValues: {
+          ':projectId': { S: projectId }
+        },
+        Limit: parseInt(limit)
+      });
+    } else {
+      command = new ScanCommand({
+        TableName: 'sitelogix-personnel',
+        Limit: parseInt(limit),
+        ExclusiveStartKey: lastEvaluatedKey ? JSON.parse(lastEvaluatedKey) : undefined
+      });
+    }
+
+    const result = await dynamoClient.send(command);
+    const items = result.Items.map(item => unmarshall(item));
+
+    return {
+      success: true,
+      personnel: items,
+      lastEvaluatedKey: result.LastEvaluatedKey ? JSON.stringify(result.LastEvaluatedKey) : null,
+      count: items.length
+    };
+  } catch (error) {
+    console.error('❌ Error fetching personnel:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get single personnel by ID
+ */
+async function getPersonnelById(personnelId) {
+  try {
+    console.log(`👤 Fetching personnel ${personnelId}...`);
+
+    const command = new GetItemCommand({
+      TableName: 'sitelogix-personnel',
+      Key: {
+        PK: { S: `PERSONNEL#${personnelId}` },
+        SK: { S: 'METADATA' }
+      }
+    });
+
+    const result = await dynamoClient.send(command);
+
+    if (!result.Item) {
+      return { success: false, error: 'Personnel not found' };
+    }
+
+    return { success: true, personnel: unmarshall(result.Item) };
+  } catch (error) {
+    console.error('❌ Error fetching personnel:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Create new personnel record
+ */
+async function createPersonnel(data) {
+  try {
+    console.log('➕ Creating new personnel...');
+
+    const personnelId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const item = {
+      PK: `PERSONNEL#${personnelId}`,
+      SK: 'METADATA',
+      personnel_id: personnelId,
+      full_name: data.full_name,
+      project_id: data.project_id || null,
+      role: data.role || '',
+      hourly_rate: data.hourly_rate || 0,
+      phone: data.phone || '',
+      email: data.email || '',
+      status: data.status || 'active',
+      created_at: timestamp,
+      updated_at: timestamp
+    };
+
+    const command = new PutItemCommand({
+      TableName: 'sitelogix-personnel',
+      Item: marshall(item)
+    });
+
+    await dynamoClient.send(command);
+
+    console.log(`✅ Created personnel ${personnelId}`);
+    return { success: true, personnel: item };
+  } catch (error) {
+    console.error('❌ Error creating personnel:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update existing personnel record
+ */
+async function updatePersonnel(personnelId, data) {
+  try {
+    console.log(`✏️  Updating personnel ${personnelId}...`);
+
+    const updateExpressions = [];
+    const expressionAttributeNames = {};
+    const expressionAttributeValues = {};
+
+    // Build update expression dynamically
+    const fieldsToUpdate = ['full_name', 'project_id', 'role', 'hourly_rate', 'phone', 'email', 'status'];
+    fieldsToUpdate.forEach(field => {
+      if (data[field] !== undefined) {
+        updateExpressions.push(`#${field} = :${field}`);
+        expressionAttributeNames[`#${field}`] = field;
+        expressionAttributeValues[`:${field}`] = marshall(data[field]).S || marshall(data[field]).N || marshall(data[field]).NULL;
+      }
+    });
+
+    updateExpressions.push('#updated_at = :updated_at');
+    expressionAttributeNames['#updated_at'] = 'updated_at';
+    expressionAttributeValues[':updated_at'] = { S: new Date().toISOString() };
+
+    const command = new UpdateItemCommand({
+      TableName: 'sitelogix-personnel',
+      Key: {
+        PK: { S: `PERSONNEL#${personnelId}` },
+        SK: { S: 'METADATA' }
+      },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW'
+    });
+
+    const result = await dynamoClient.send(command);
+
+    console.log(`✅ Updated personnel ${personnelId}`);
+    return { success: true, personnel: unmarshall(result.Attributes) };
+  } catch (error) {
+    console.error('❌ Error updating personnel:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete personnel record
+ */
+async function deletePersonnel(personnelId) {
+  try {
+    console.log(`🗑️  Deleting personnel ${personnelId}...`);
+
+    const command = new DeleteItemCommand({
+      TableName: 'sitelogix-personnel',
+      Key: {
+        PK: { S: `PERSONNEL#${personnelId}` },
+        SK: { S: 'METADATA' }
+      }
+    });
+
+    await dynamoClient.send(command);
+
+    console.log(`✅ Deleted personnel ${personnelId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error deleting personnel:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ============================================================================
+// VENDOR CRUD Operations
+// ============================================================================
+
+/**
+ * List all vendors
+ */
+async function listVendors(queryParams = {}) {
+  try {
+    console.log('🏢 Fetching vendors...');
+    const { limit = 50, lastEvaluatedKey } = queryParams;
+
+    const command = new ScanCommand({
+      TableName: 'sitelogix-vendors',
+      Limit: parseInt(limit),
+      ExclusiveStartKey: lastEvaluatedKey ? JSON.parse(lastEvaluatedKey) : undefined
+    });
+
+    const result = await dynamoClient.send(command);
+    const items = result.Items.map(item => unmarshall(item));
+
+    return {
+      success: true,
+      vendors: items,
+      lastEvaluatedKey: result.LastEvaluatedKey ? JSON.stringify(result.LastEvaluatedKey) : null,
+      count: items.length
+    };
+  } catch (error) {
+    console.error('❌ Error fetching vendors:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get single vendor by ID
+ */
+async function getVendorById(vendorId) {
+  try {
+    console.log(`🏢 Fetching vendor ${vendorId}...`);
+
+    const command = new GetItemCommand({
+      TableName: 'sitelogix-vendors',
+      Key: {
+        PK: { S: `VENDOR#${vendorId}` },
+        SK: { S: 'METADATA' }
+      }
+    });
+
+    const result = await dynamoClient.send(command);
+
+    if (!result.Item) {
+      return { success: false, error: 'Vendor not found' };
+    }
+
+    return { success: true, vendor: unmarshall(result.Item) };
+  } catch (error) {
+    console.error('❌ Error fetching vendor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Create new vendor record
+ */
+async function createVendor(data) {
+  try {
+    console.log('➕ Creating new vendor...');
+
+    const vendorId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const item = {
+      PK: `VENDOR#${vendorId}`,
+      SK: 'METADATA',
+      vendor_id: vendorId,
+      company_name: data.company_name,
+      contact_name: data.contact_name || '',
+      phone: data.phone || '',
+      email: data.email || '',
+      services: data.services || [],
+      status: data.status || 'active',
+      created_at: timestamp,
+      updated_at: timestamp
+    };
+
+    const command = new PutItemCommand({
+      TableName: 'sitelogix-vendors',
+      Item: marshall(item)
+    });
+
+    await dynamoClient.send(command);
+
+    console.log(`✅ Created vendor ${vendorId}`);
+    return { success: true, vendor: item };
+  } catch (error) {
+    console.error('❌ Error creating vendor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update existing vendor record
+ */
+async function updateVendor(vendorId, data) {
+  try {
+    console.log(`✏️  Updating vendor ${vendorId}...`);
+
+    const updateExpressions = [];
+    const expressionAttributeNames = {};
+    const expressionAttributeValues = {};
+
+    const fieldsToUpdate = ['company_name', 'contact_name', 'phone', 'email', 'services', 'status'];
+    fieldsToUpdate.forEach(field => {
+      if (data[field] !== undefined) {
+        updateExpressions.push(`#${field} = :${field}`);
+        expressionAttributeNames[`#${field}`] = field;
+        expressionAttributeValues[`:${field}`] = marshall(data[field])[Object.keys(marshall(data[field]))[0]];
+      }
+    });
+
+    updateExpressions.push('#updated_at = :updated_at');
+    expressionAttributeNames['#updated_at'] = 'updated_at';
+    expressionAttributeValues[':updated_at'] = { S: new Date().toISOString() };
+
+    const command = new UpdateItemCommand({
+      TableName: 'sitelogix-vendors',
+      Key: {
+        PK: { S: `VENDOR#${vendorId}` },
+        SK: { S: 'METADATA' }
+      },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW'
+    });
+
+    const result = await dynamoClient.send(command);
+
+    console.log(`✅ Updated vendor ${vendorId}`);
+    return { success: true, vendor: unmarshall(result.Attributes) };
+  } catch (error) {
+    console.error('❌ Error updating vendor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete vendor record
+ */
+async function deleteVendor(vendorId) {
+  try {
+    console.log(`🗑️  Deleting vendor ${vendorId}...`);
+
+    const command = new DeleteItemCommand({
+      TableName: 'sitelogix-vendors',
+      Key: {
+        PK: { S: `VENDOR#${vendorId}` },
+        SK: { S: 'METADATA' }
+      }
+    });
+
+    await dynamoClient.send(command);
+
+    console.log(`✅ Deleted vendor ${vendorId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error deleting vendor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 /**
  * Lambda handler - main entry point
  */
@@ -912,6 +1270,160 @@ exports.handler = async (event) => {
         };
       }
     }
+
+    // =====================================================================
+    // PERSONNEL CRUD Routes
+    // =====================================================================
+
+    // GET /api/personnel
+    if (path.endsWith('/personnel') && method === 'GET') {
+      const result = await listPersonnel(event.queryStringParameters || {});
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // POST /api/personnel
+    if (path.endsWith('/personnel') && method === 'POST') {
+      try {
+        const body = JSON.parse(event.body || '{}');
+        const result = await createPersonnel(body);
+        return {
+          statusCode: result.success ? 201 : 400,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // GET /api/personnel/:id
+    if (path.match(/\/personnel\/[^/]+$/) && method === 'GET') {
+      const personnelId = path.split('/').pop();
+      const result = await getPersonnelById(personnelId);
+      return {
+        statusCode: result.success ? 200 : 404,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // PUT /api/personnel/:id
+    if (path.match(/\/personnel\/[^/]+$/) && method === 'PUT') {
+      try {
+        const personnelId = path.split('/').pop();
+        const body = JSON.parse(event.body || '{}');
+        const result = await updatePersonnel(personnelId, body);
+        return {
+          statusCode: result.success ? 200 : 400,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // DELETE /api/personnel/:id
+    if (path.match(/\/personnel\/[^/]+$/) && method === 'DELETE') {
+      const personnelId = path.split('/').pop();
+      const result = await deletePersonnel(personnelId);
+      return {
+        statusCode: result.success ? 200 : 400,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // =====================================================================
+    // VENDOR CRUD Routes
+    // =====================================================================
+
+    // GET /api/vendors
+    if (path.endsWith('/vendors') && method === 'GET') {
+      const result = await listVendors(event.queryStringParameters || {});
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // POST /api/vendors
+    if (path.endsWith('/vendors') && method === 'POST') {
+      try {
+        const body = JSON.parse(event.body || '{}');
+        const result = await createVendor(body);
+        return {
+          statusCode: result.success ? 201 : 400,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // GET /api/vendors/:id
+    if (path.match(/\/vendors\/[^/]+$/) && method === 'GET') {
+      const vendorId = path.split('/').pop();
+      const result = await getVendorById(vendorId);
+      return {
+        statusCode: result.success ? 200 : 404,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // PUT /api/vendors/:id
+    if (path.match(/\/vendors\/[^/]+$/) && method === 'PUT') {
+      try {
+        const vendorId = path.split('/').pop();
+        const body = JSON.parse(event.body || '{}');
+        const result = await updateVendor(vendorId, body);
+        return {
+          statusCode: result.success ? 200 : 400,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // DELETE /api/vendors/:id
+    if (path.match(/\/vendors\/[^/]+$/) && method === 'DELETE') {
+      const vendorId = path.split('/').pop();
+      const result = await deleteVendor(vendorId);
+      return {
+        statusCode: result.success ? 200 : 400,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // =====================================================================
+    // Health Check Route
+    // =====================================================================
 
     if (path.endsWith('/health') && method === 'GET') {
       return {

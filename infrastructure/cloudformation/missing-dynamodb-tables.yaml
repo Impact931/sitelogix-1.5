@@ -1,0 +1,333 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SiteLogix Missing DynamoDB Tables - Work Logs and AI Analysis Cache'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Production
+      - Staging
+      - Development
+    Description: Environment name
+
+  KMSKeyId:
+    Type: String
+    Default: 'alias/aws/dynamodb'
+    Description: KMS Key ID for encryption
+
+Resources:
+  # Table 5: Work Logs Table
+  WorkLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sitelogix-work-logs
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: project_id
+          AttributeType: S
+        - AttributeName: report_date
+          AttributeType: S
+        - AttributeName: team_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-ProjectDateIndex
+          KeySchema:
+            - AttributeName: project_id
+              KeyType: HASH
+            - AttributeName: report_date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: GSI2-TeamIndex
+          KeySchema:
+            - AttributeName: team_id
+              KeyType: HASH
+            - AttributeName: report_date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref KMSKeyId
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: Project
+          Value: SiteLogix
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Compliance
+          Value: RFC-008
+
+  # Table 6: AI Analysis Cache Table
+  AIAnalysisTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sitelogix-ai-analysis
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 10
+        WriteCapacityUnits: 10
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: analysis_type
+          AttributeType: S
+        - AttributeName: model_used
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-TypeIndex
+          KeySchema:
+            - AttributeName: analysis_type
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: GSI2-ModelIndex
+          KeySchema:
+            - AttributeName: model_used
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref KMSKeyId
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: Project
+          Value: SiteLogix
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+        - Key: Compliance
+          Value: RFC-008
+
+  # Audit Log Table (for DynamoDB Streams)
+  AuditLogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sitelogix-audit-log
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: event_type
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1-EventTypeIndex
+          KeySchema:
+            - AttributeName: event_type
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref KMSKeyId
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: Project
+          Value: SiteLogix
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: AuditTrail
+        - Key: Compliance
+          Value: RFC-008
+
+  # Scaling Policies for Work Logs Table
+  WorkLogsReadScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 50
+      MinCapacity: 5
+      ResourceId: !Sub table/${WorkLogsTable}
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/dynamodb.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_DynamoDBTable
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  WorkLogsWriteScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 50
+      MinCapacity: 5
+      ResourceId: !Sub table/${WorkLogsTable}
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/dynamodb.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_DynamoDBTable
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  WorkLogsReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: WorkLogsReadAutoScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref WorkLogsReadScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 70.0
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+
+  WorkLogsWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: WorkLogsWriteAutoScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref WorkLogsWriteScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 70.0
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+
+  # Scaling Policies for AI Analysis Table
+  AIAnalysisReadScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 100
+      MinCapacity: 10
+      ResourceId: !Sub table/${AIAnalysisTable}
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/dynamodb.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_DynamoDBTable
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  AIAnalysisWriteScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 100
+      MinCapacity: 10
+      ResourceId: !Sub table/${AIAnalysisTable}
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/dynamodb.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_DynamoDBTable
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  AIAnalysisReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AIAnalysisReadAutoScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AIAnalysisReadScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 70.0
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+
+  AIAnalysisWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AIAnalysisWriteAutoScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AIAnalysisWriteScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 70.0
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+
+Outputs:
+  WorkLogsTableName:
+    Description: Work Logs Table Name
+    Value: !Ref WorkLogsTable
+    Export:
+      Name: !Sub ${AWS::StackName}-WorkLogsTable
+
+  WorkLogsTableArn:
+    Description: Work Logs Table ARN
+    Value: !GetAtt WorkLogsTable.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-WorkLogsTableArn
+
+  WorkLogsStreamArn:
+    Description: Work Logs Table Stream ARN
+    Value: !GetAtt WorkLogsTable.StreamArn
+    Export:
+      Name: !Sub ${AWS::StackName}-WorkLogsStreamArn
+
+  AIAnalysisTableName:
+    Description: AI Analysis Table Name
+    Value: !Ref AIAnalysisTable
+    Export:
+      Name: !Sub ${AWS::StackName}-AIAnalysisTable
+
+  AIAnalysisTableArn:
+    Description: AI Analysis Table ARN
+    Value: !GetAtt AIAnalysisTable.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-AIAnalysisTableArn
+
+  AIAnalysisStreamArn:
+    Description: AI Analysis Table Stream ARN
+    Value: !GetAtt AIAnalysisTable.StreamArn
+    Export:
+      Name: !Sub ${AWS::StackName}-AIAnalysisStreamArn
+
+  AuditLogTableName:
+    Description: Audit Log Table Name
+    Value: !Ref AuditLogTable
+    Export:
+      Name: !Sub ${AWS::StackName}-AuditLogTable
+
+  AuditLogTableArn:
+    Description: Audit Log Table ARN
+    Value: !GetAtt AuditLogTable.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-AuditLogTableArn

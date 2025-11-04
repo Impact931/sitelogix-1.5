@@ -66,10 +66,20 @@ EOF
         --role-name $ROLE_NAME \
         --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-    # Attach DynamoDB read policy
+    # Attach DynamoDB full access policy (needed for CRUD operations)
     aws iam attach-role-policy \
         --role-name $ROLE_NAME \
-        --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
+        --policy-arn arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+
+    # Attach Secrets Manager read policy
+    aws iam attach-role-policy \
+        --role-name $ROLE_NAME \
+        --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+    # Attach S3 access policy
+    aws iam attach-role-policy \
+        --role-name $ROLE_NAME \
+        --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
 
     echo "✅ IAM role created"
     echo "⏳ Waiting 10 seconds for IAM role to propagate..."
@@ -180,7 +190,7 @@ INTEGRATION_ID=$(aws apigatewayv2 create-integration \
 echo "✅ Integration configured: $INTEGRATION_ID"
 
 # Create GET routes
-for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/elevenlabs/agent-config"; do
+for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/elevenlabs/agent-config" "/api/personnel" "/api/personnel/{id}" "/api/vendors" "/api/vendors/{id}"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='GET $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
@@ -197,7 +207,7 @@ for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/
 done
 
 # Create POST routes
-for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{constraintId}/resolution" "/api/analytics/constraints/{constraintId}/status" "/api/elevenlabs/conversation"; do
+for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{constraintId}/resolution" "/api/analytics/constraints/{constraintId}/status" "/api/elevenlabs/conversation" "/api/personnel" "/api/vendors"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='POST $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
@@ -210,6 +220,40 @@ for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{
         echo "✅ Route created: POST $ROUTE"
     else
         echo "✅ Route already exists: POST $ROUTE"
+    fi
+done
+
+# Create PUT routes
+for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}"; do
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='PUT $ROUTE'].RouteId" --output text)
+
+    if [ -z "$ROUTE_ID" ]; then
+        aws apigatewayv2 create-route \
+            --api-id $API_ID \
+            --route-key "PUT $ROUTE" \
+            --target "integrations/$INTEGRATION_ID" \
+            --region $REGION \
+            > /dev/null
+        echo "✅ Route created: PUT $ROUTE"
+    else
+        echo "✅ Route already exists: PUT $ROUTE"
+    fi
+done
+
+# Create DELETE routes
+for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}"; do
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='DELETE $ROUTE'].RouteId" --output text)
+
+    if [ -z "$ROUTE_ID" ]; then
+        aws apigatewayv2 create-route \
+            --api-id $API_ID \
+            --route-key "DELETE $ROUTE" \
+            --target "integrations/$INTEGRATION_ID" \
+            --region $REGION \
+            > /dev/null
+        echo "✅ Route created: DELETE $ROUTE"
+    else
+        echo "✅ Route already exists: DELETE $ROUTE"
     fi
 done
 
