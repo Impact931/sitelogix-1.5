@@ -15,10 +15,11 @@ interface Employee {
 }
 
 interface AdminDashboardProps {
-  onBack: () => void;
+  onBack?: () => void;
+  onNavigateToProjectSetup?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup }) => {
   // Mock employee data
   const [employees, setEmployees] = useState<Employee[]>([
     {
@@ -80,7 +81,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [_showAddModal, _setShowAddModal] = useState(false);
 
   // Filter and search employees
   const filteredEmployees = useMemo(() => {
@@ -142,13 +143,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack }) => {
     }
   };
 
-  const handleAddEmployee = (newEmployee: Omit<Employee, 'id'>) => {
+  const _handleAddEmployee = (newEmployee: Omit<Employee, 'id'>) => {
     const employee: Employee = {
       ...newEmployee,
       id: `emp_${Date.now()}`
     };
     setEmployees([...employees, employee]);
-    setShowAddModal(false);
+    _setShowAddModal(false);
   };
 
   const getStatusColor = (status: Employee['status']) => {

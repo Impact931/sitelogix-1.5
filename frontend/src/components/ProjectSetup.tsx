@@ -13,11 +13,12 @@ interface Project {
 }
 
 interface ProjectSetupProps {
-  userRole: 'admin' | 'manager' | 'user';
-  onBack: () => void;
+  userRole?: 'admin' | 'manager' | 'user';
+  onBack?: () => void;
+  onProjectCreated?: () => void;
 }
 
-const ProjectSetup: React.FC<ProjectSetupProps> = ({ userRole, onBack }) => {
+const ProjectSetup: React.FC<ProjectSetupProps> = ({ userRole = 'manager', onBack, onProjectCreated }) => {
   const [formData, setFormData] = useState<Omit<Project, 'id'>>({
     name: '',
     location: '',

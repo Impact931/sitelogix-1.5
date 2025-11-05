@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 
 interface LoginProps {
-  onLoginSuccess: (username: string, role: 'admin' | 'manager' | 'user') => void;
+  onLoginSuccess?: (username: string, role: 'admin' | 'manager' | 'user') => void;
+  onSwitchToLegacy?: () => void;
 }
 
 interface LoginCredentials {
@@ -9,7 +10,7 @@ interface LoginCredentials {
   passcode: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy }) => {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     username: '',
     passcode: ''

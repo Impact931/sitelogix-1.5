@@ -25,7 +25,7 @@ interface Project {
 type Screen = 'auth-login' | 'admin' | 'project-setup' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
 
 function AppContent() {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
   const [manager, setManager] = useState<Manager | null>(null);
   const [project, setProject] = useState<Project | null>(null);
