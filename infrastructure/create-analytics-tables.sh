@@ -36,11 +36,7 @@ aws dynamodb create-table \
           {\"AttributeName\": \"GSI1PK\", \"KeyType\": \"HASH\"},
           {\"AttributeName\": \"GSI1SK\", \"KeyType\": \"RANGE\"}
         ],
-        \"Projection\": {\"ProjectionType\": \"ALL\"},
-        \"ProvisionedThroughput\": {
-          \"ReadCapacityUnits\": 5,
-          \"WriteCapacityUnits\": 5
-        }
+        \"Projection\": {\"ProjectionType\": \"ALL\"}
       },
       {
         \"IndexName\": \"GSI2\",
@@ -48,11 +44,7 @@ aws dynamodb create-table \
           {\"AttributeName\": \"GSI2PK\", \"KeyType\": \"HASH\"},
           {\"AttributeName\": \"GSI2SK\", \"KeyType\": \"RANGE\"}
         ],
-        \"Projection\": {\"ProjectionType\": \"ALL\"},
-        \"ProvisionedThroughput\": {
-          \"ReadCapacityUnits\": 5,
-          \"WriteCapacityUnits\": 5
-        }
+        \"Projection\": {\"ProjectionType\": \"ALL\"}
       }
     ]" \
   --billing-mode PAY_PER_REQUEST \
@@ -83,11 +75,7 @@ aws dynamodb create-table \
           {\"AttributeName\": \"GSI1PK\", \"KeyType\": \"HASH\"},
           {\"AttributeName\": \"GSI1SK\", \"KeyType\": \"RANGE\"}
         ],
-        \"Projection\": {\"ProjectionType\": \"ALL\"},
-        \"ProvisionedThroughput\": {
-          \"ReadCapacityUnits\": 5,
-          \"WriteCapacityUnits\": 5
-        }
+        \"Projection\": {\"ProjectionType\": \"ALL\"}
       }
     ]" \
   --billing-mode PAY_PER_REQUEST \
@@ -118,11 +106,7 @@ aws dynamodb create-table \
           {\"AttributeName\": \"GSI1PK\", \"KeyType\": \"HASH\"},
           {\"AttributeName\": \"GSI1SK\", \"KeyType\": \"RANGE\"}
         ],
-        \"Projection\": {\"ProjectionType\": \"ALL\"},
-        \"ProvisionedThroughput\": {
-          \"ReadCapacityUnits\": 5,
-          \"WriteCapacityUnits\": 5
-        }
+        \"Projection\": {\"ProjectionType\": \"ALL\"}
       }
     ]" \
   --billing-mode PAY_PER_REQUEST \
