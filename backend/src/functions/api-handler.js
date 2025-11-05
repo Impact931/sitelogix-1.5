@@ -12,6 +12,15 @@ const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client
 const { v4: uuidv4 } = require('uuid');
 const Anthropic = require('@anthropic-ai/sdk');
 const { normalizeExtractedData, getMasterPersonnel, getMasterProjects } = require('./entityNormalizationService');
+const {
+  getExecutiveDashboard,
+  getPersonnelIntelligence,
+  getVendorIntelligence,
+  getProjectHealth,
+  getConstraintAnalytics,
+  getStrategicInsights,
+  queryWithAI
+} = require('./bi-endpoints');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -2345,6 +2354,91 @@ exports.handler = async (event) => {
           projects: getMasterProjects()
         })
       };
+    }
+
+    // =====================================================================
+    // Business Intelligence (BI) Routes
+    // =====================================================================
+
+    // GET /api/bi/executive - Executive Dashboard (Portfolio Health, Financial Snapshot)
+    if (path.endsWith('/bi/executive') && method === 'GET') {
+      const result = await getExecutiveDashboard();
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/personnel - Personnel Intelligence (Labor Costs, OT Analysis)
+    if (path.endsWith('/bi/personnel') && method === 'GET') {
+      const result = await getPersonnelIntelligence(event.queryStringParameters || {});
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/vendors - Vendor Intelligence (Performance Grading, Chargebacks)
+    if (path.endsWith('/bi/vendors') && method === 'GET') {
+      const result = await getVendorIntelligence(event.queryStringParameters || {});
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/projects/:project_id/health - Project Health Deep-Dive
+    if (path.match(/\/bi\/projects\/[^/]+\/health$/) && method === 'GET') {
+      const pathParts = path.split('/');
+      const projectId = pathParts[pathParts.length - 2];
+      const result = await getProjectHealth(projectId);
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/constraints - Constraint Analytics (Cost Impacts, ROI Opportunities)
+    if (path.endsWith('/bi/constraints') && method === 'GET') {
+      const result = await getConstraintAnalytics(event.queryStringParameters || {});
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/recommendations - Strategic Insights (Cost Reduction, Risk Mitigation, Growth)
+    if (path.endsWith('/bi/recommendations') && method === 'GET') {
+      const result = await getStrategicInsights(event.queryStringParameters || {});
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // POST /api/bi/query - AI Natural Language Query
+    if (path.endsWith('/bi/query') && method === 'POST') {
+      try {
+        const body = JSON.parse(event.body || '{}');
+        const result = await queryWithAI(body.query || '');
+        return {
+          statusCode: result.success ? 200 : 500,
+          headers,
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
     }
 
     // =====================================================================
