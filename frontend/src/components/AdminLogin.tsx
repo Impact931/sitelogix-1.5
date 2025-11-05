@@ -36,7 +36,18 @@ const FALLBACK_PROJECTS: Project[] = [
   { id: 'PRJ003', name: 'Harbor View Complex', location: 'Waterfront' },
 ];
 
+// Hardcoded Super Admin Developer Account
+const SUPER_ADMIN = {
+  username: 'Jayson Rivas',
+  email: 'jayson@impactconsulting931.com',
+  password: 'Rivas123$',
+  role: 'SuperAdminDev'
+};
+
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
+  const [loginMode, setLoginMode] = useState<'dropdown' | 'password'>('dropdown');
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -111,6 +122,42 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
 
+    // Password login mode (for Super Admin)
+    if (loginMode === 'password') {
+      if (!username || !password) {
+        setError('Please enter both username and password');
+        return;
+      }
+
+      // Check for Super Admin credentials
+      if (username === SUPER_ADMIN.username && password === SUPER_ADMIN.password) {
+        const superAdminManager: Manager = {
+          id: 'SUPER_ADMIN_DEV',
+          name: SUPER_ADMIN.username,
+          position: 'Super Admin Developer',
+          email: SUPER_ADMIN.email
+        };
+
+        const allProjectsProject: Project = {
+          id: 'ALL_PROJECTS',
+          name: 'All Projects',
+          location: 'System-Wide Access'
+        };
+
+        // Save to localStorage
+        localStorage.setItem('sitelogix_manager', JSON.stringify(superAdminManager));
+        localStorage.setItem('sitelogix_project', JSON.stringify(allProjectsProject));
+        localStorage.setItem('sitelogix_role', SUPER_ADMIN.role);
+
+        onLogin(superAdminManager, allProjectsProject);
+        return;
+      } else {
+        setError('Invalid username or password');
+        return;
+      }
+    }
+
+    // Dropdown selection mode (for regular users)
     if (!selectedManagerId || !selectedProjectId) {
       setError('Please select both a manager and a project');
       return;
@@ -142,59 +189,124 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           <p className="text-gray-400 text-sm font-medium">Daily Construction Reporting</p>
         </div>
 
+        {/* Login Mode Toggle */}
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex rounded-xl glass p-1">
+            <button
+              type="button"
+              onClick={() => setLoginMode('dropdown')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                loginMode === 'dropdown'
+                  ? 'bg-gold text-dark-bg'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Site Manager
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode('password')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                loginMode === 'password'
+                  ? 'bg-gold text-dark-bg'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Admin Login
+            </button>
+          </div>
+        </div>
+
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Loading State */}
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gold border-r-transparent"></div>
-              <p className="text-gray-400 mt-4">Loading data...</p>
-            </div>
-          ) : (
+          {loginMode === 'password' ? (
             <>
-              {/* Manager Selection */}
+              {/* Admin Password Login */}
               <div>
-                <label htmlFor="manager" className="block text-sm font-semibold text-white mb-2">
-                  Site Manager
+                <label htmlFor="username" className="block text-sm font-semibold text-white mb-2">
+                  Username
                 </label>
-                <select
-                  id="manager"
-                  value={selectedManagerId}
-                  onChange={(e) => setSelectedManagerId(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none transition"
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none transition placeholder-gray-500"
+                  placeholder="Enter username"
                   required
-                  disabled={loading}
-                >
-                  <option value="" className="bg-dark-surface text-gray-400">Select your name...</option>
-                  {managers.map(manager => (
-                    <option key={manager.id} value={manager.id} className="bg-dark-surface text-white">
-                      {manager.name} {manager.position ? `(${manager.position})` : ''}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
-              {/* Project Selection */}
               <div>
-                <label htmlFor="project" className="block text-sm font-semibold text-white mb-2">
-                  Project Location
+                <label htmlFor="password" className="block text-sm font-semibold text-white mb-2">
+                  Password
                 </label>
-                <select
-                  id="project"
-                  value={selectedProjectId}
-                  onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none transition"
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none transition placeholder-gray-500"
+                  placeholder="Enter password"
                   required
-                  disabled={loading}
-                >
-                  <option value="" className="bg-dark-surface text-gray-400">Select project...</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id} className="bg-dark-surface text-white">
-                      {project.name} {project.location !== 'TBD' ? `- ${project.location}` : ''}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
+            </>
+          ) : (
+            <>
+              {/* Loading State */}
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gold border-r-transparent"></div>
+                  <p className="text-gray-400 mt-4">Loading data...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Manager Selection */}
+                  <div>
+                    <label htmlFor="manager" className="block text-sm font-semibold text-white mb-2">
+                      Site Manager
+                    </label>
+                    <select
+                      id="manager"
+                      value={selectedManagerId}
+                      onChange={(e) => setSelectedManagerId(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none transition"
+                      required
+                      disabled={loading}
+                    >
+                      <option value="" className="bg-dark-surface text-gray-400">Select your name...</option>
+                      {managers.map(manager => (
+                        <option key={manager.id} value={manager.id} className="bg-dark-surface text-white">
+                          {manager.name} {manager.position ? `(${manager.position})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Project Selection */}
+                  <div>
+                    <label htmlFor="project" className="block text-sm font-semibold text-white mb-2">
+                      Project Location
+                    </label>
+                    <select
+                      id="project"
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-gold focus:border-gold/50 outline-none transition"
+                      required
+                      disabled={loading}
+                    >
+                      <option value="" className="bg-dark-surface text-gray-400">Select project...</option>
+                      {projects.map(project => (
+                        <option key={project.id} value={project.id} className="bg-dark-surface text-white">
+                          {project.name} {project.location !== 'TBD' ? `- ${project.location}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -208,10 +320,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading && loginMode === 'dropdown'}
             className="w-full bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg py-4 px-6 rounded-xl font-bold text-lg hover:shadow-xl hover:shadow-gold/20 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-gold focus:ring-offset-2 focus:ring-offset-dark-bg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            Start Daily Report
+            {loginMode === 'password' ? 'Login as Admin' : 'Start Daily Report'}
           </button>
         </form>
 
