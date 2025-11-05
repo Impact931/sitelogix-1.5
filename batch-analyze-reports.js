@@ -260,15 +260,25 @@ async function main() {
 }
 
 /**
- * Fetch all reports from DynamoDB
+ * Fetch all reports from DynamoDB (with pagination)
  */
 async function fetchAllReports() {
-  const command = new ScanCommand({
-    TableName: 'sitelogix-reports'
-  });
+  let allItems = [];
+  let lastEvaluatedKey = null;
 
-  const result = await dynamoClient.send(command);
-  return result.Items.map(item => unmarshall(item));
+  do {
+    const command = new ScanCommand({
+      TableName: 'sitelogix-reports',
+      ExclusiveStartKey: lastEvaluatedKey
+    });
+
+    const result = await dynamoClient.send(command);
+    allItems = allItems.concat(result.Items.map(item => unmarshall(item)));
+    lastEvaluatedKey = result.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
+
+  console.log(`   Fetched ${allItems.length} total reports from DynamoDB`);
+  return allItems;
 }
 
 /**
