@@ -106,7 +106,7 @@ fi
 # Create deployment package
 echo "Creating zip file..."
 rm -f $PACKAGE_FILE
-zip -r $PACKAGE_FILE api-handler.js entityNormalizationService.js node_modules/ > /dev/null 2>&1
+zip -r $PACKAGE_FILE api-handler.js bi-endpoints.js entityNormalizationService.js node_modules/ > /dev/null 2>&1
 
 echo "✅ Deployment package created: $(du -h $PACKAGE_FILE | cut -f1)"
 echo ""
