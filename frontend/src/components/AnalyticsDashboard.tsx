@@ -11,28 +11,41 @@ interface Project {
 }
 
 interface Insights {
-  summary: {
-    totalDeliveries: number;
-    lateDeliveries: number;
-    onTimeDeliveryRate: number;
-    totalLaborHours: number;
-    overtimeHours: number;
-    overtimeRate: number;
-    openConstraints: number;
-    criticalConstraints: number;
-    totalReports: number;
+  portfolio_health: {
+    average_quality_score: number;
+    average_schedule_score: number;
+    total_active_projects: number;
+    projects_at_risk: number;
   };
-  vendors: Array<{
-    name: string;
-    deliveries: number;
-    lateDeliveries: number;
-    onTimeRate: string;
+  financial_snapshot: {
+    total_labor_cost_month: number;
+    total_constraint_cost_month: number;
+    chargeback_pipeline: number;
+    cost_reduction_opportunities: number;
+    portfolio_roi: number;
+  };
+  top_wins: Array<string>;
+  top_concerns: Array<string>;
+  urgent_actions: Array<{
+    title?: string;
+    project?: string;
+    savings?: number;
+    timeline?: string;
   }>;
-  alerts: Array<{
-    type: string;
-    category: string;
-    message: string;
-    impact: string;
+  high_priority_actions: Array<{
+    title?: string;
+    project?: string;
+    savings?: number;
+    timeline?: string;
+  }>;
+  projects: Array<{
+    project_id: string;
+    project_name: string;
+    health_score: number;
+    quality_score: number;
+    schedule_score: number;
+    labor_cost_mtd: number;
+    constraint_cost_mtd: number;
   }>;
 }
 
@@ -43,7 +56,7 @@ interface AnalyticsDashboardProps {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-const ANALYTICS_API = `${API_BASE_URL}/analytics`;
+const BI_API = `${API_BASE_URL}/bi`;
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, project, onBack }) => {
   const [insights, setInsights] = useState<Insights | null>(null);
@@ -67,18 +80,21 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${ANALYTICS_API}/insights`);
+      console.log('Fetching executive dashboard from:', `${BI_API}/executive`);
+
+      const response = await fetch(`${BI_API}/executive`);
 
       if (!response.ok) {
-        throw new Error(`Analytics API returned ${response.status}`);
+        throw new Error(`BI API returned ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('BI API response:', data);
 
-      if (data.success) {
-        setInsights(data.insights);
+      if (data.success && data.dashboard) {
+        setInsights(data.dashboard);
       } else {
-        throw new Error(data.error || 'Failed to fetch insights');
+        throw new Error(data.error || 'Failed to fetch dashboard data');
       }
     } catch (err) {
       console.error('Error fetching insights:', err);
@@ -99,7 +115,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
       setChatLoading(true);
       setChatResponse('');
 
-      const response = await fetch(`${ANALYTICS_API}/query`, {
+      const response = await fetch(`${BI_API}/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
@@ -107,8 +123,20 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
 
       const data = await response.json();
 
-      if (data.success) {
-        setChatResponse(data.analysis);
+      if (data.success && data.ai_response) {
+        // Format the AI response
+        const aiResp = data.ai_response;
+        let responseText = `Query: ${aiResp.query}\n\n`;
+        responseText += `Interpretation: ${aiResp.interpretation}\n\n`;
+        if (aiResp.suggested_endpoints) {
+          responseText += 'Suggested Endpoints:\n';
+          aiResp.suggested_endpoints.forEach((endpoint: string) => {
+            responseText += `- ${endpoint}\n`;
+          });
+        }
+        setChatResponse(responseText);
+      } else {
+        setChatResponse(data.error || 'Unable to process query');
       }
     } catch (error) {
       console.error('Error querying analytics:', error);
@@ -386,116 +414,84 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
             {/* Overview Tab */}
             {activeTab === 'overview' && insights && (
               <div className="space-y-6">
-                {/* Alerts */}
-                {insights.alerts && insights.alerts.length > 0 && (
+                {/* Top Concerns */}
+                {insights.top_concerns && insights.top_concerns.length > 0 && (
                   <div className="glass-gold rounded-2xl p-6 border border-red-500/30">
                     <h2 className="text-lg font-display font-bold text-white mb-4 flex items-center">
                       <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      Alerts Requiring Attention
+                      Top Concerns Requiring Attention
                     </h2>
                     <div className="space-y-3">
-                      {insights.alerts.map((alert, index) => (
-                        <button
+                      {insights.top_concerns.slice(0, 5).map((concern, index) => (
+                        <div
                           key={index}
-                          onClick={() => {
-                            if (alert.category === 'Project Risk') {
-                              openReport('constraints');
-                            } else if (alert.category === 'Vendor Performance') {
-                              openReport('deliveries');
-                            } else if (alert.category === 'Labor Costs') {
-                              openReport('overtime');
-                            }
-                          }}
-                          className="w-full bg-white/5 rounded-lg p-4 hover:bg-white/10 cursor-pointer transition text-left group"
+                          className="w-full bg-white/5 rounded-lg p-4 text-left"
                         >
                           <div className="flex items-start space-x-3">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              alert.type === 'critical' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
-                            }`}>
-                              {(alert.type || 'warning').toUpperCase()}
+                            <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400">
+                              CONCERN
                             </span>
                             <div className="flex-1">
-                              <p className="text-white font-semibold text-sm flex items-center">
-                                {alert.category}
-                                <svg className="w-4 h-4 ml-2 text-gray-500 group-hover:text-gold transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </p>
-                              <p className="text-gray-300 text-sm mt-1">{alert.message}</p>
-                              <p className="text-gray-500 text-xs mt-1">Impact: {alert.impact}</p>
-                              <p className="text-gold text-xs mt-2 group-hover:underline">Click to view detailed report →</p>
+                              <p className="text-gray-300 text-sm">{concern}</p>
                             </div>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* KPI Cards - Now Interactive! */}
+                {/* KPI Cards - Executive Dashboard */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* On-Time Delivery Card */}
-                  <button
-                    onClick={() => openReport('deliveries')}
-                    className="glass rounded-xl p-6 hover:bg-white/10 transition-all cursor-pointer group text-left"
-                  >
+                  {/* Portfolio Quality Score */}
+                  <div className="glass rounded-xl p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold group-hover:text-gold transition">On-Time Delivery Rate</p>
+                      <p className="text-gray-400 text-sm font-semibold">Portfolio Quality</p>
                       <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                        <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="text-3xl font-bold text-white">{insights.summary.onTimeDeliveryRate.toFixed(1)}%</p>
-                    <p className="text-xs text-gray-500 mt-2">{insights.summary.totalDeliveries} total deliveries</p>
-                    <p className="text-xs text-gold mt-2 opacity-0 group-hover:opacity-100 transition">Click for delivery details →</p>
-                  </button>
+                    <p className="text-3xl font-bold text-white">{insights.portfolio_health.average_quality_score}</p>
+                    <p className="text-xs text-gray-500 mt-2">{insights.portfolio_health.total_active_projects} active projects</p>
+                  </div>
 
-                  {/* Overtime Rate Card */}
-                  <button
-                    onClick={() => openReport('overtime')}
-                    className="glass rounded-xl p-6 hover:bg-white/10 transition-all cursor-pointer group text-left"
-                  >
+                  {/* Labor Costs */}
+                  <div className="glass rounded-xl p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold group-hover:text-gold transition">Overtime Rate</p>
+                      <p className="text-gray-400 text-sm font-semibold">Labor Costs (MTD)</p>
                       <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="text-3xl font-bold text-white">{insights.summary.overtimeRate.toFixed(1)}%</p>
-                    <p className="text-xs text-gray-500 mt-2">{insights.summary.overtimeHours} OT hrs / {insights.summary.totalLaborHours} total</p>
-                    <p className="text-xs text-gold mt-2 opacity-0 group-hover:opacity-100 transition">Click for labor breakdown →</p>
-                  </button>
+                    <p className="text-3xl font-bold text-white">${(insights.financial_snapshot.total_labor_cost_month / 1000).toFixed(0)}k</p>
+                    <p className="text-xs text-gray-500 mt-2">Month-to-date total</p>
+                  </div>
 
-                  {/* Open Constraints Card */}
-                  <button
-                    onClick={() => openReport('critical')}
-                    className="glass rounded-xl p-6 hover:bg-white/10 transition-all cursor-pointer group text-left"
-                  >
+                  {/* Cost Reduction Opportunities */}
+                  <div className="glass rounded-xl p-6">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold group-hover:text-gold transition">Open Constraints</p>
+                      <p className="text-gray-400 text-sm font-semibold">Savings Potential</p>
+                      <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <p className="text-3xl font-bold text-white">${(insights.financial_snapshot.cost_reduction_opportunities / 1000).toFixed(0)}k</p>
+                    <p className="text-xs text-green-400 mt-2">{insights.financial_snapshot.portfolio_roi}x ROI</p>
+                  </div>
+
+                  {/* Projects at Risk */}
+                  <div className="glass rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-gray-400 text-sm font-semibold">Projects at Risk</p>
                       <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="text-3xl font-bold text-white">{insights.summary.openConstraints}</p>
-                    <p className="text-xs text-red-400 mt-2">{insights.summary.criticalConstraints} critical priority</p>
-                    <p className="text-xs text-gold mt-2 opacity-0 group-hover:opacity-100 transition">Click to view events →</p>
-                  </button>
-
-                  {/* Total Reports Card */}
-                  <div className="glass rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Total Reports</p>
-                      <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
-                        <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                      </svg>
-                    </div>
-                    <p className="text-3xl font-bold text-white">{insights.summary.totalReports}</p>
-                    <p className="text-xs text-gray-500 mt-2">Generated reports</p>
+                    <p className="text-3xl font-bold text-white">{insights.portfolio_health.projects_at_risk}</p>
+                    <p className="text-xs text-red-400 mt-2">Requiring attention</p>
                   </div>
                 </div>
 
@@ -516,20 +512,26 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                   </div>
                 </div>
 
-                {/* Vendor Performance */}
+                {/* Project Health Summary */}
                 <div className="glass rounded-xl p-6">
-                  <h2 className="text-lg font-display font-bold text-white mb-4">Top Vendors by Volume</h2>
-                  {insights.vendors && insights.vendors.length > 0 ? (
+                  <h2 className="text-lg font-display font-bold text-white mb-4">Active Projects</h2>
+                  {insights.projects && insights.projects.length > 0 ? (
                     <div className="space-y-3">
-                      {insights.vendors.slice(0, 5).map((vendor, index) => (
+                      {insights.projects.slice(0, 5).map((project, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                           <div className="flex-1">
-                            <p className="text-white font-semibold text-sm">{vendor.name}</p>
-                            <p className="text-gray-500 text-xs">{vendor.deliveries} deliveries</p>
+                            <p className="text-white font-semibold text-sm">{project.project_name}</p>
+                            <p className="text-gray-500 text-xs">Quality: {project.quality_score} | Schedule: {project.schedule_score}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-gold font-bold">{vendor.onTimeRate}</p>
-                            <p className="text-gray-500 text-xs">on-time</p>
+                            <div className={`text-lg font-bold ${
+                              project.health_score >= 80 ? 'text-green-400' :
+                              project.health_score >= 70 ? 'text-yellow-400' :
+                              'text-red-400'
+                            }`}>
+                              {project.health_score}
+                            </div>
+                            <p className="text-gray-500 text-xs">health</p>
                           </div>
                         </div>
                       ))}
@@ -537,10 +539,10 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                   ) : (
                     <div className="text-center py-8">
                       <svg className="w-12 h-12 text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
-                      <p className="text-gray-400 text-sm">No vendor data available yet</p>
-                      <p className="text-gray-500 text-xs mt-1">Create reports with delivery information to see vendor analytics</p>
+                      <p className="text-gray-400 text-sm">No project data available yet</p>
+                      <p className="text-gray-500 text-xs mt-1">Create reports to see project health analytics</p>
                     </div>
                   )}
                 </div>
