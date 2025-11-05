@@ -19,7 +19,11 @@ const {
   getProjectHealth,
   getConstraintAnalytics,
   getStrategicInsights,
-  queryWithAI
+  queryWithAI,
+  getOvertimeReport,
+  getConstraintsReport,
+  getCostAnalysisReport,
+  getDeliveryPerformanceReport
 } = require('./bi-endpoints');
 
 // Initialize AWS clients
@@ -2439,6 +2443,50 @@ exports.handler = async (event) => {
           body: JSON.stringify({ success: false, error: error.message })
         };
       }
+    }
+
+    // =====================================================================
+    // BI Report Endpoints
+    // =====================================================================
+
+    // GET /api/bi/reports/overtime - Overtime Analysis Report
+    if (path.endsWith('/bi/reports/overtime') && method === 'GET') {
+      const result = await getOvertimeReport();
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/reports/constraints - Constraints by Project Report
+    if (path.endsWith('/bi/reports/constraints') && method === 'GET') {
+      const result = await getConstraintsReport();
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/reports/savings - Cost Analysis & Savings Opportunities
+    if (path.endsWith('/bi/reports/savings') && method === 'GET') {
+      const result = await getCostAnalysisReport();
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // GET /api/bi/reports/deliveries - Delivery Performance Report
+    if (path.endsWith('/bi/reports/deliveries') && method === 'GET') {
+      const result = await getDeliveryPerformanceReport();
+      return {
+        statusCode: result.success ? 200 : 500,
+        headers,
+        body: JSON.stringify(result)
+      };
     }
 
     // =====================================================================

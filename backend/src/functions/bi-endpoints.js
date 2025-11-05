@@ -931,6 +931,441 @@ async function queryWithAI(query) {
   }
 }
 
+/**
+ * Overtime Report Endpoint
+ * GET /api/bi/reports/overtime
+ *
+ * Analyzes overtime trends across portfolio with:
+ * - Overtime % by project
+ * - Cost impact of overtime
+ * - Top OT workers
+ * - Trends over time
+ */
+async function getOvertimeReport() {
+  try {
+    console.log('📊 Generating Overtime Report...');
+
+    // Fetch all hours summaries
+    const hoursSummaries = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-analytics',
+      FilterExpression: 'begins_with(PK, :pk)',
+      ExpressionAttributeValues: {
+        ':pk': 'HOURS_SUMMARY'
+      }
+    }));
+
+    const summaries = hoursSummaries.Items || [];
+
+    // Calculate portfolio-wide overtime metrics
+    const totalRegularHours = summaries.reduce((sum, s) => sum + (s.total_regular_hours || 0), 0);
+    const totalOvertimeHours = summaries.reduce((sum, s) => sum + (s.total_overtime_hours || 0), 0);
+    const totalDoubletimeHours = summaries.reduce((sum, s) => sum + (s.total_doubletime_hours || 0), 0);
+    const totalHours = totalRegularHours + totalOvertimeHours + totalDoubletimeHours;
+
+    const overtimePercentage = totalHours > 0 ? ((totalOvertimeHours + totalDoubletimeHours) / totalHours * 100).toFixed(1) : 0;
+
+    // Estimate OT cost impact (OT = 1.5x, DT = 2x)
+    const avgHourlyRate = 45; // Industry average
+    const overtimeCost = (totalOvertimeHours * avgHourlyRate * 0.5) + (totalDoubletimeHours * avgHourlyRate * 1.0);
+
+    // Group by project
+    const byProject = {};
+    summaries.forEach(s => {
+      const projectId = s.project_id || 'unknown';
+      if (!byProject[projectId]) {
+        byProject[projectId] = {
+          project_id: projectId,
+          project_name: s.project_name || 'Unknown Project',
+          regular_hours: 0,
+          overtime_hours: 0,
+          doubletime_hours: 0,
+          total_cost: 0
+        };
+      }
+
+      byProject[projectId].regular_hours += (s.total_regular_hours || 0);
+      byProject[projectId].overtime_hours += (s.total_overtime_hours || 0);
+      byProject[projectId].doubletime_hours += (s.total_doubletime_hours || 0);
+      byProject[projectId].total_cost += (s.total_labor_cost || 0);
+    });
+
+    // Calculate OT % for each project
+    const projectAnalysis = Object.values(byProject).map(p => {
+      const totalHrs = p.regular_hours + p.overtime_hours + p.doubletime_hours;
+      const otHrs = p.overtime_hours + p.doubletime_hours;
+      const otPercentage = totalHrs > 0 ? (otHrs / totalHrs * 100).toFixed(1) : 0;
+      const otCost = (p.overtime_hours * avgHourlyRate * 0.5) + (p.doubletime_hours * avgHourlyRate * 1.0);
+
+      return {
+        ...p,
+        total_hours: totalHrs,
+        overtime_percentage: parseFloat(otPercentage),
+        overtime_cost_impact: Math.round(otCost)
+      };
+    }).sort((a, b) => b.overtime_percentage - a.overtime_percentage);
+
+    return {
+      success: true,
+      report: {
+        summary: {
+          total_hours: totalHours,
+          regular_hours: totalRegularHours,
+          overtime_hours: totalOvertimeHours,
+          doubletime_hours: totalDoubletimeHours,
+          overtime_percentage: parseFloat(overtimePercentage),
+          overtime_cost_impact: Math.round(overtimeCost),
+          explanation: `Overtime % = (OT Hours + DT Hours) / Total Hours × 100. Industry target: <15%. Cost impact calculated at $${avgHourlyRate}/hr base rate (OT = 1.5x, DT = 2x premium).`
+        },
+        by_project: projectAnalysis,
+        high_ot_projects: projectAnalysis.filter(p => p.overtime_percentage > 15),
+        recommendations: overtimePercentage > 15 ? [
+          `Portfolio OT at ${overtimePercentage}% exceeds industry target of 15%`,
+          `Consider crew scheduling optimization to reduce premium labor costs`,
+          `Review projects with >20% OT for staffing adjustments`
+        ] : [
+          `Portfolio OT at ${overtimePercentage}% is within healthy range (<15%)`
+        ]
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error generating overtime report:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Constraints Report Endpoint
+ * GET /api/bi/reports/constraints
+ *
+ * Groups constraints by project showing:
+ * - Top constraints per project
+ * - Recurring issues across portfolio
+ * - Cost impact breakdown
+ */
+async function getConstraintsReport() {
+  try {
+    console.log('📊 Generating Constraints Report...');
+
+    // Fetch all constraints
+    const constraints = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-analytics',
+      FilterExpression: 'begins_with(PK, :pk)',
+      ExpressionAttributeValues: {
+        ':pk': 'CONSTRAINT#'
+      }
+    }));
+
+    const allConstraints = constraints.Items || [];
+
+    // Group by project
+    const byProject = {};
+    allConstraints.forEach(c => {
+      const projectId = c.project_id || 'unknown';
+      if (!byProject[projectId]) {
+        byProject[projectId] = {
+          project_id: projectId,
+          project_name: c.project_name || 'Unknown Project',
+          total_constraints: 0,
+          total_cost_impact: 0,
+          active: 0,
+          resolved: 0,
+          constraints: []
+        };
+      }
+
+      byProject[projectId].total_constraints++;
+      byProject[projectId].total_cost_impact += (c.total_cost_impact || 0);
+
+      if (c.resolution_status === 'resolved') {
+        byProject[projectId].resolved++;
+      } else {
+        byProject[projectId].active++;
+      }
+
+      byProject[projectId].constraints.push({
+        constraint_id: c.SK,
+        category: c.category || 'uncategorized',
+        description: c.description || c.issue_summary || 'No description',
+        total_cost_impact: c.total_cost_impact || 0,
+        resolution_status: c.resolution_status || 'pending',
+        date: c.report_date || c.created_at,
+        report_id: c.report_id || null
+      });
+    });
+
+    // Sort projects by cost impact
+    const projectList = Object.values(byProject)
+      .map(p => ({
+        ...p,
+        constraints: p.constraints.sort((a, b) => b.total_cost_impact - a.total_cost_impact).slice(0, 10) // Top 10 per project
+      }))
+      .sort((a, b) => b.total_cost_impact - a.total_cost_impact);
+
+    // Find recurring issues (same category + similar description across projects)
+    const categoryCount = {};
+    allConstraints.forEach(c => {
+      const cat = c.category || 'uncategorized';
+      categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+    });
+
+    const recurringIssues = Object.entries(categoryCount)
+      .filter(([cat, count]) => count > 3)
+      .map(([cat, count]) => ({
+        category: cat,
+        occurrence_count: count,
+        total_cost: allConstraints.filter(c => c.category === cat).reduce((sum, c) => sum + (c.total_cost_impact || 0), 0)
+      }))
+      .sort((a, b) => b.total_cost - a.total_cost);
+
+    return {
+      success: true,
+      report: {
+        summary: {
+          total_constraints: allConstraints.length,
+          total_cost_impact: allConstraints.reduce((sum, c) => sum + (c.total_cost_impact || 0), 0),
+          active: allConstraints.filter(c => c.resolution_status !== 'resolved').length,
+          resolved: allConstraints.filter(c => c.resolution_status === 'resolved').length,
+          explanation: 'Constraints are issues, delays, or problems identified in daily reports that impact project cost or schedule. Click any constraint to view the source report.'
+        },
+        by_project: projectList,
+        recurring_issues: recurringIssues,
+        top_constraints_portfolio: allConstraints
+          .sort((a, b) => b.total_cost_impact - a.total_cost_impact)
+          .slice(0, 20)
+          .map(c => ({
+            project_name: c.project_name,
+            category: c.category,
+            description: c.description || c.issue_summary,
+            total_cost_impact: c.total_cost_impact,
+            resolution_status: c.resolution_status,
+            report_id: c.report_id
+          }))
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error generating constraints report:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Cost Analysis Report Endpoint
+ * GET /api/bi/reports/savings
+ *
+ * Analyzes cost reduction opportunities:
+ * - Identified savings by category
+ * - High-cost areas with low performance
+ * - Cost trends and variances
+ */
+async function getCostAnalysisReport() {
+  try {
+    console.log('📊 Generating Cost Analysis Report...');
+
+    // Fetch recommendations (cost reduction opportunities)
+    const recommendations = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-analytics',
+      FilterExpression: 'begins_with(PK, :pk)',
+      ExpressionAttributeValues: {
+        ':pk': 'RECOMMENDATIONS'
+      }
+    }));
+
+    // Fetch hours summaries for labor cost trends
+    const hoursSummaries = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-analytics',
+      FilterExpression: 'begins_with(PK, :pk)',
+      ExpressionAttributeValues: {
+        ':pk': 'HOURS_SUMMARY'
+      }
+    }));
+
+    // Fetch constraints for issue-related costs
+    const constraints = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-analytics',
+      FilterExpression: 'begins_with(PK, :pk)',
+      ExpressionAttributeValues: {
+        ':pk': 'CONSTRAINT#'
+      }
+    }));
+
+    const recs = recommendations.Items || [];
+    const summaries = hoursSummaries.Items || [];
+    const constraintsList = constraints.Items || [];
+
+    // Parse recommendations for savings opportunities
+    const savingsOpportunities = [];
+    recs.forEach(rec => {
+      const recsData = rec.recommendations || [];
+      recsData.forEach(r => {
+        if (r.estimated_savings > 0) {
+          savingsOpportunities.push({
+            project_name: rec.project_name,
+            category: r.category || 'operational',
+            recommendation: r.recommendation,
+            estimated_savings: r.estimated_savings,
+            implementation_timeline: r.implementation_timeline,
+            priority: r.priority
+          });
+        }
+      });
+    });
+
+    // Group savings by category
+    const savingsByCategory = {};
+    savingsOpportunities.forEach(s => {
+      const cat = s.category;
+      if (!savingsByCategory[cat]) {
+        savingsByCategory[cat] = {
+          category: cat,
+          total_savings: 0,
+          count: 0,
+          opportunities: []
+        };
+      }
+      savingsByCategory[cat].total_savings += s.estimated_savings;
+      savingsByCategory[cat].count++;
+      savingsByCategory[cat].opportunities.push(s);
+    });
+
+    const savingsBreakdown = Object.values(savingsByCategory)
+      .sort((a, b) => b.total_savings - a.total_savings);
+
+    // Calculate labor cost trends
+    const totalLaborCost = summaries.reduce((sum, s) => sum + (s.total_labor_cost || 0), 0);
+    const constraintCost = constraintsList.reduce((sum, c) => sum + (c.total_cost_impact || 0), 0);
+
+    // High-cost areas
+    const laborByProject = {};
+    summaries.forEach(s => {
+      const pid = s.project_id || 'unknown';
+      if (!laborByProject[pid]) {
+        laborByProject[pid] = {
+          project_name: s.project_name,
+          total_cost: 0
+        };
+      }
+      laborByProject[pid].total_cost += (s.total_labor_cost || 0);
+    });
+
+    const highCostProjects = Object.values(laborByProject)
+      .sort((a, b) => b.total_cost - a.total_cost)
+      .slice(0, 5);
+
+    return {
+      success: true,
+      report: {
+        summary: {
+          total_identified_savings: savingsOpportunities.reduce((sum, s) => sum + s.estimated_savings, 0),
+          total_labor_cost_mtd: totalLaborCost,
+          total_constraint_costs: constraintCost,
+          savings_categories_count: savingsBreakdown.length,
+          explanation: 'Cost reduction opportunities identified by AI analysis of daily reports, including labor optimization, vendor negotiations, rework prevention, and process improvements.'
+        },
+        savings_by_category: savingsBreakdown,
+        top_opportunities: savingsOpportunities
+          .sort((a, b) => b.estimated_savings - a.estimated_savings)
+          .slice(0, 10),
+        high_cost_areas: highCostProjects,
+        cost_breakdown: {
+          labor_costs: totalLaborCost,
+          constraint_costs: constraintCost,
+          potential_savings: savingsOpportunities.reduce((sum, s) => sum + s.estimated_savings, 0)
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error generating cost analysis report:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Delivery Performance Report Endpoint
+ * GET /api/bi/reports/deliveries
+ *
+ * Shows vendor/supplier delivery performance
+ * NOTE: Placeholder for now - no delivery tracking data exists yet
+ */
+async function getDeliveryPerformanceReport() {
+  try {
+    console.log('📊 Generating Delivery Performance Report...');
+
+    // Check for vendor performance data
+    const vendorPerf = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-analytics',
+      FilterExpression: 'begins_with(PK, :pk)',
+      ExpressionAttributeValues: {
+        ':pk': 'VENDOR_PERFORMANCE'
+      },
+      Limit: 10
+    }));
+
+    const vendors = vendorPerf.Items || [];
+
+    if (vendors.length === 0) {
+      return {
+        success: true,
+        report: {
+          status: 'no_data',
+          message: 'Vendor delivery tracking is not currently active',
+          explanation: 'To enable delivery performance metrics, daily reports need to include vendor delivery information (vendor name, delivery date, on-time status, products delivered). This feature will be available in a future update.',
+          placeholder_data: {
+            planned_metrics: [
+              'On-time Delivery Rate % by vendor',
+              'Average delivery lead time',
+              'Number of deliveries per vendor',
+              'Primary products/materials by vendor',
+              'Late delivery reasons and trends'
+            ]
+          }
+        }
+      };
+    }
+
+    // If we have vendor data, process it
+    const vendorStats = vendors.map(v => ({
+      vendor_name: v.vendor_name,
+      total_deliveries: v.total_deliveries || 0,
+      on_time_deliveries: v.on_time_delivery_count || 0,
+      on_time_rate: v.total_deliveries > 0 ? ((v.on_time_delivery_count / v.total_deliveries) * 100).toFixed(1) : 0,
+      primary_products: v.primary_products || []
+    }));
+
+    return {
+      success: true,
+      report: {
+        status: 'active',
+        vendors: vendorStats,
+        summary: {
+          total_vendors: vendors.length,
+          avg_on_time_rate: vendors.length > 0
+            ? (vendorStats.reduce((sum, v) => sum + parseFloat(v.on_time_rate), 0) / vendors.length).toFixed(1)
+            : 0
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ Error generating delivery performance report:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   getExecutiveDashboard,
   getPersonnelIntelligence,
@@ -938,5 +1373,9 @@ module.exports = {
   getProjectHealth,
   getConstraintAnalytics,
   getStrategicInsights,
-  queryWithAI
+  queryWithAI,
+  getOvertimeReport,
+  getConstraintsReport,
+  getCostAnalysisReport,
+  getDeliveryPerformanceReport
 };
