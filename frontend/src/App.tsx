@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLogin from './components/AdminLogin';
+import HomePage from './components/HomePage';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -7,6 +8,8 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 interface Manager {
   id: string;
   name: string;
+  goByName?: string;
+  position?: string;
 }
 
 interface Project {
@@ -15,7 +18,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'login' | 'recording' | 'reports' | 'analytics';
+type Screen = 'login' | 'home' | 'recording' | 'reports' | 'analytics';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
@@ -30,14 +33,14 @@ function App() {
     if (savedManager && savedProject) {
       setManager(JSON.parse(savedManager));
       setProject(JSON.parse(savedProject));
-      setCurrentScreen('recording');
+      setCurrentScreen('home');
     }
   }, []);
 
   const handleLogin = (selectedManager: Manager, selectedProject: Project) => {
     setManager(selectedManager);
     setProject(selectedProject);
-    setCurrentScreen('recording');
+    setCurrentScreen('home');
   };
 
   const handleLogout = () => {
@@ -48,6 +51,10 @@ function App() {
     setCurrentScreen('login');
   };
 
+  const handleNavigateToRoxy = () => {
+    setCurrentScreen('recording');
+  };
+
   const handleViewReports = () => {
     setCurrentScreen('reports');
   };
@@ -56,12 +63,25 @@ function App() {
     setCurrentScreen('analytics');
   };
 
-  const handleBackToRecording = () => {
-    setCurrentScreen('recording');
+  const handleBackToHome = () => {
+    setCurrentScreen('home');
   };
 
   if (currentScreen === 'login') {
     return <AdminLogin onLogin={handleLogin} />;
+  }
+
+  if (currentScreen === 'home') {
+    return (
+      <HomePage
+        manager={manager!}
+        project={project!}
+        onNavigateToRoxy={handleNavigateToRoxy}
+        onNavigateToReports={handleViewReports}
+        onNavigateToAnalytics={handleViewAnalytics}
+        onLogout={handleLogout}
+      />
+    );
   }
 
   if (currentScreen === 'reports') {
@@ -69,7 +89,7 @@ function App() {
       <ReportsList
         manager={manager!}
         project={project!}
-        onBack={handleBackToRecording}
+        onBack={handleBackToHome}
       />
     );
   }
@@ -79,7 +99,7 @@ function App() {
       <AnalyticsDashboard
         manager={manager!}
         project={project!}
-        onBack={handleBackToRecording}
+        onBack={handleBackToHome}
       />
     );
   }
