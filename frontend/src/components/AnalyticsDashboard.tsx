@@ -753,6 +753,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                 {reportModal.type === 'constraints' && '🚧 Constraints Report'}
                 {reportModal.type === 'deliveries' && '📦 Delivery Performance Report'}
                 {reportModal.type === 'overtime' && '⏰ Overtime Analysis Report'}
+                {reportModal.type === 'savings' && '💰 Cost Savings Analysis'}
               </h2>
               <button
                 onClick={() => setReportModal(null)}
@@ -769,25 +770,102 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
               {/* Constraints Report */}
               {reportModal.type === 'constraints' && reportModal.data && (
                 <div className="space-y-6">
+                  {/* Explanation */}
+                  {reportModal.data.summary?.explanation && (
+                    <div className="glass rounded-xl p-4 bg-gold/10 border border-gold/30">
+                      <p className="text-sm text-white">{reportModal.data.summary.explanation}</p>
+                    </div>
+                  )}
+
                   {/* Summary Cards */}
                   {reportModal.data.summary && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="glass rounded-xl p-4">
-                        <div className="text-2xl font-bold text-white">{reportModal.data.summary.total || 0}</div>
+                        <div className="text-2xl font-bold text-white">{reportModal.data.summary.total_constraints || 0}</div>
                         <div className="text-sm text-gray-400">Total Constraints</div>
                       </div>
                       <div className="glass rounded-xl p-4">
-                        <div className="text-2xl font-bold text-yellow-400">{reportModal.data.summary.open || 0}</div>
-                        <div className="text-sm text-gray-400">Open</div>
-                      </div>
-                      <div className="glass rounded-xl p-4">
-                        <div className="text-2xl font-bold text-red-400">{reportModal.data.summary.critical || 0}</div>
-                        <div className="text-sm text-gray-400">Critical</div>
+                        <div className="text-2xl font-bold text-yellow-400">{reportModal.data.summary.active || 0}</div>
+                        <div className="text-sm text-gray-400">Active</div>
                       </div>
                       <div className="glass rounded-xl p-4">
                         <div className="text-2xl font-bold text-green-400">{reportModal.data.summary.resolved || 0}</div>
                         <div className="text-sm text-gray-400">Resolved</div>
                       </div>
+                      <div className="glass rounded-xl p-4">
+                        <div className="text-2xl font-bold text-red-400">${(reportModal.data.summary.total_cost_impact || 0).toLocaleString()}</div>
+                        <div className="text-sm text-gray-400">Total Cost Impact</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Constraints by Project */}
+                  {reportModal.data.by_project && reportModal.data.by_project.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold text-white">Constraints by Project</h3>
+                      {reportModal.data.by_project.map((proj: any, projIdx: number) => (
+                        <div key={projIdx} className="glass rounded-xl p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-white font-bold text-lg">{proj.project_name}</h4>
+                            <div className="flex items-center space-x-4">
+                              <span className="text-sm text-gray-400">{proj.total_constraints} constraints</span>
+                              <span className="text-sm text-red-400 font-semibold">${(proj.total_cost_impact || 0).toLocaleString()} impact</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {proj.constraints && proj.constraints.map((constraint: any, i: number) => (
+                              <div
+                                key={i}
+                                className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex items-start space-x-3 flex-1">
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold flex-shrink-0 ${
+                                      constraint.category === 'design' ? 'bg-purple-500/20 text-purple-400' :
+                                      constraint.category === 'coordination' ? 'bg-blue-500/20 text-blue-400' :
+                                      constraint.category === 'equipment' ? 'bg-orange-500/20 text-orange-400' :
+                                      'bg-yellow-500/20 text-yellow-400'
+                                    }`}>
+                                      {constraint.category}
+                                    </span>
+                                    <div className="flex-1">
+                                      <p className="text-white text-sm">{constraint.description}</p>
+                                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                                        <span>{constraint.date}</span>
+                                        {constraint.total_cost_impact > 0 && (
+                                          <span className="text-red-400 font-semibold">${constraint.total_cost_impact.toLocaleString()} impact</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold flex-shrink-0 ml-3 ${
+                                    constraint.resolution_status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                                    'bg-yellow-500/20 text-yellow-400'
+                                  }`}>
+                                    {constraint.resolution_status}
+                                  </span>
+                                </div>
+
+                                {constraint.report_id && (
+                                  <button
+                                    onClick={() => {
+                                      const url = `${API_BASE_URL}/reports/${constraint.report_id}/html?projectId=${proj.project_id}&reportDate=${constraint.date}`;
+                                      window.open(url, '_blank');
+                                    }}
+                                    className="mt-2 flex items-center space-x-1 text-gold hover:text-gold-light transition text-xs"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span className="underline">View Source Report</span>
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -964,173 +1042,224 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
               )}
 
               {/* Deliveries Report */}
-              {reportModal.type === 'deliveries' && (
+              {reportModal.type === 'deliveries' && reportModal.data && (
                 <div className="space-y-6">
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-white">{reportModal.data.summary.total}</div>
-                      <div className="text-sm text-gray-400">Total Deliveries</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-green-400">{reportModal.data.summary.onTime}</div>
-                      <div className="text-sm text-gray-400">On Time</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-red-400">{reportModal.data.summary.late}</div>
-                      <div className="text-sm text-gray-400">Late</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-blue-400">{reportModal.data.summary.early}</div>
-                      <div className="text-sm text-gray-400">Early</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-orange-400">{reportModal.data.summary.missing || 0}</div>
-                      <div className="text-sm text-gray-400">Missing/Incomplete</div>
-                    </div>
-                    <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-gold">{reportModal.data.summary.onTimeRate}%</div>
-                      <div className="text-sm text-gray-400">On-Time Rate</div>
-                    </div>
-                  </div>
+                  {/* Check if no data available */}
+                  {reportModal.data.status === 'no_data' ? (
+                    <div className="glass rounded-xl p-12 text-center">
+                      <svg className="w-20 h-20 text-gray-600 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      </svg>
+                      <h3 className="text-2xl font-semibold text-white mb-3">{reportModal.data.message}</h3>
+                      <p className="text-gray-400 mb-6 max-w-2xl mx-auto">{reportModal.data.explanation}</p>
 
-                  {/* Vendor Performance */}
-                  <div className="glass rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center">
-                      Vendor Performance
-                      <span className="ml-3 text-xs text-gray-500 font-normal">Click vendor to view details</span>
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="text-left text-sm font-semibold text-gray-400 pb-3">Vendor</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">Total</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">On Time</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">Late</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">Early</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">Missing</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">On-Time %</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportModal.data.vendors.map((vendor: any, i: number) => (
-                            <tr
-                              key={i}
-                              className="border-b border-white/5 hover:bg-gold/10 cursor-pointer transition"
-                              onClick={() => setVendorDetailModal(vendor)}
-                            >
-                              <td className="py-3 text-sm font-semibold text-white flex items-center">
-                                {vendor.name}
-                                <svg className="w-4 h-4 ml-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      {reportModal.data.placeholder_data?.planned_metrics && (
+                        <div className="bg-white/5 rounded-xl p-6 max-w-xl mx-auto">
+                          <h4 className="text-white font-semibold mb-4">Planned Metrics (Future):</h4>
+                          <ul className="space-y-2 text-left">
+                            {reportModal.data.placeholder_data.planned_metrics.map((metric: string, i: number) => (
+                              <li key={i} className="flex items-start space-x-2 text-sm text-gray-300">
+                                <svg className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
-                              </td>
-                              <td className="py-3 text-sm text-gray-300 text-center">{vendor.total}</td>
-                              <td className="py-3 text-sm text-green-400 text-center">{vendor.onTime}</td>
-                              <td className="py-3 text-sm text-red-400 text-center">{vendor.late}</td>
-                              <td className="py-3 text-sm text-blue-400 text-center">{vendor.early}</td>
-                              <td className="py-3 text-sm text-orange-400 text-center">{vendor.missing || 0}</td>
-                              <td className="py-3 text-sm text-center">
-                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                  parseFloat(vendor.onTimeRate) >= 90 ? 'bg-green-500/20 text-green-400' :
-                                  parseFloat(vendor.onTimeRate) >= 75 ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-red-500/20 text-red-400'
-                                }`}>
-                                  {vendor.onTimeRate}%
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Recent Deliveries */}
-                  <div className="glass rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">Recent Deliveries</h3>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {reportModal.data.deliveries.slice(0, 20).map((delivery: any, i: number) => (
-                        <div key={i} className="bg-white/5 rounded-lg p-3 hover:bg-white/10 transition">
-                          <div className="flex justify-between items-start mb-1">
-                            <div className="text-white font-semibold text-sm">{delivery.vendor}</div>
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              delivery.status === 'On-Time' ? 'bg-green-500/20 text-green-400' :
-                              delivery.status.includes('Late') ? 'bg-red-500/20 text-red-400' :
-                              'bg-blue-500/20 text-blue-400'
-                            }`}>
-                              {delivery.status}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-400">{delivery.materials}</div>
-                          <div className="text-xs text-gray-500 mt-1">{delivery.date} • {delivery.time}</div>
+                                <span>{metric}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Summary Cards - Only show if data exists */}
+                      {reportModal.data.summary && (
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                          <div className="glass rounded-xl p-4">
+                            <div className="text-2xl font-bold text-white">{reportModal.data.summary.total}</div>
+                            <div className="text-sm text-gray-400">Total Deliveries</div>
+                          </div>
+                          <div className="glass rounded-xl p-4">
+                            <div className="text-2xl font-bold text-green-400">{reportModal.data.summary.onTime}</div>
+                            <div className="text-sm text-gray-400">On Time</div>
+                          </div>
+                          <div className="glass rounded-xl p-4">
+                            <div className="text-2xl font-bold text-red-400">{reportModal.data.summary.late}</div>
+                            <div className="text-sm text-gray-400">Late</div>
+                          </div>
+                          <div className="glass rounded-xl p-4">
+                            <div className="text-2xl font-bold text-blue-400">{reportModal.data.summary.early}</div>
+                            <div className="text-sm text-gray-400">Early</div>
+                          </div>
+                          <div className="glass rounded-xl p-4">
+                            <div className="text-2xl font-bold text-orange-400">{reportModal.data.summary.missing || 0}</div>
+                            <div className="text-sm text-gray-400">Missing/Incomplete</div>
+                          </div>
+                          <div className="glass rounded-xl p-4">
+                            <div className="text-2xl font-bold text-gold">{reportModal.data.summary.onTimeRate}%</div>
+                            <div className="text-sm text-gray-400">On-Time Rate</div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 
               {/* Overtime Report */}
-              {reportModal.type === 'overtime' && (
+              {reportModal.type === 'overtime' && reportModal.data && (
                 <div className="space-y-6">
+                  {/* Explanation */}
+                  {reportModal.data.summary?.explanation && (
+                    <div className="glass rounded-xl p-4 bg-gold/10 border border-gold/30">
+                      <p className="text-sm text-white">{reportModal.data.summary.explanation}</p>
+                    </div>
+                  )}
+
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-white">{reportModal.data.summary.totalHours.toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-white">{reportModal.data.summary?.total_hours?.toFixed(1) || 0}</div>
                       <div className="text-sm text-gray-400">Total Hours</div>
                     </div>
                     <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-blue-400">{reportModal.data.summary.regularHours.toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-blue-400">{reportModal.data.summary?.regular_hours?.toFixed(1) || 0}</div>
                       <div className="text-sm text-gray-400">Regular Hours</div>
                     </div>
                     <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-yellow-400">{reportModal.data.summary.overtimeHours.toFixed(1)}</div>
+                      <div className="text-2xl font-bold text-yellow-400">{reportModal.data.summary?.overtime_hours?.toFixed(1) || 0}</div>
                       <div className="text-sm text-gray-400">Overtime Hours</div>
                     </div>
                     <div className="glass rounded-xl p-4">
-                      <div className="text-2xl font-bold text-gold">{reportModal.data.summary.overtimeRate}%</div>
+                      <div className="text-2xl font-bold text-gold">{reportModal.data.summary?.overtime_percentage || 0}%</div>
                       <div className="text-sm text-gray-400">OT Rate</div>
+                    </div>
+                    <div className="glass rounded-xl p-4">
+                      <div className="text-2xl font-bold text-red-400">${(reportModal.data.summary?.overtime_cost_impact || 0).toLocaleString()}</div>
+                      <div className="text-sm text-gray-400">OT Cost Impact</div>
                     </div>
                   </div>
 
                   {/* By Project */}
-                  <div className="glass rounded-xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">Overtime by Project</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="text-left text-sm font-semibold text-gray-400 pb-3">Project</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">Regular Hrs</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">OT Hrs</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">Total Hrs</th>
-                            <th className="text-center text-sm font-semibold text-gray-400 pb-3">OT %</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportModal.data.byProject.map((proj: any, i: number) => (
-                            <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                              <td className="py-3 text-sm font-semibold text-white">{proj.project}</td>
-                              <td className="py-3 text-sm text-blue-400 text-center">{proj.regularHours.toFixed(1)}</td>
-                              <td className="py-3 text-sm text-yellow-400 text-center">{proj.overtimeHours.toFixed(1)}</td>
-                              <td className="py-3 text-sm text-white text-center">{proj.totalHours.toFixed(1)}</td>
-                              <td className="py-3 text-sm text-center">
-                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                  parseFloat(proj.overtimeRate) < 10 ? 'bg-green-500/20 text-green-400' :
-                                  parseFloat(proj.overtimeRate) < 20 ? 'bg-yellow-500/20 text-yellow-400' :
-                                  'bg-red-500/20 text-red-400'
-                                }`}>
-                                  {proj.overtimeRate}%
-                                </span>
-                              </td>
+                  {reportModal.data.by_project && reportModal.data.by_project.length > 0 && (
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-white mb-4">Overtime by Project</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left text-sm font-semibold text-gray-400 pb-3">Project</th>
+                              <th className="text-center text-sm font-semibold text-gray-400 pb-3">Regular Hrs</th>
+                              <th className="text-center text-sm font-semibold text-gray-400 pb-3">OT Hrs</th>
+                              <th className="text-center text-sm font-semibold text-gray-400 pb-3">Total Hrs</th>
+                              <th className="text-center text-sm font-semibold text-gray-400 pb-3">OT %</th>
+                              <th className="text-center text-sm font-semibold text-gray-400 pb-3">Cost Impact</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {reportModal.data.by_project.map((proj: any, i: number) => (
+                              <tr key={i} className="border-b border-white/5 hover:bg-white/5">
+                                <td className="py-3 text-sm font-semibold text-white">{proj.project_name}</td>
+                                <td className="py-3 text-sm text-blue-400 text-center">{proj.regular_hours?.toFixed(1)}</td>
+                                <td className="py-3 text-sm text-yellow-400 text-center">{proj.overtime_hours?.toFixed(1)}</td>
+                                <td className="py-3 text-sm text-white text-center">{proj.total_hours?.toFixed(1)}</td>
+                                <td className="py-3 text-sm text-center">
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    parseFloat(proj.overtime_percentage) < 10 ? 'bg-green-500/20 text-green-400' :
+                                    parseFloat(proj.overtime_percentage) < 15 ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-red-500/20 text-red-400'
+                                  }`}>
+                                    {proj.overtime_percentage}%
+                                  </span>
+                                </td>
+                                <td className="py-3 text-sm text-red-400 text-center">${(proj.overtime_cost_impact || 0).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recommendations */}
+                  {reportModal.data.recommendations && reportModal.data.recommendations.length > 0 && (
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-white mb-4">Recommendations</h3>
+                      <ul className="space-y-2">
+                        {reportModal.data.recommendations.map((rec: string, i: number) => (
+                          <li key={i} className="flex items-start space-x-2 text-sm text-gray-300">
+                            <svg className="w-5 h-5 text-gold flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span>{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cost Savings Report */}
+              {reportModal.type === 'savings' && reportModal.data && (
+                <div className="space-y-6">
+                  {/* Explanation */}
+                  {reportModal.data.summary?.explanation && (
+                    <div className="glass rounded-xl p-4 bg-gold/10 border border-gold/30">
+                      <p className="text-sm text-white">{reportModal.data.summary.explanation}</p>
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="glass rounded-xl p-4">
+                      <div className="text-2xl font-bold text-green-400">${(reportModal.data.summary?.total_identified_savings || 0).toLocaleString()}</div>
+                      <div className="text-sm text-gray-400">Identified Savings</div>
+                    </div>
+                    <div className="glass rounded-xl p-4">
+                      <div className="text-2xl font-bold text-red-400">${(reportModal.data.summary?.total_constraint_costs || 0).toLocaleString()}</div>
+                      <div className="text-sm text-gray-400">Constraint Costs</div>
+                    </div>
+                    <div className="glass rounded-xl p-4">
+                      <div className="text-2xl font-bold text-blue-400">${(reportModal.data.summary?.total_labor_cost_mtd || 0).toLocaleString()}</div>
+                      <div className="text-sm text-gray-400">Labor Costs (MTD)</div>
                     </div>
                   </div>
+
+                  {/* High Cost Areas */}
+                  {reportModal.data.high_cost_areas && reportModal.data.high_cost_areas.length > 0 && (
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-white mb-4">High Cost Projects</h3>
+                      <div className="space-y-2">
+                        {reportModal.data.high_cost_areas.map((area: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span className="text-white font-semibold text-sm">{area.project_name}</span>
+                            <span className="text-lg font-bold text-red-400">${(area.total_cost || 0).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cost Breakdown */}
+                  {reportModal.data.cost_breakdown && (
+                    <div className="glass rounded-xl p-6">
+                      <h3 className="text-lg font-bold text-white mb-4">Cost Breakdown</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300 text-sm">Labor Costs</span>
+                          <span className="text-white font-bold">${(reportModal.data.cost_breakdown.labor_costs || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300 text-sm">Constraint/Issue Costs</span>
+                          <span className="text-red-400 font-bold">${(reportModal.data.cost_breakdown.constraint_costs || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                          <span className="text-gray-300 text-sm">Potential Savings</span>
+                          <span className="text-green-400 font-bold">${(reportModal.data.cost_breakdown.potential_savings || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
