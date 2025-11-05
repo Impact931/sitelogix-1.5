@@ -4,6 +4,7 @@ import AdminLogin from './components/AdminLogin';
 import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import ProjectSetup from './components/ProjectSetup';
+import ProjectProfile from './components/ProjectProfile';
 import HomePage from './components/HomePage';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
@@ -22,7 +23,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'auth-login' | 'admin' | 'project-setup' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuth();
@@ -83,6 +84,14 @@ function AppContent() {
     setCurrentScreen('home');
   };
 
+  const handleNavigateToProjectProfile = () => {
+    setCurrentScreen('project-profile');
+  };
+
+  const handleBackToAdmin = () => {
+    setCurrentScreen('admin');
+  };
+
   // Show auth login for authenticated system
   if (currentScreen === 'auth-login') {
     return <Login onSwitchToLegacy={() => setCurrentScreen('login')} />;
@@ -90,7 +99,17 @@ function AppContent() {
 
   // Show admin dashboard for admin/superadmin users
   if (currentScreen === 'admin') {
-    return <AdminDashboard onNavigateToProjectSetup={() => setCurrentScreen('project-setup')} />;
+    return (
+      <AdminDashboard
+        onNavigateToProjectSetup={() => setCurrentScreen('project-setup')}
+        onNavigateToProjectProfile={handleNavigateToProjectProfile}
+      />
+    );
+  }
+
+  // Show project profile management
+  if (currentScreen === 'project-profile') {
+    return <ProjectProfile onBack={handleBackToAdmin} />;
   }
 
   // Show project setup for managers

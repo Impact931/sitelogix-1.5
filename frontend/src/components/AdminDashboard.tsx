@@ -17,9 +17,10 @@ interface Employee {
 interface AdminDashboardProps {
   onBack?: () => void;
   onNavigateToProjectSetup?: () => void;
+  onNavigateToProjectProfile?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile }) => {
   // Mock employee data
   const [employees, setEmployees] = useState<Employee[]>([
     {
@@ -210,6 +211,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
               </p>
             </div>
             <div className="flex items-center space-x-3">
+              {onNavigateToProjectProfile && (
+                <button
+                  onClick={onNavigateToProjectProfile}
+                  className="px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition text-sm font-semibold flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <span>Manage Projects</span>
+                </button>
+              )}
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-xl hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold flex items-center space-x-2"
