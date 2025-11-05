@@ -143,15 +143,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
     }
   };
 
-  const _handleAddEmployee = (newEmployee: Omit<Employee, 'id'>) => {
-    const employee: Employee = {
-      ...newEmployee,
-      id: `emp_${Date.now()}`
-    };
-    setEmployees([...employees, employee]);
-    _setShowAddModal(false);
-  };
-
   const getStatusColor = (status: Employee['status']) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400';
