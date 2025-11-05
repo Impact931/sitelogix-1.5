@@ -434,11 +434,15 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                   </div>
                 )}
 
-                {/* KPI Cards */}
+                {/* KPI Cards - Now Interactive! */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="glass rounded-xl p-6">
+                  {/* On-Time Delivery Card */}
+                  <button
+                    onClick={() => openReport('deliveries')}
+                    className="glass rounded-xl p-6 hover:bg-white/10 transition-all cursor-pointer group text-left"
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">On-Time Delivery Rate</p>
+                      <p className="text-gray-400 text-sm font-semibold group-hover:text-gold transition">On-Time Delivery Rate</p>
                       <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                         <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
@@ -446,30 +450,42 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                     </div>
                     <p className="text-3xl font-bold text-white">{insights.summary.onTimeDeliveryRate.toFixed(1)}%</p>
                     <p className="text-xs text-gray-500 mt-2">{insights.summary.totalDeliveries} total deliveries</p>
-                  </div>
+                    <p className="text-xs text-gold mt-2 opacity-0 group-hover:opacity-100 transition">Click for delivery details →</p>
+                  </button>
 
-                  <div className="glass rounded-xl p-6">
+                  {/* Overtime Rate Card */}
+                  <button
+                    onClick={() => openReport('overtime')}
+                    className="glass rounded-xl p-6 hover:bg-white/10 transition-all cursor-pointer group text-left"
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Overtime Rate</p>
+                      <p className="text-gray-400 text-sm font-semibold group-hover:text-gold transition">Overtime Rate</p>
                       <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                       </svg>
                     </div>
                     <p className="text-3xl font-bold text-white">{insights.summary.overtimeRate.toFixed(1)}%</p>
                     <p className="text-xs text-gray-500 mt-2">{insights.summary.overtimeHours} OT hrs / {insights.summary.totalLaborHours} total</p>
-                  </div>
+                    <p className="text-xs text-gold mt-2 opacity-0 group-hover:opacity-100 transition">Click for labor breakdown →</p>
+                  </button>
 
-                  <div className="glass rounded-xl p-6">
+                  {/* Open Constraints Card */}
+                  <button
+                    onClick={() => openReport('critical')}
+                    className="glass rounded-xl p-6 hover:bg-white/10 transition-all cursor-pointer group text-left"
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Open Constraints</p>
+                      <p className="text-gray-400 text-sm font-semibold group-hover:text-gold transition">Open Constraints</p>
                       <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                     </div>
                     <p className="text-3xl font-bold text-white">{insights.summary.openConstraints}</p>
                     <p className="text-xs text-red-400 mt-2">{insights.summary.criticalConstraints} critical priority</p>
-                  </div>
+                    <p className="text-xs text-gold mt-2 opacity-0 group-hover:opacity-100 transition">Click to view events →</p>
+                  </button>
 
+                  {/* Total Reports Card */}
                   <div className="glass rounded-xl p-6">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-gray-400 text-sm font-semibold">Total Reports</p>

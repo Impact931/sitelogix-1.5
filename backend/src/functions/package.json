@@ -4,6 +4,7 @@
   "description": "Lambda function for SiteLogix API endpoints",
   "main": "api-handler.js",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
     "@aws-sdk/client-dynamodb": "^3.535.0",
     "@aws-sdk/client-s3": "^3.535.0",
     "@aws-sdk/util-dynamodb": "^3.535.0",
