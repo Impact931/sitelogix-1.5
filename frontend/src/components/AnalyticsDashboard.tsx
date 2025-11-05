@@ -156,7 +156,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const openReport = async (reportType: string) => {
     try {
       console.log('Opening report:', reportType);
-      const response = await fetch(`${ANALYTICS_API}/reports/${reportType}`);
+      const response = await fetch(`${BI_API}/reports/${reportType}`);
 
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
@@ -182,7 +182,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const saveResolution = async (constraintId: string, resolution: string) => {
     try {
       setSavingResolution(constraintId);
-      const response = await fetch(`${ANALYTICS_API}/constraints/${constraintId}/resolution`, {
+      const response = await fetch(`${BI_API}/constraints/${constraintId}/resolution`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,7 +220,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const updateConstraintStatus = async (constraintId: string, newStatus: string) => {
     try {
       setUpdatingStatus(constraintId);
-      const response = await fetch(`${ANALYTICS_API}/constraints/${constraintId}/status`, {
+      const response = await fetch(`${BI_API}/constraints/${constraintId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
