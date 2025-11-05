@@ -106,7 +106,7 @@ fi
 # Create deployment package
 echo "Creating zip file..."
 rm -f $PACKAGE_FILE
-zip -r $PACKAGE_FILE api-handler.js bi-endpoints.js entityNormalizationService.js node_modules/ > /dev/null 2>&1
+zip -r $PACKAGE_FILE api-handler.js bi-endpoints.js admin-endpoints.js project-endpoints.js time-tracking-endpoints.js entityNormalizationService.js node_modules/ > /dev/null 2>&1
 
 echo "✅ Deployment package created: $(du -h $PACKAGE_FILE | cut -f1)"
 echo ""
@@ -212,7 +212,7 @@ INTEGRATION_ID=$(aws apigatewayv2 create-integration \
 echo "✅ Integration configured: $INTEGRATION_ID"
 
 # Create GET routes
-for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/reports/{reportId}/transcript" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/bi/reports/overtime" "/api/bi/reports/constraints" "/api/bi/reports/savings" "/api/bi/reports/deliveries" "/api/elevenlabs/agent-config" "/api/personnel" "/api/personnel/{id}" "/api/vendors" "/api/vendors/{id}"; do
+for ROUTE in "/api/managers" "/api/projects" "/api/projects/{projectId}" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/reports/{reportId}/transcript" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/bi/reports/overtime" "/api/bi/reports/constraints" "/api/bi/reports/savings" "/api/bi/reports/deliveries" "/api/elevenlabs/agent-config" "/api/personnel" "/api/personnel/{id}" "/api/vendors" "/api/vendors/{id}" "/api/auth/me" "/api/admin/employees" "/api/admin/employees/{employeeId}" "/api/time-entries" "/api/time-entries/employee/{employeeId}/hours"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='GET $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
@@ -229,7 +229,7 @@ for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/
 done
 
 # Create POST routes
-for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{constraintId}/resolution" "/api/analytics/constraints/{constraintId}/status" "/api/elevenlabs/conversation" "/api/personnel" "/api/vendors"; do
+for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{constraintId}/resolution" "/api/analytics/constraints/{constraintId}/status" "/api/elevenlabs/conversation" "/api/personnel" "/api/vendors" "/api/auth/login" "/api/auth/logout" "/api/auth/refresh" "/api/admin/employees" "/api/projects" "/api/time-entries"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='POST $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
@@ -246,7 +246,7 @@ for ROUTE in "/api/reports" "/api/analytics/query" "/api/analytics/constraints/{
 done
 
 # Create PUT routes
-for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}"; do
+for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}" "/api/admin/employees/{employeeId}" "/api/projects/{projectId}" "/api/projects/{projectId}/status" "/api/projects/{projectId}/timeline" "/api/time-entries/{entryId}"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='PUT $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
@@ -263,7 +263,7 @@ for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}"; do
 done
 
 # Create DELETE routes
-for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}"; do
+for ROUTE in "/api/personnel/{id}" "/api/vendors/{id}" "/api/admin/employees/{employeeId}" "/api/projects/{projectId}"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='DELETE $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then

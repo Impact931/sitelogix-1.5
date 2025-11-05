@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AdminLogin from './components/AdminLogin';
+import Login from './components/Login';
+import AdminDashboard from './components/AdminDashboard';
+import ProjectSetup from './components/ProjectSetup';
 import HomePage from './components/HomePage';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
@@ -18,15 +22,27 @@ interface Project {
   location: string;
 }
 
-type Screen = 'login' | 'home' | 'recording' | 'reports' | 'analytics';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
 
-function App() {
+function AppContent() {
+  const { isAuthenticated, user, isLoading } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('login');
   const [manager, setManager] = useState<Manager | null>(null);
   const [project, setProject] = useState<Project | null>(null);
 
   // Check for existing session
   useEffect(() => {
+    // If user is authenticated via new auth system, show appropriate screen
+    if (isAuthenticated && user) {
+      if (user.role === 'admin' || user.role === 'superadmin') {
+        setCurrentScreen('admin');
+      } else if (user.role === 'manager') {
+        setCurrentScreen('project-setup');
+      }
+      return;
+    }
+
+    // Fall back to old session system
     const savedManager = localStorage.getItem('sitelogix_manager');
     const savedProject = localStorage.getItem('sitelogix_project');
 
@@ -35,7 +51,7 @@ function App() {
       setProject(JSON.parse(savedProject));
       setCurrentScreen('home');
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
   const handleLogin = (selectedManager: Manager, selectedProject: Project) => {
     setManager(selectedManager);
@@ -67,8 +83,24 @@ function App() {
     setCurrentScreen('home');
   };
 
+  // Show auth login for authenticated system
+  if (currentScreen === 'auth-login') {
+    return <Login onSwitchToLegacy={() => setCurrentScreen('login')} />;
+  }
+
+  // Show admin dashboard for admin/superadmin users
+  if (currentScreen === 'admin') {
+    return <AdminDashboard onNavigateToProjectSetup={() => setCurrentScreen('project-setup')} />;
+  }
+
+  // Show project setup for managers
+  if (currentScreen === 'project-setup') {
+    return <ProjectSetup onProjectCreated={() => setCurrentScreen('home')} onBack={() => setCurrentScreen('admin')} />;
+  }
+
+  // Legacy login screen
   if (currentScreen === 'login') {
-    return <AdminLogin onLogin={handleLogin} />;
+    return <AdminLogin onLogin={handleLogin} onSwitchToAuth={() => setCurrentScreen('auth-login')} />;
   }
 
   if (currentScreen === 'home') {
@@ -113,6 +145,14 @@ function App() {
       onViewReports={handleViewReports}
       onViewAnalytics={handleViewAnalytics}
     />
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 
