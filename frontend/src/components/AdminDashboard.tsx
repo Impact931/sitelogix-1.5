@@ -19,7 +19,7 @@ interface AdminDashboardProps {
   onNavigateToProjectSetup?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup }) => {
   // Mock employee data
   const [employees, setEmployees] = useState<Employee[]>([
     {
@@ -184,7 +184,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
             </div>
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => _setShowAddModal(true)}
                 className="px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-xl hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold flex items-center space-x-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -10,7 +10,7 @@ interface LoginCredentials {
   passcode: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy: _onSwitchToLegacy }) => {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     username: '',
     passcode: ''
@@ -51,7 +51,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy }) => {
     }
 
     setLoading(false);
-    onLoginSuccess(credentials.username, user.role);
+    onLoginSuccess?.(credentials.username, user.role);
   };
 
   const handleInputChange = (field: keyof LoginCredentials, value: string) => {

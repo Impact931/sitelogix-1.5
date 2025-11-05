@@ -18,7 +18,7 @@ interface ProjectSetupProps {
   onProjectCreated?: () => void;
 }
 
-const ProjectSetup: React.FC<ProjectSetupProps> = ({ userRole = 'manager', onBack, onProjectCreated }) => {
+const ProjectSetup: React.FC<ProjectSetupProps> = ({ userRole = 'manager', onBack, onProjectCreated: _onProjectCreated }) => {
   const [formData, setFormData] = useState<Omit<Project, 'id'>>({
     name: '',
     location: '',
@@ -131,7 +131,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ userRole = 'manager', onBac
 
   const handleCancel = () => {
     if (confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
-      onBack();
+      onBack?.();
     }
   };
 
