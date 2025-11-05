@@ -30,6 +30,7 @@ const {
   handleLogout,
   handleRefreshToken,
   handleGetCurrentUser,
+  handleRegister,
   handleListEmployees,
   handleGetEmployee,
   handleCreateEmployee,
@@ -2333,6 +2334,12 @@ exports.handler = async (event) => {
           body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
         };
       }
+    }
+
+    // POST /api/auth/register
+    if (path.endsWith('/auth/register') && method === 'POST') {
+      const result = await handleRegister(body);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
     // =====================================================================

@@ -424,6 +424,130 @@ async function handleRefreshToken(body) {
 }
 
 /**
+ * POST /api/auth/register
+ * Register a new superadmin user (only works if no users exist)
+ */
+async function handleRegister(body) {
+  try {
+    const { username, passcode, email, firstName, lastName } = body;
+
+    // Validation
+    if (!username || !passcode || !email || !firstName || !lastName) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'All fields are required (username, passcode, email, firstName, lastName)',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+
+    // Check if any users already exist
+    const scanCommand = new ScanCommand({
+      TableName: 'sitelogix-users',
+      Limit: 1
+    });
+
+    const scanResult = await dynamoClient.send(scanCommand);
+
+    if (scanResult.Items && scanResult.Items.length > 0) {
+      return {
+        statusCode: 403,
+        body: {
+          success: false,
+          error: 'Registration is disabled. Users already exist in the system.',
+          code: 'REGISTRATION_DISABLED'
+        }
+      };
+    }
+
+    // Check if username already exists
+    const checkUserCommand = new QueryCommand({
+      TableName: 'sitelogix-users',
+      IndexName: 'UsernameIndex',
+      KeyConditionExpression: 'username = :username',
+      ExpressionAttributeValues: {
+        ':username': { S: username }
+      }
+    });
+
+    const existingUser = await dynamoClient.send(checkUserCommand);
+
+    if (existingUser.Items && existingUser.Items.length > 0) {
+      return {
+        statusCode: 409,
+        body: {
+          success: false,
+          error: 'Username already exists',
+          code: 'USERNAME_EXISTS'
+        }
+      };
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(passcode, 12);
+
+    // Create new superadmin user
+    const userId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const newUser = {
+      userId,
+      username,
+      email,
+      passwordHash,
+      role: 'superadmin',
+      firstName,
+      lastName,
+      phone: '',
+      status: 'active',
+      permissions: ['*'],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastLogin: null,
+      mustChangePassword: false,
+      failedLoginAttempts: 0
+    };
+
+    const putCommand = new PutItemCommand({
+      TableName: 'sitelogix-users',
+      Item: marshall(newUser)
+    });
+
+    await dynamoClient.send(putCommand);
+
+    console.log('SuperAdmin user created:', username);
+
+    return {
+      statusCode: 201,
+      body: {
+        success: true,
+        message: 'SuperAdmin account created successfully',
+        user: {
+          userId,
+          username,
+          email,
+          role: 'superadmin',
+          firstName,
+          lastName
+        }
+      }
+    };
+  } catch (error) {
+    console.error('Registration error:', error);
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: 'Internal server error during registration',
+        code: 'INTERNAL_ERROR'
+      }
+    };
+  }
+}
+
+/**
  * GET /api/auth/me
  * Get current user information
  */
@@ -959,6 +1083,7 @@ module.exports = {
   handleLogout,
   handleRefreshToken,
   handleGetCurrentUser,
+  handleRegister,
 
   // Employee Management
   handleListEmployees,
