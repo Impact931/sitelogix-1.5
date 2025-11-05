@@ -163,7 +163,17 @@ const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
             Download JSON
           </button>
           <button
-            onClick={onClose}
+            onClick={() => {
+              try {
+                console.log('Closing transcript viewer...');
+                onClose();
+                console.log('Transcript viewer closed successfully');
+              } catch (error) {
+                console.error('Error closing transcript:', error);
+                // Try to close anyway
+                onClose();
+              }
+            }}
             className="ml-auto px-6 py-2 bg-gold text-dark-bg rounded-xl hover:bg-gold-light transition text-sm font-semibold"
           >
             Close

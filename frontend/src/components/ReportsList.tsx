@@ -131,16 +131,27 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
   const handleViewTranscript = async (report: Report, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
+      console.log('Opening transcript:', report.report_id);
       setLoadingReport(true);
       setViewingReport(report);
+      setReportHtml(''); // Clear previous HTML
+      setError(null); // Clear previous errors
+
       const url = `${API_BASE_URL}/reports/${report.report_id}/transcript`;
       const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch transcript: ${response.status}`);
+      }
+
       const html = await response.text();
       setReportHtml(html);
+      console.log('Transcript loaded successfully');
     } catch (err) {
       console.error('Error loading transcript:', err);
-      setError('Failed to load transcript');
+      setError('Failed to load transcript. Please try again.');
       setViewingReport(null);
+      setReportHtml('');
     } finally {
       setLoadingReport(false);
     }
@@ -148,25 +159,47 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
 
   const handleViewReport = async (report: Report) => {
     try {
+      console.log('Opening report:', report.report_id);
       setLoadingReport(true);
       setViewingReport(report);
+      setReportHtml(''); // Clear previous HTML
+      setError(null); // Clear previous errors
+
       // Always use API endpoint - it will proxy from S3 if needed
       const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}`;
       const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch report: ${response.status}`);
+      }
+
       const html = await response.text();
       setReportHtml(html);
+      console.log('Report loaded successfully');
     } catch (err) {
       console.error('Error opening report:', err);
-      setError('Failed to open report');
+      setError('Failed to open report. Please try again.');
       setViewingReport(null);
+      setReportHtml('');
     } finally {
       setLoadingReport(false);
     }
   };
 
   const handleCloseReport = () => {
-    setViewingReport(null);
-    setReportHtml('');
+    try {
+      console.log('Closing report modal...');
+      setViewingReport(null);
+      setReportHtml('');
+      setLoadingReport(false);
+      console.log('Report modal closed successfully');
+    } catch (error) {
+      console.error('Error closing report:', error);
+      // Force cleanup even if there's an error
+      setViewingReport(null);
+      setReportHtml('');
+      setLoadingReport(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -530,13 +563,19 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
           <div className="relative w-full max-w-5xl mx-4">
             {/* Close Button */}
             <button
-              onClick={handleCloseReport}
-              className="fixed top-4 right-4 z-60 p-3 bg-dark-surface/90 hover:bg-dark-surface border border-white/20 rounded-xl text-white hover:text-gold transition shadow-xl"
-              title="Close"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCloseReport();
+              }}
+              className="fixed top-4 right-4 z-60 p-3 bg-dark-surface/90 hover:bg-dark-surface border border-white/20 rounded-xl text-white hover:text-gold transition shadow-xl group"
+              title="Close Report (Back to Reports List)"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
+              <span className="absolute top-full right-0 mt-2 px-3 py-1 bg-dark-surface border border-white/20 rounded-lg text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Back to Reports List
+              </span>
             </button>
 
             {/* Loading State */}
