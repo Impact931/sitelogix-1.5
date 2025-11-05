@@ -212,7 +212,7 @@ INTEGRATION_ID=$(aws apigatewayv2 create-integration \
 echo "✅ Integration configured: $INTEGRATION_ID"
 
 # Create GET routes
-for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/reports/{reportId}/transcript" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/elevenlabs/agent-config" "/api/personnel" "/api/personnel/{id}" "/api/vendors" "/api/vendors/{id}"; do
+for ROUTE in "/api/managers" "/api/projects" "/api/health" "/api/reports" "/api/reports/{reportId}/html" "/api/reports/{reportId}/transcript" "/api/analytics/insights" "/api/analytics/reports/{reportType}" "/api/bi/reports/overtime" "/api/bi/reports/constraints" "/api/bi/reports/savings" "/api/bi/reports/deliveries" "/api/elevenlabs/agent-config" "/api/personnel" "/api/personnel/{id}" "/api/vendors" "/api/vendors/{id}"; do
     ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='GET $ROUTE'].RouteId" --output text)
 
     if [ -z "$ROUTE_ID" ]; then
