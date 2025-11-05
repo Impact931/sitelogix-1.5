@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LoginProps {
   onLoginSuccess?: (username: string, role: 'admin' | 'manager' | 'user') => void;
@@ -10,7 +11,8 @@ interface LoginCredentials {
   passcode: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy: _onSwitchToLegacy }) => {
+const Login: React.FC<LoginProps> = ({ onLoginSuccess: _onLoginSuccess, onSwitchToLegacy: _onSwitchToLegacy }) => {
+  const { login } = useAuth();
   const [credentials, setCredentials] = useState<LoginCredentials>({
     username: '',
     passcode: ''
@@ -19,39 +21,18 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy: _onSwit
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Mock authentication - replace with real API call
-  const mockUsers = {
-    'admin': { passcode: '1234', role: 'admin' as const },
-    'manager1': { passcode: '5678', role: 'manager' as const },
-    'user1': { passcode: '9999', role: 'user' as const }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // Mock validation
-    const user = mockUsers[credentials.username as keyof typeof mockUsers];
-
-    if (!user || user.passcode !== credentials.passcode) {
-      setError('Invalid username or passcode');
+    try {
+      await login(credentials.username, credentials.passcode, rememberMe);
+      // AuthContext will handle navigation via App.tsx
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
       setLoading(false);
-      return;
     }
-
-    // Save credentials if remember me is checked
-    if (rememberMe) {
-      localStorage.setItem('sitelogix_remembered_user', credentials.username);
-    } else {
-      localStorage.removeItem('sitelogix_remembered_user');
-    }
-
-    setLoading(false);
-    onLoginSuccess?.(credentials.username, user.role);
   };
 
   const handleInputChange = (field: keyof LoginCredentials, value: string) => {
@@ -165,15 +146,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, onSwitchToLegacy: _onSwit
             </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-xs text-gray-500 text-center mb-2">Demo Credentials:</p>
-            <div className="space-y-1 text-xs text-gray-400 font-mono">
-              <p>Admin: admin / 1234</p>
-              <p>Manager: manager1 / 5678</p>
-              <p>User: user1 / 9999</p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

@@ -10,6 +10,7 @@
     "@aws-sdk/client-s3": "^3.535.0",
     "@aws-sdk/client-secrets-manager": "^3.535.0",
     "@aws-sdk/util-dynamodb": "^3.535.0",
+    "bcryptjs": "^3.0.3",
     "googleapis": "^134.0.0",
     "jsonwebtoken": "^9.0.2",
     "uuid": "^9.0.0"

@@ -12,10 +12,10 @@
  */
 
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, DeleteItemCommand, QueryCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
-const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 
 // Initialize AWS clients
@@ -149,12 +149,6 @@ async function generateRefreshToken(userId) {
   return jwt.sign(payload, jwtSecret, { expiresIn: '7d' });
 }
 
-/**
- * Hash password using SHA256
- */
-function hashPassword(password, salt) {
-  return crypto.createHmac('sha256', salt).update(password).digest('hex');
-}
 
 /**
  * Check if user has required permission
@@ -204,18 +198,20 @@ async function handleLogin(body) {
       };
     }
 
-    // Get user from DynamoDB
-    const getUserCommand = new GetItemCommand({
+    // Get user from DynamoDB by username using GSI
+    const getUserCommand = new QueryCommand({
       TableName: 'sitelogix-users',
-      Key: {
-        PK: { S: `USER#${username}` },
-        SK: { S: 'METADATA' }
-      }
+      IndexName: 'UsernameIndex',
+      KeyConditionExpression: 'username = :username',
+      ExpressionAttributeValues: marshall({
+        ':username': username
+      }),
+      Limit: 1
     });
 
     const userResult = await dynamoClient.send(getUserCommand);
 
-    if (!userResult.Item) {
+    if (!userResult.Items || userResult.Items.length === 0) {
       return {
         statusCode: 401,
         body: {
@@ -226,12 +222,12 @@ async function handleLogin(body) {
       };
     }
 
-    const user = unmarshall(userResult.Item);
+    const user = unmarshall(userResult.Items[0]);
 
-    // Verify passcode
-    const hashedPasscode = hashPassword(passcode, user.salt);
+    // Verify password using bcrypt
+    const isValidPassword = await bcrypt.compare(passcode, user.passwordHash);
 
-    if (hashedPasscode !== user.passcodeHash) {
+    if (!isValidPassword) {
       return {
         statusCode: 401,
         body: {
@@ -262,8 +258,7 @@ async function handleLogin(body) {
     const updateCommand = new UpdateItemCommand({
       TableName: 'sitelogix-users',
       Key: {
-        PK: { S: `USER#${username}` },
-        SK: { S: 'METADATA' }
+        userId: { S: user.userId }
       },
       UpdateExpression: 'SET lastLogin = :lastLogin',
       ExpressionAttributeValues: {
@@ -284,7 +279,8 @@ async function handleLogin(body) {
           userId: user.userId,
           username: user.username,
           email: user.email,
-          fullName: user.fullName,
+          firstName: user.firstName,
+          lastName: user.lastName,
           role: user.role,
           permissions: user.permissions
         }
@@ -367,19 +363,16 @@ async function handleRefreshToken(body) {
     }
 
     // Get user data
-    const getUserCommand = new QueryCommand({
+    const getUserCommand = new GetItemCommand({
       TableName: 'sitelogix-users',
-      IndexName: 'GSI1-UserIdIndex',
-      KeyConditionExpression: 'userId = :userId',
-      ExpressionAttributeValues: {
-        ':userId': { S: decoded.userId }
-      },
-      Limit: 1
+      Key: {
+        userId: { S: decoded.userId }
+      }
     });
 
     const userResult = await dynamoClient.send(getUserCommand);
 
-    if (!userResult.Items || userResult.Items.length === 0) {
+    if (!userResult.Item) {
       return {
         statusCode: 401,
         body: {
@@ -390,7 +383,7 @@ async function handleRefreshToken(body) {
       };
     }
 
-    const user = unmarshall(userResult.Items[0]);
+    const user = unmarshall(userResult.Item);
 
     // Generate new tokens
     const newToken = await generateToken(user);
@@ -440,8 +433,7 @@ async function handleGetCurrentUser(user) {
     const getUserCommand = new GetItemCommand({
       TableName: 'sitelogix-users',
       Key: {
-        PK: { S: `USER#${user.username}` },
-        SK: { S: 'METADATA' }
+        userId: { S: user.userId }
       }
     });
 
@@ -461,8 +453,7 @@ async function handleGetCurrentUser(user) {
     const userData = unmarshall(userResult.Item);
 
     // Remove sensitive fields
-    delete userData.passcodeHash;
-    delete userData.salt;
+    delete userData.passwordHash;
 
     return {
       statusCode: 200,
@@ -472,9 +463,9 @@ async function handleGetCurrentUser(user) {
           userId: userData.userId,
           username: userData.username,
           email: userData.email,
-          fullName: userData.fullName,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
           role: userData.role,
-          projectAssignments: userData.projectAssignments || [],
           permissions: userData.permissions || [],
           lastLogin: userData.lastLogin,
           createdAt: userData.createdAt
