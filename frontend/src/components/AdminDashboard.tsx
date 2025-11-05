@@ -81,7 +81,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [_showAddModal, _setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newEmployee, setNewEmployee] = useState<Omit<Employee, 'id'>>({
+    name: '',
+    email: '',
+    phone: '',
+    employeeNumber: '',
+    role: 'user',
+    team: '',
+    hourlyRate: 0,
+    status: 'active',
+    hoursThisWeek: 0,
+    totalHours: 0
+  });
 
   // Filter and search employees
   const filteredEmployees = useMemo(() => {
@@ -143,6 +155,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
     }
   };
 
+  const handleAddEmployee = () => {
+    const employeeToAdd: Employee = {
+      ...newEmployee,
+      id: `emp_${Date.now()}` // Simple ID generation
+    };
+
+    setEmployees([...employees, employeeToAdd]);
+    setShowAddModal(false);
+
+    // Reset form
+    setNewEmployee({
+      name: '',
+      email: '',
+      phone: '',
+      employeeNumber: '',
+      role: 'user',
+      team: '',
+      hourlyRate: 0,
+      status: 'active',
+      hoursThisWeek: 0,
+      totalHours: 0
+    });
+  };
+
   const getStatusColor = (status: Employee['status']) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400';
@@ -175,7 +211,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
             </div>
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => _setShowAddModal(true)}
+                onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-xl hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold flex items-center space-x-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -495,6 +531,134 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
                 className="px-6 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-xl hover:shadow-lg hover:shadow-gold/20 transition font-semibold"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Employee Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
+          <div className="bg-dark-bg/98 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-gold/30 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-gold-light/20 to-gold-dark/20 border-b border-gold/20 p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-display font-bold text-white">Add New Employee</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-white transition">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Name *</label>
+                  <input
+                    type="text"
+                    value={newEmployee.name}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition"
+                    placeholder="Full name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Employee Number *</label>
+                  <input
+                    type="text"
+                    value={newEmployee.employeeNumber}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, employeeNumber: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition"
+                    placeholder="EMP-XXX"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Email *</label>
+                  <input
+                    type="email"
+                    value={newEmployee.email}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition"
+                    placeholder="email@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    value={newEmployee.phone}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Role</label>
+                  <select
+                    value={newEmployee.role}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value as Employee['role'] })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition cursor-pointer"
+                  >
+                    <option value="user" className="bg-dark-bg">User</option>
+                    <option value="manager" className="bg-dark-bg">Manager</option>
+                    <option value="admin" className="bg-dark-bg">Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Status</label>
+                  <select
+                    value={newEmployee.status}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, status: e.target.value as Employee['status'] })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition cursor-pointer"
+                  >
+                    <option value="active" className="bg-dark-bg">Active</option>
+                    <option value="inactive" className="bg-dark-bg">Inactive</option>
+                    <option value="on-leave" className="bg-dark-bg">On Leave</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Team</label>
+                  <input
+                    type="text"
+                    value={newEmployee.team}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, team: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition"
+                    placeholder="Project name or team"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Hourly Rate ($)</label>
+                  <input
+                    type="number"
+                    value={newEmployee.hourlyRate || ''}
+                    onChange={(e) => setNewEmployee({ ...newEmployee, hourlyRate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-gold focus:ring-2 focus:ring-gold/50 transition"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border-t border-white/10 p-4 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-6 py-2 glass rounded-xl text-white hover:bg-white/10 transition font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddEmployee}
+                disabled={!newEmployee.name || !newEmployee.email || !newEmployee.employeeNumber}
+                className="px-6 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-xl hover:shadow-lg hover:shadow-gold/20 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Employee
               </button>
             </div>
           </div>
