@@ -36,11 +36,11 @@ const FALLBACK_PROJECTS: Project[] = [
   { id: 'PRJ003', name: 'Harbor View Complex', location: 'Waterfront' },
 ];
 
-// Hardcoded Super Admin Developer Account
+// Super Admin Developer Account - Credentials from environment
 const SUPER_ADMIN = {
-  username: 'Jayson Rivas',
-  email: 'jayson@impactconsulting931.com',
-  password: 'Rivas123$',
+  username: import.meta.env.VITE_SUPER_ADMIN_USERNAME || 'admin',
+  email: import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'admin@example.com',
+  password: import.meta.env.VITE_SUPER_ADMIN_PASSWORD || '', // Set in Amplify env vars
   role: 'SuperAdminDev'
 };
 
