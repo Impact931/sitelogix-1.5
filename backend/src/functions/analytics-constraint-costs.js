@@ -407,7 +407,7 @@ async function storeConstraint(report, constraint) {
     PK: `CONSTRAINT#${report.project_id}`,
     SK: `DATE#${constraint.date || report.report_date}#${constraintId}`,
     GSI1PK: `CATEGORY#${constraint.category}`,
-    GSI1SK: constraint.total_cost_impact,
+    GSI1SK: `COST#${String(constraint.total_cost_impact || 0).padStart(10, '0')}`, // Zero-padded cost for string sorting
     GSI2PK: `PROJECT#${report.project_id}`,
     GSI2SK: constraint.total_cost_impact || 0, // Numeric cost for sorting
 
