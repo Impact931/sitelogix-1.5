@@ -71,20 +71,25 @@ async function analyzeVendorPerformance(report) {
  * Get vendor delivery history
  */
 async function getVendorHistory(vendorName, days = 30) {
+  // If no vendor name provided, return empty array
+  if (!vendorName || vendorName === 'undefined') {
+    return [];
+  }
+
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
   const cutoffString = cutoffDate.toISOString().split('T')[0];
 
   try {
-    // Query by vendor name (you may need to adjust based on your data structure)
-    const result = await docClient.send(new ScanCommand({
+    // Query by PK for vendor performance records
+    const result = await docClient.send(new QueryCommand({
       TableName: 'sitelogix-analytics',
-      FilterExpression: 'vendor_name = :name AND report_date >= :date',
+      KeyConditionExpression: 'PK = :pk',
       ExpressionAttributeValues: {
-        ':name': vendorName,
-        ':date': cutoffString
+        ':pk': `VENDOR_PERFORMANCE#${vendorName}`
       },
-      Limit: 50
+      Limit: 50,
+      ScanIndexForward: false // Most recent first
     }));
 
     return result.Items || [];

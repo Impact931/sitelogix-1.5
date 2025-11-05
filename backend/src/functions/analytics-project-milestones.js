@@ -337,7 +337,7 @@ async function storeInspections(report, inspections) {
       GSI1PK: `PROJECT#${report.project_id}`,
       GSI1SK: `TYPE#${inspection.inspection_type}`,
       GSI2PK: `STATUS#${inspection.status}`,
-      GSI2SK: `DATE#${inspection.inspection_date || report.report_date}`,
+      GSI2SK: Date.now(), // Use timestamp for numeric sort
 
       // Core identification
       inspection_id: inspectionId,
@@ -408,7 +408,7 @@ async function storeMilestones(report, milestones) {
       GSI1PK: `PROJECT#${report.project_id}`,
       GSI1SK: `STATUS#${milestone.status}`,
       GSI2PK: `STATUS#${milestone.status}`,
-      GSI2SK: `DATE#${milestone.completion_date || report.report_date}`,
+      GSI2SK: Date.now(), // Use timestamp for numeric sort
 
       // Core identification
       milestone_id: milestoneId,
