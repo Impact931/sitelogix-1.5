@@ -53,6 +53,9 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
   const [filter, setFilter] = useState<'all' | 'project' | 'myreports'>('myreports');
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc'>('date-desc');
+  const [viewingReport, setViewingReport] = useState<Report | null>(null);
+  const [reportHtml, setReportHtml] = useState<string>('');
+  const [loadingReport, setLoadingReport] = useState(false);
 
   // Helper to parse extracted_data if it's a JSON string
   const getExtractedData = (report: Report): ExtractedData | null => {
@@ -125,21 +128,45 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
   // Get unique projects from reports for filter dropdown
   const uniqueProjects = Array.from(new Set(reports.map(r => r.project_id)));
 
-  const handleViewTranscript = (report: Report, e: React.MouseEvent) => {
+  const handleViewTranscript = async (report: Report, e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${API_BASE_URL}/reports/${report.report_id}/transcript`;
-    window.open(url, '_blank');
+    try {
+      setLoadingReport(true);
+      setViewingReport(report);
+      const url = `${API_BASE_URL}/reports/${report.report_id}/transcript`;
+      const response = await fetch(url);
+      const html = await response.text();
+      setReportHtml(html);
+    } catch (err) {
+      console.error('Error loading transcript:', err);
+      setError('Failed to load transcript');
+      setViewingReport(null);
+    } finally {
+      setLoadingReport(false);
+    }
   };
 
   const handleViewReport = async (report: Report) => {
     try {
+      setLoadingReport(true);
+      setViewingReport(report);
       // Always use API endpoint - it will proxy from S3 if needed
       const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}`;
-      window.open(url, '_blank');
+      const response = await fetch(url);
+      const html = await response.text();
+      setReportHtml(html);
     } catch (err) {
       console.error('Error opening report:', err);
       setError('Failed to open report');
+      setViewingReport(null);
+    } finally {
+      setLoadingReport(false);
     }
+  };
+
+  const handleCloseReport = () => {
+    setViewingReport(null);
+    setReportHtml('');
   };
 
   const formatDate = (dateString: string) => {
@@ -189,7 +216,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span>Back to Recording</span>
+              <span>Back to Home</span>
             </button>
           </div>
         </div>
@@ -496,6 +523,40 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack }) =
           </div>
         )}
       </main>
+
+      {/* Report/Transcript Modal Overlay */}
+      {viewingReport && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8">
+          <div className="relative w-full max-w-5xl mx-4">
+            {/* Close Button */}
+            <button
+              onClick={handleCloseReport}
+              className="fixed top-4 right-4 z-60 p-3 bg-dark-surface/90 hover:bg-dark-surface border border-white/20 rounded-xl text-white hover:text-gold transition shadow-xl"
+              title="Close"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Loading State */}
+            {loadingReport && (
+              <div className="glass rounded-2xl p-12 text-center">
+                <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-gold border-r-transparent mb-4"></div>
+                <p className="text-gray-400">Loading...</p>
+              </div>
+            )}
+
+            {/* Report Content */}
+            {!loadingReport && reportHtml && (
+              <div
+                className="glass rounded-2xl overflow-hidden shadow-2xl"
+                dangerouslySetInnerHTML={{ __html: reportHtml }}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
