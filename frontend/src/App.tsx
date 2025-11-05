@@ -90,6 +90,7 @@ function App() {
         manager={manager!}
         project={project!}
         onBack={handleBackToHome}
+        onNavigateToAnalytics={handleViewAnalytics}
       />
     );
   }
