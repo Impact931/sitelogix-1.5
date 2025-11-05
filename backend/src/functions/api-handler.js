@@ -425,103 +425,173 @@ function generateReportHTML(report, extractedData) {
 }
 
 /**
- * Get analytics insights from all reports
+ * Get analytics insights from processed analytics data
  */
 async function getAnalyticsInsights() {
   try {
-    console.log('📊 Calculating analytics insights...');
+    console.log('📊 Fetching analytics insights from sitelogix-analytics table...');
 
-    // Fetch all reports
-    const command = new ScanCommand({
-      TableName: 'sitelogix-reports'
-    });
+    // Fetch all analytics data with pagination
+    let allItems = [];
+    let lastEvaluatedKey = null;
 
-    const result = await dynamoClient.send(command);
-    const reports = result.Items.map(item => unmarshall(item));
+    do {
+      const command = new ScanCommand({
+        TableName: 'sitelogix-analytics',
+        ExclusiveStartKey: lastEvaluatedKey
+      });
 
-    // Calculate summary statistics
-    const totalReports = reports.length;
-    const totalLaborHours = reports.reduce((sum, r) => sum + (r.total_regular_hours || 0), 0);
-    const overtimeHours = reports.reduce((sum, r) => sum + (r.total_overtime_hours || 0), 0);
-    const overtimeRate = totalLaborHours > 0 ? ((overtimeHours / totalLaborHours) * 100).toFixed(1) : 0;
+      const result = await dynamoClient.send(command);
+      allItems = allItems.concat(result.Items.map(item => unmarshall(item)));
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
 
-    // Calculate delivery metrics (from report data)
-    const deliveryData = reports.map(r => r.material_deliveries || []).flat();
-    const totalDeliveries = deliveryData.length;
-    const lateDeliveries = deliveryData.filter(d => d.status === 'Late').length;
-    const onTimeDeliveryRate = totalDeliveries > 0 ? (((totalDeliveries - lateDeliveries) / totalDeliveries) * 100).toFixed(1) : 100;
+    console.log(`   Fetched ${allItems.length} analytics records`);
 
-    // Get constraint data
-    const allConstraints = reports.map(r => r.constraints || []).flat();
-    const openConstraints = allConstraints.filter(c => c.status !== 'Resolved').length;
-    const criticalConstraints = allConstraints.filter(c => c.severity === 'High' && c.status !== 'Resolved').length;
+    // Separate data by type
+    const hoursSummaries = allItems.filter(item => item.PK?.startsWith('HOURS_SUMMARY#'));
+    const personnelHours = allItems.filter(item => item.PK?.startsWith('PERSONNEL_HOURS#'));
+    const vendorPerformance = allItems.filter(item => item.PK?.startsWith('VENDOR_PERFORMANCE#'));
+    const criticalEvents = allItems.filter(item => item.PK?.startsWith('CRITICAL_EVENT#'));
 
-    // Group deliveries by vendor
+    console.log(`   Hours Summaries: ${hoursSummaries.length}`);
+    console.log(`   Personnel Hours: ${personnelHours.length}`);
+    console.log(`   Vendor Performance: ${vendorPerformance.length}`);
+    console.log(`   Critical Events: ${criticalEvents.length}`);
+
+    // Calculate labor hours from HOURS_SUMMARY entries
+    const totalLaborHours = hoursSummaries.reduce((sum, s) => sum + (s.total_regular_hours || 0), 0);
+    const overtimeHours = hoursSummaries.reduce((sum, s) => sum + (s.total_overtime_hours || 0), 0);
+    const totalHours = totalLaborHours + overtimeHours;
+    const overtimeRate = totalHours > 0 ? ((overtimeHours / totalHours) * 100).toFixed(1) : 0;
+
+    // Calculate vendor delivery metrics
     const vendorMap = new Map();
-    deliveryData.forEach(delivery => {
-      const vendor = delivery.vendor || 'Unknown';
-      if (!vendorMap.has(vendor)) {
-        vendorMap.set(vendor, { deliveries: 0, lateDeliveries: 0 });
+    vendorPerformance.forEach(vp => {
+      const vendorName = vp.vendor_name || 'Unknown';
+      if (!vendorMap.has(vendorName)) {
+        vendorMap.set(vendorName, {
+          deliveries: 0,
+          lateDeliveries: 0,
+          totalScore: 0,
+          count: 0
+        });
       }
-      const stats = vendorMap.get(vendor);
+      const stats = vendorMap.get(vendorName);
       stats.deliveries++;
-      if (delivery.status === 'Late') stats.lateDeliveries++;
+      if (vp.delivery_status === 'late' || vp.delivery_status === 'missed') {
+        stats.lateDeliveries++;
+      }
+      if (vp.performance_score) {
+        stats.totalScore += vp.performance_score;
+        stats.count++;
+      }
     });
 
-    const vendors = Array.from(vendorMap.entries()).map(([name, stats]) => ({
-      name,
-      deliveries: stats.deliveries,
-      lateDeliveries: stats.lateDeliveries,
-      onTimeRate: ((stats.deliveries - stats.lateDeliveries) / stats.deliveries * 100).toFixed(1) + '%'
-    })).sort((a, b) => b.deliveries - a.deliveries).slice(0, 5);
+    const vendors = Array.from(vendorMap.entries())
+      .map(([name, stats]) => ({
+        name,
+        deliveries: stats.deliveries,
+        lateDeliveries: stats.lateDeliveries,
+        onTimeRate: stats.deliveries > 0
+          ? (((stats.deliveries - stats.lateDeliveries) / stats.deliveries) * 100).toFixed(1) + '%'
+          : '100%',
+        averageScore: stats.count > 0 ? (stats.totalScore / stats.count).toFixed(0) : 'N/A'
+      }))
+      .sort((a, b) => b.deliveries - a.deliveries)
+      .slice(0, 5);
 
-    // Generate alerts
+    const totalDeliveries = vendorPerformance.length;
+    const lateDeliveries = vendorPerformance.filter(vp =>
+      vp.delivery_status === 'late' || vp.delivery_status === 'missed'
+    ).length;
+    const onTimeDeliveryRate = totalDeliveries > 0
+      ? (((totalDeliveries - lateDeliveries) / totalDeliveries) * 100).toFixed(1)
+      : 100;
+
+    // Count critical events by status
+    const openCriticalEvents = criticalEvents.filter(e => e.status === 'open').length;
+    const criticalBySeverity = criticalEvents.filter(e =>
+      e.status === 'open' && e.severity >= 7
+    ).length;
+
+    // Generate alerts based on analytics data
     const alerts = [];
-    if (criticalConstraints > 0) {
+
+    // Critical events alert
+    if (openCriticalEvents > 0) {
       alerts.push({
         type: 'critical',
-        category: 'Constraints',
-        message: `${criticalConstraints} critical constraints require immediate attention`,
+        category: 'Safety & Operations',
+        message: `${openCriticalEvents} critical events require immediate attention`,
         impact: 'High'
       });
     }
+
+    // High severity events
+    if (criticalBySeverity > 0) {
+      alerts.push({
+        type: 'critical',
+        category: 'Critical Events',
+        message: `${criticalBySeverity} high-severity events (7+) need executive escalation`,
+        impact: 'High'
+      });
+    }
+
+    // Overtime alert
     if (parseFloat(overtimeRate) > 20) {
       alerts.push({
         type: 'warning',
         category: 'Labor',
-        message: `Overtime rate at ${overtimeRate}% exceeds recommended threshold`,
+        message: `Overtime rate at ${overtimeRate}% exceeds recommended 20% threshold`,
         impact: 'Medium'
       });
     }
-    if (parseFloat(onTimeDeliveryRate) < 90) {
+
+    // Vendor delivery alert
+    if (parseFloat(onTimeDeliveryRate) < 90 && totalDeliveries > 0) {
       alerts.push({
         type: 'warning',
         category: 'Deliveries',
-        message: `On-time delivery rate at ${onTimeDeliveryRate}% below target`,
+        message: `On-time delivery rate at ${onTimeDeliveryRate}% below 90% target`,
         impact: 'Medium'
       });
     }
+
+    // High-risk vendors
+    const highRiskVendors = vendorPerformance.filter(vp => vp.risk_level === 'critical' || vp.risk_level === 'high');
+    if (highRiskVendors.length > 0) {
+      alerts.push({
+        type: 'warning',
+        category: 'Vendor Performance',
+        message: `${highRiskVendors.length} vendors flagged as high-risk or critical`,
+        impact: 'Medium'
+      });
+    }
+
+    // Get unique report count from hours summaries
+    const uniqueReports = new Set(hoursSummaries.map(s => s.report_id)).size;
 
     const insights = {
       summary: {
         totalDeliveries,
         lateDeliveries,
         onTimeDeliveryRate: parseFloat(onTimeDeliveryRate),
-        totalLaborHours,
-        overtimeHours,
+        totalLaborHours: Math.round(totalLaborHours),
+        overtimeHours: Math.round(overtimeHours),
         overtimeRate: parseFloat(overtimeRate),
-        openConstraints,
-        criticalConstraints,
-        totalReports
+        openConstraints: openCriticalEvents, // Using critical events as constraints
+        criticalConstraints: criticalBySeverity,
+        totalReports: uniqueReports || hoursSummaries.length
       },
       vendors,
       alerts
     };
 
-    console.log(`✅ Calculated insights from ${totalReports} reports`);
+    console.log(`✅ Analytics insights calculated from ${allItems.length} records`);
     return { success: true, insights };
   } catch (error) {
-    console.error('❌ Error calculating insights:', error.message);
+    console.error('❌ Error fetching analytics insights:', error.message);
     return { success: false, error: error.message };
   }
 }
