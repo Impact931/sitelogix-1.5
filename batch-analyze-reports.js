@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * Batch Analytics Processor
- * Analyzes all existing reports with OpenAI-powered analytics agents
+ * Batch Analytics Processor - PHASE 1 ENHANCED
+ * Analyzes all existing reports with OpenAI GPT-4o powered analytics agents
  *
- * Runs:
- * - Hours Calculator
- * - Vendor Performance
- * - Critical Event Detection
+ * Runs ALL 5 Enhanced Agents + Safety Detection:
+ * 1. Personnel Intelligence (hours, costs, OT drivers, performance)
+ * 2. Vendor Performance (incidents, grading, charge-backs)
+ * 3. Project Milestones & Quality (inspections, quality scores)
+ * 4. Constraint Cost Analysis (quantified impacts, prevention ROI)
+ * 5. Strategic Recommendations (cross-agent synthesis, executive insights)
+ * 6. Critical Event Detection (safety, injuries, violations)
  *
- * Then prints summary and agent recommendations
+ * Then prints comprehensive summary and strategic recommendations
  */
 
 require('dotenv').config();
@@ -20,6 +23,9 @@ const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { calculatePersonnelHours } = require('./backend/src/functions/analytics-hours-calculator');
 const { analyzeVendorPerformance } = require('./backend/src/functions/analytics-vendor-performance');
 const { detectCriticalEvents } = require('./backend/src/functions/analytics-critical-events');
+const { analyzeProjectMilestones } = require('./backend/src/functions/analytics-project-milestones');
+const { analyzeConstraintCosts } = require('./backend/src/functions/analytics-constraint-costs');
+const { generateStrategicRecommendations } = require('./backend/src/functions/analytics-strategic-recommendations');
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -129,7 +135,84 @@ async function main() {
         console.log('   ℹ️  No vendor deliveries in this report');
       }
 
-      // Agent 3: Critical Event Detection
+      // Agent 3: Project Milestones & Quality
+      console.log('\n🏗️  Running Project Milestones & Quality Agent...');
+      const milestoneResult = await analyzeProjectMilestones(report);
+
+      if (milestoneResult.inspections && milestoneResult.inspections.length > 0) {
+        console.log(`   ✅ Tracked ${milestoneResult.inspections.length} inspections`);
+        milestoneResult.inspections.forEach(i => {
+          console.log(`      • ${i.inspection_type}: ${i.status.toUpperCase()}`);
+          if (i.status === 'failed') {
+            console.log(`        ⚠️  Deficiencies: ${i.deficiencies?.join(', ')}`);
+          }
+        });
+      }
+
+      if (milestoneResult.milestones && milestoneResult.milestones.length > 0) {
+        console.log(`   ✅ Tracked ${milestoneResult.milestones.length} milestones`);
+        milestoneResult.milestones.forEach(m => {
+          console.log(`      • ${m.milestone_name}: ${m.status.toUpperCase()}`);
+        });
+      }
+
+      if (milestoneResult.project_health) {
+        console.log(`   📊 Quality Score: ${milestoneResult.project_health.overall_quality_score || 0}/100`);
+        console.log(`   📅 Schedule Score: ${milestoneResult.project_health.schedule_performance_score || 0}/100`);
+      }
+
+      // Agent 4: Constraint Cost Analysis
+      console.log('\n💰 Running Constraint Cost Analysis Agent...');
+      const constraintResult = await analyzeConstraintCosts(report);
+
+      if (constraintResult.constraints && constraintResult.constraints.length > 0) {
+        console.log(`   ✅ Analyzed ${constraintResult.constraints.length} constraints`);
+        console.log(`   💸 Total Cost Impact: $${constraintResult.cost_summary?.total_cost_impact || 0}`);
+        console.log(`   ⏱️  Total Hours Lost: ${constraintResult.cost_summary?.total_hours_lost || 0} hours`);
+
+        if (constraintResult.cost_summary?.top_cost_drivers) {
+          console.log(`   Top Cost Drivers: ${constraintResult.cost_summary.top_cost_drivers.join(', ')}`);
+        }
+      } else {
+        console.log('   ℹ️  No constraints identified');
+      }
+
+      // Agent 5: Strategic Recommendations (synthesizes all agent outputs)
+      console.log('\n🎯 Running Strategic Recommendations Engine...');
+      const agentOutputs = {
+        personnel: hoursResult,
+        vendors: vendorResult,
+        milestones: milestoneResult,
+        constraints: constraintResult
+      };
+
+      const recommendationsResult = await generateStrategicRecommendations(report, agentOutputs);
+
+      if (recommendationsResult.strategic_recommendations && recommendationsResult.strategic_recommendations.length > 0) {
+        console.log(`   ✅ Generated ${recommendationsResult.strategic_recommendations.length} strategic recommendations`);
+
+        // Show urgent and high priority recommendations
+        const urgent = recommendationsResult.strategic_recommendations.filter(r => r.priority === 'urgent');
+        const high = recommendationsResult.strategic_recommendations.filter(r => r.priority === 'high');
+
+        if (urgent.length > 0) {
+          console.log(`   🚨 URGENT (${urgent.length}): ${urgent.map(r => r.title).join('; ')}`);
+        }
+        if (high.length > 0) {
+          console.log(`   ⚠️  HIGH (${high.length}): ${high.map(r => r.title).join('; ')}`);
+        }
+
+        if (recommendationsResult.key_metrics_summary) {
+          console.log(`   💡 Total Cost Reduction Potential: $${recommendationsResult.key_metrics_summary.total_cost_reduction_potential || 0}/month`);
+          console.log(`   📈 Portfolio ROI: ${recommendationsResult.key_metrics_summary.portfolio_roi || 0}x`);
+        }
+      }
+
+      if (recommendationsResult.executive_summary) {
+        console.log(`   🏆 Project Health Score: ${recommendationsResult.executive_summary.overall_health_score || 0}/100`);
+      }
+
+      // Agent 6: Critical Event Detection (Safety)
       console.log('\n🚨 Running Critical Event Detection Agent...');
       const eventResult = await detectCriticalEvents(report);
 
@@ -145,11 +228,11 @@ async function main() {
           }
         });
       } else {
-        console.log('   ✅ No critical events detected');
+        console.log('   ✅ No critical safety events detected');
       }
 
-      // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
     } catch (error) {
       console.error(`\n   ❌ Error analyzing report: ${error.message}`);
