@@ -1,0 +1,517 @@
+{
+  "enhanced_personnel_table": {
+    "TableName": "sitelogix-personnel-v2",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "full_name",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "employee_number",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "team_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "role",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "status",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-NameIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "full_name",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-EmployeeNumberIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "employee_number",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI3-TeamIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "team_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "full_name",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI4-RoleStatusIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "role",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "status",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 10,
+      "WriteCapacityUnits": 10
+    },
+    "StreamSpecification": {
+      "StreamEnabled": true,
+      "StreamViewType": "NEW_AND_OLD_IMAGES"
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Version",
+        "Value": "2.0"
+      }
+    ],
+    "Description": "Enhanced personnel table with role-based access, team assignments, health tracking, hours tracking, and hourly rates. PK format: 'EMPLOYEE#<uuid>', SK format: 'METADATA' for main record"
+  },
+  "projects_table": {
+    "TableName": "sitelogix-projects",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "project_name",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "status",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "manager_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "start_date",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-ProjectNameIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "project_name",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-StatusIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "status",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "start_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI3-ManagerIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "manager_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "start_date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 10,
+      "WriteCapacityUnits": 10
+    },
+    "StreamSpecification": {
+      "StreamEnabled": true,
+      "StreamViewType": "NEW_AND_OLD_IMAGES"
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      }
+    ],
+    "Description": "Projects table for managing construction projects with timeline, budget, team assignments, and milestones. PK format: 'PROJECT#<uuid>', SK format: 'METADATA' for main record, 'TEAM#<employee_id>' for team members"
+  },
+  "users_auth_table": {
+    "TableName": "sitelogix-users",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "username",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "employee_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "role",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "account_status",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-UsernameIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "username",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 10,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI2-EmployeeIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "employee_id",
+            "KeyType": "HASH"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "GSI3-RoleStatusIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "role",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "account_status",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 15,
+      "WriteCapacityUnits": 10
+    },
+    "StreamSpecification": {
+      "StreamEnabled": true,
+      "StreamViewType": "NEW_AND_OLD_IMAGES"
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "PointInTimeRecoverySpecification": {
+      "PointInTimeRecoveryEnabled": true
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      },
+      {
+        "Key": "Sensitive",
+        "Value": "true"
+      }
+    ],
+    "Description": "Authentication and authorization table storing user credentials, roles, and account status. PK format: 'USER#<uuid>', SK format: 'METADATA'. Includes point-in-time recovery for security."
+  },
+  "time_tracking_table": {
+    "TableName": "sitelogix-time-tracking",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "project_id",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "date",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "week_number",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "month",
+        "AttributeType": "S"
+      }
+    ],
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "GSI1-ProjectDateIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "project_id",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "date",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 10,
+          "WriteCapacityUnits": 10
+        }
+      },
+      {
+        "IndexName": "GSI2-WeekIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "week_number",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "PK",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 10,
+          "WriteCapacityUnits": 10
+        }
+      },
+      {
+        "IndexName": "GSI3-MonthIndex",
+        "KeySchema": [
+          {
+            "AttributeName": "month",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "PK",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 10,
+          "WriteCapacityUnits": 10
+        }
+      }
+    ],
+    "BillingMode": "PROVISIONED",
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 20,
+      "WriteCapacityUnits": 20
+    },
+    "StreamSpecification": {
+      "StreamEnabled": true,
+      "StreamViewType": "NEW_AND_OLD_IMAGES"
+    },
+    "SSESpecification": {
+      "Enabled": true,
+      "SSEType": "AES256"
+    },
+    "Tags": [
+      {
+        "Key": "Project",
+        "Value": "SiteLogix"
+      },
+      {
+        "Key": "Environment",
+        "Value": "Production"
+      }
+    ],
+    "Description": "Time tracking table for recording employee hours by project and date with weekly and monthly aggregations. PK format: 'EMPLOYEE#<employee_id>', SK format: 'DATE#<YYYY-MM-DD>#PROJECT#<project_id>'"
+  }
+}

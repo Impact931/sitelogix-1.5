@@ -25,6 +25,35 @@ const {
   getCostAnalysisReport,
   getDeliveryPerformanceReport
 } = require('./bi-endpoints');
+const {
+  handleLogin,
+  handleLogout,
+  handleRefreshToken,
+  handleGetCurrentUser,
+  handleListEmployees,
+  handleGetEmployee,
+  handleCreateEmployee,
+  handleUpdateEmployee,
+  handleDeleteEmployee,
+  verifyToken,
+  checkRateLimit,
+  hasPermission
+} = require('./admin-endpoints');
+const {
+  handleListProjects: handleListProjectsAdmin,
+  handleGetProject: handleGetProjectAdmin,
+  handleCreateProject,
+  handleUpdateProject,
+  handleDeleteProject,
+  handleUpdateProjectStatus,
+  handleUpdateProjectTimeline
+} = require('./project-endpoints');
+const {
+  handleCreateTimeEntry,
+  handleListTimeEntries,
+  handleUpdateTimeEntry,
+  handleGetEmployeeHours
+} = require('./time-tracking-endpoints');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -1574,7 +1603,7 @@ exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': 'https://main.d2mp0300tkuah.amplifyapp.com',
     'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     'Content-Type': 'application/json'
   };
 
@@ -2222,6 +2251,152 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() })
       };
+    }
+
+    // =====================================================================
+    // AUTHENTICATION ENDPOINTS
+    // =====================================================================
+
+    // POST /api/auth/login
+    if (path.endsWith('/auth/login') && method === 'POST') {
+      const result = await handleLogin(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/auth/logout
+    if (path.endsWith('/auth/logout') && method === 'POST') {
+      const result = await handleLogout(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/auth/refresh
+    if (path.endsWith('/auth/refresh') && method === 'POST') {
+      const result = await handleRefreshToken(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/auth/me
+    if (path.endsWith('/auth/me') && method === 'GET') {
+      const result = await handleGetCurrentUser(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // =====================================================================
+    // EMPLOYEE MANAGEMENT ENDPOINTS
+    // =====================================================================
+
+    // GET /api/employees
+    if (path.endsWith('/employees') && method === 'GET') {
+      const result = await handleListEmployees(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/employees
+    if (path.endsWith('/employees') && method === 'POST') {
+      const result = await handleCreateEmployee(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/employees/:id
+    if (path.match(/\/employees\/[^/]+$/) && method === 'GET' && !path.includes('/hours')) {
+      const employeeId = path.split('/').pop();
+      const result = await handleGetEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // PUT /api/employees/:id
+    if (path.match(/\/employees\/[^/]+$/) && method === 'PUT') {
+      const employeeId = path.split('/').pop();
+      const result = await handleUpdateEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // DELETE /api/employees/:id
+    if (path.match(/\/employees\/[^/]+$/) && method === 'DELETE') {
+      const employeeId = path.split('/').pop();
+      const result = await handleDeleteEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/employees/:id/hours
+    if (path.match(/\/employees\/[^/]+\/hours$/) && method === 'GET') {
+      const employeeId = path.split('/')[path.split('/').length - 2];
+      const result = await handleGetEmployeeHours(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // =====================================================================
+    // PROJECT MANAGEMENT ENDPOINTS (Admin)
+    // =====================================================================
+
+    // GET /api/projects/admin
+    if (path.endsWith('/projects/admin') && method === 'GET') {
+      const result = await handleListProjectsAdmin(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/projects/admin
+    if (path.endsWith('/projects/admin') && method === 'POST') {
+      const result = await handleCreateProject(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/projects/admin/:id
+    if (path.match(/\/projects\/admin\/[^/]+$/) && method === 'GET') {
+      const projectId = path.split('/').pop();
+      const result = await handleGetProjectAdmin(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // PUT /api/projects/admin/:id
+    if (path.match(/\/projects\/admin\/[^/]+$/) && method === 'PUT') {
+      const projectId = path.split('/').pop();
+      const result = await handleUpdateProject(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // DELETE /api/projects/admin/:id
+    if (path.match(/\/projects\/admin\/[^/]+$/) && method === 'DELETE') {
+      const projectId = path.split('/').pop();
+      const result = await handleDeleteProject(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // PUT /api/projects/admin/:id/status
+    if (path.match(/\/projects\/admin\/[^/]+\/status$/) && method === 'PUT') {
+      const projectId = path.split('/')[path.split('/').length - 2];
+      const result = await handleUpdateProjectStatus(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/projects/admin/:id/timeline
+    if (path.match(/\/projects\/admin\/[^/]+\/timeline$/) && method === 'POST') {
+      const projectId = path.split('/')[path.split('/').length - 2];
+      const result = await handleUpdateProjectTimeline(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // =====================================================================
+    // TIME TRACKING ENDPOINTS
+    // =====================================================================
+
+    // POST /api/time-entries
+    if (path.endsWith('/time-entries') && method === 'POST') {
+      const result = await handleCreateTimeEntry(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/time-entries
+    if (path.endsWith('/time-entries') && method === 'GET') {
+      const result = await handleListTimeEntries(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // PUT /api/time-entries/:id
+    if (path.match(/\/time-entries\/[^/]+$/) && method === 'PUT') {
+      const entryId = path.split('/').pop();
+      const result = await handleUpdateTimeEntry(event, entryId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
     // Route not found
