@@ -29,8 +29,13 @@ const CRITICAL_KEYWORDS = {
 async function detectCriticalEvents(report) {
   console.log(`🚨 Scanning for critical events in report ${report.report_id}`);
 
+  // Parse extracted_data if it's a JSON string
+  const extractedData = typeof report.extracted_data === 'string'
+    ? JSON.parse(report.extracted_data)
+    : (report.extracted_data || {});
+
   const transcript = report.transcript || '';
-  const issues = report.extracted_data?.issues || [];
+  const issues = extractedData.issues || [];
 
   // Step 1: Fast keyword screening
   const detectedKeywords = fastKeywordScan(transcript, issues);

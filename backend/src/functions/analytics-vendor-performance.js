@@ -18,7 +18,12 @@ const openai = new OpenAI({
 async function analyzeVendorPerformance(report) {
   console.log(`📦 Analyzing vendor performance for report ${report.report_id}`);
 
-  const vendors = report.extracted_data?.vendors || [];
+  // Parse extracted_data if it's a JSON string
+  const extractedData = typeof report.extracted_data === 'string'
+    ? JSON.parse(report.extracted_data)
+    : (report.extracted_data || {});
+
+  const vendors = extractedData.vendors || [];
 
   if (vendors.length === 0) {
     console.log('⚠️ No vendor deliveries in report');

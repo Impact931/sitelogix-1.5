@@ -18,7 +18,12 @@ const openai = new OpenAI({
 async function calculatePersonnelHours(report) {
   console.log(`📊 Calculating hours for report ${report.report_id}`);
 
-  const personnel = report.extracted_data?.additional_personnel || [];
+  // Parse extracted_data if it's a JSON string
+  const extractedData = typeof report.extracted_data === 'string'
+    ? JSON.parse(report.extracted_data)
+    : (report.extracted_data || {});
+
+  const personnel = extractedData.additional_personnel || [];
 
   if (personnel.length === 0) {
     console.log('⚠️ No personnel found in report');
