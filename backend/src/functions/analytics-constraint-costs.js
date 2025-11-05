@@ -409,7 +409,7 @@ async function storeConstraint(report, constraint) {
     GSI1PK: `CATEGORY#${constraint.category}`,
     GSI1SK: constraint.total_cost_impact,
     GSI2PK: `PROJECT#${report.project_id}`,
-    GSI2SK: `COST#${constraint.total_cost_impact}`,
+    GSI2SK: constraint.total_cost_impact || 0, // Numeric cost for sorting
 
     // Core identification
     constraint_id: constraintId,
