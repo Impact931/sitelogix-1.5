@@ -30,8 +30,8 @@ async function calculatePersonnelHours(report) {
     return { personnel_hours: [], summary: { total_regular: 0, total_overtime: 0, total_cost: 0 } };
   }
 
-  // Build prompt for OpenAI
-  const prompt = `You are analyzing a construction daily report to extract accurate personnel work hours.
+  // Build enhanced prompt for OpenAI
+  const prompt = `You are analyzing a construction daily report to extract comprehensive personnel intelligence for CEO/CFO-level business analytics.
 
 Report Date: ${report.report_date}
 Project: ${report.project_name || report.project_id}
@@ -42,54 +42,89 @@ ${report.transcript || 'No transcript available'}
 Personnel Mentioned:
 ${JSON.stringify(personnel, null, 2)}
 
-For EACH person in the personnel list, carefully analyze the transcript to estimate:
+For EACH person in the personnel list, extract the following COMPREHENSIVE intelligence:
 
-1. **Hours Worked**: Based on:
-   - Direct time mentions (e.g., "worked 8am to 5pm", "started at 7", "left at 6:30pm")
-   - Activity descriptions (multiple major tasks = likely full day)
-   - Weather/site conditions (early closure, rain delays affect hours)
-   - Role-typical hours (operators usually 8-10hrs, laborers 8hrs)
-   - Comparison to other crew members
+1. **Hours Worked** - Categorize precisely:
+   - **Regular Hours** (0-8 hours at standard rate)
+   - **Overtime Hours** (8-12 hours at 1.5x rate)
+   - **Double-Time Hours** (hours beyond 12 OR weekend/holiday hours at 2x rate)
+   - **Weekend Work**: Was this a Saturday/Sunday? (affects pay multiplier)
+   - **Early Departures**: Did they leave early? If so, why? (heat, weather, safety)
 
-2. **Regular vs Overtime Hours**:
-   - Regular: 0-8 hours
-   - Overtime: Hours beyond 8 (typically 1.5x pay rate)
-   - Note: Some may work partial days (<8 hrs)
+2. **Time Context**:
+   - Start time (if mentioned)
+   - End time (if mentioned)
+   - Breaks/lunch mentioned?
+   - Worked through lunch? (affects OT calculation)
 
-3. **Specific Activities**: List what each person did
+3. **Specific Activities & Tasks**: List everything they did
 
-4. **Confidence Score** (0.0-1.0):
-   - 1.0 = Explicit time stated ("John worked 8 hours")
-   - 0.8 = Strong inference from multiple activity mentions
+4. **Performance & Productivity Notes**:
+   - High performer? Multiple complex tasks completed?
+   - Productivity issues? Downtime mentioned?
+   - Leadership role? ("supervised", "coordinated", "led crew")
+   - Training/mentoring others?
+
+5. **Environmental Impact**:
+   - Heat stress mentioned? (>95°F = early departure risk)
+   - Weather delays affecting their hours?
+   - Safety stand-downs?
+
+6. **OT Drivers** - WHY did they work OT/DT?:
+   - "schedule catch-up", "inspection deadline", "emergency repair"
+   - "weather recovery", "client request", "coordination delay"
+   - Was OT approved or pre-planned?
+
+7. **Confidence Score** (0.0-1.0):
+   - 1.0 = Explicit time stated
+   - 0.8 = Strong inference from activities
    - 0.5 = Mentioned but duration unclear
    - 0.3 = Only peripheral mention
 
-**IMPORTANT**:
-- Be conservative with hour estimates
-- If unclear, estimate lower (better to underestimate than overestimate)
-- Use context clues (weather, project phase, other crew hours)
-- Account for lunch breaks and downtime
+**CRITICAL BUSINESS INTELLIGENCE**:
+- Track NAMED individuals (e.g., "Bryan Nash", "Caleb Barnett") - spell names correctly
+- Identify supervisors/superintendents (usually mentioned as "reporting" or "leading")
+- Note if weekend work (Saturday/Sunday) which is always premium pay
+- Flag heat-related early departures with SPECIFIC DATES and hours lost
+- Identify top OT workers (>10 hrs = monitor for burnout)
 
-Return a JSON object with this exact structure:
+Return a JSON object with this ENHANCED structure:
 {
   "personnel_hours": [
     {
       "person_id": "person_001",
-      "canonical_name": "Scott Russell",
+      "canonical_name": "Bryan Nash",
+      "role": "Superintendent",
       "regular_hours": 8.0,
-      "overtime_hours": 1.5,
-      "total_hours": 9.5,
-      "activities": ["framing second floor", "cleanup", "material organization"],
-      "confidence": 0.85,
-      "reasoning": "Mentioned working morning shift, stayed late for cleanup. Multiple activities indicate full day."
+      "overtime_hours": 2.0,
+      "double_time_hours": 0.0,
+      "total_hours": 10.0,
+      "start_time": "7:00 AM",
+      "end_time": "5:30 PM",
+      "is_weekend": false,
+      "early_departure": false,
+      "early_departure_reason": null,
+      "hours_lost_to_weather": 0.0,
+      "activities": ["Level 2C pour prep", "Coordinated with electrical trade", "Inspection coordination"],
+      "performance_notes": "Primary superintendent, high documentation quality, coordinated multiple trades",
+      "ot_driver": "Inspection deadline preparation",
+      "ot_approved": true,
+      "confidence": 0.90,
+      "reasoning": "Explicitly mentioned as site superintendent coordinating multiple tasks. Multiple activity references throughout day."
     }
   ],
   "summary": {
-    "total_personnel": 4,
-    "total_regular_hours": 32.0,
-    "total_overtime_hours": 6.0,
-    "average_hours_per_person": 9.5,
-    "notes": "Full crew present, weather was good, productive day"
+    "total_personnel": 8,
+    "total_regular_hours": 64.0,
+    "total_overtime_hours": 16.0,
+    "total_double_time_hours": 0.0,
+    "average_hours_per_person": 10.0,
+    "weekend_crew_count": 0,
+    "heat_early_departures": 0,
+    "total_hours_lost_weather": 0.0,
+    "top_ot_workers": ["Bryan Nash: 2.0 hrs", "Caleb Barnett: 1.5 hrs"],
+    "ot_drivers": ["Inspection deadline", "Schedule catch-up"],
+    "notes": "Full crew present, productive day, OT for inspection preparation"
   }
 }`;
 
@@ -122,15 +157,22 @@ Return a JSON object with this exact structure:
     // Calculate costs (using standard construction labor rates)
     const REGULAR_RATE = 40; // $40/hour base rate
     const OVERTIME_RATE = 60; // $60/hour overtime rate (1.5x)
+    const DOUBLE_TIME_RATE = 80; // $80/hour double-time rate (2x)
 
     const enrichedHours = analysis.personnel_hours.map(ph => ({
       ...ph,
-      regular_cost: ph.regular_hours * REGULAR_RATE,
-      overtime_cost: ph.overtime_hours * OVERTIME_RATE,
-      total_cost: (ph.regular_hours * REGULAR_RATE) + (ph.overtime_hours * OVERTIME_RATE)
+      regular_cost: (ph.regular_hours || 0) * REGULAR_RATE,
+      overtime_cost: (ph.overtime_hours || 0) * OVERTIME_RATE,
+      double_time_cost: (ph.double_time_hours || 0) * DOUBLE_TIME_RATE,
+      total_cost: (
+        ((ph.regular_hours || 0) * REGULAR_RATE) +
+        ((ph.overtime_hours || 0) * OVERTIME_RATE) +
+        ((ph.double_time_hours || 0) * DOUBLE_TIME_RATE)
+      )
     }));
 
     const totalCost = enrichedHours.reduce((sum, ph) => sum + ph.total_cost, 0);
+    const totalDoubleTime = enrichedHours.reduce((sum, ph) => sum + (ph.double_time_hours || 0), 0);
 
     // Store in DynamoDB
     await storePersonnelHours(report, enrichedHours, totalCost);
@@ -170,27 +212,43 @@ async function storePersonnelHours(report, personnelHours, totalCost) {
       GSI1PK: `PROJECT#${report.project_id}`,
       GSI1SK: `DATE#${report.report_date}`,
 
-      // Data
+      // Core identification
       report_id: report.report_id,
       person_id: ph.person_id,
       person_name: ph.canonical_name,
+      role: ph.role || 'Worker',
       project_id: report.project_id,
       project_name: report.project_name,
       report_date: report.report_date,
 
-      // Hours
-      regular_hours: ph.regular_hours,
-      overtime_hours: ph.overtime_hours,
-      total_hours: ph.total_hours,
+      // Hours breakdown
+      regular_hours: ph.regular_hours || 0,
+      overtime_hours: ph.overtime_hours || 0,
+      double_time_hours: ph.double_time_hours || 0,
+      total_hours: ph.total_hours || 0,
+
+      // Time details
+      start_time: ph.start_time,
+      end_time: ph.end_time,
+      is_weekend: ph.is_weekend || false,
+      early_departure: ph.early_departure || false,
+      early_departure_reason: ph.early_departure_reason,
+      hours_lost_to_weather: ph.hours_lost_to_weather || 0,
 
       // Costs
-      regular_cost: ph.regular_cost,
-      overtime_cost: ph.overtime_cost,
-      total_cost: ph.total_cost,
+      regular_cost: ph.regular_cost || 0,
+      overtime_cost: ph.overtime_cost || 0,
+      double_time_cost: ph.double_time_cost || 0,
+      total_cost: ph.total_cost || 0,
 
-      // Details
-      activities: ph.activities,
-      confidence: ph.confidence,
+      // Work details
+      activities: ph.activities || [],
+      performance_notes: ph.performance_notes,
+      ot_driver: ph.ot_driver,
+      ot_approved: ph.ot_approved,
+
+      // Quality metrics
+      confidence: ph.confidence || 0,
       reasoning: ph.reasoning,
 
       // Metadata
@@ -204,7 +262,7 @@ async function storePersonnelHours(report, personnelHours, totalCost) {
     }));
   }
 
-  // Store daily summary
+  // Store daily summary with enhanced metrics
   const summaryItem = {
     PK: `HOURS_SUMMARY#${report.project_id}`,
     SK: `DATE#${report.report_date}`,
@@ -216,11 +274,30 @@ async function storePersonnelHours(report, personnelHours, totalCost) {
     project_name: report.project_name,
     report_date: report.report_date,
 
+    // Personnel counts
     total_personnel: personnelHours.length,
-    total_regular_hours: personnelHours.reduce((sum, ph) => sum + ph.regular_hours, 0),
-    total_overtime_hours: personnelHours.reduce((sum, ph) => sum + ph.overtime_hours, 0),
-    total_hours: personnelHours.reduce((sum, ph) => sum + ph.total_hours, 0),
+    weekend_crew_count: personnelHours.filter(ph => ph.is_weekend).length,
+
+    // Hours breakdown
+    total_regular_hours: personnelHours.reduce((sum, ph) => sum + (ph.regular_hours || 0), 0),
+    total_overtime_hours: personnelHours.reduce((sum, ph) => sum + (ph.overtime_hours || 0), 0),
+    total_double_time_hours: personnelHours.reduce((sum, ph) => sum + (ph.double_time_hours || 0), 0),
+    total_hours: personnelHours.reduce((sum, ph) => sum + (ph.total_hours || 0), 0),
+
+    // Environmental impacts
+    heat_early_departures: personnelHours.filter(ph => ph.early_departure && ph.early_departure_reason?.includes('heat')).length,
+    total_hours_lost_weather: personnelHours.reduce((sum, ph) => sum + (ph.hours_lost_to_weather || 0), 0),
+
+    // Costs
     total_cost: totalCost,
+
+    // Business intelligence
+    average_hours_per_person: personnelHours.length > 0 ? (personnelHours.reduce((sum, ph) => sum + (ph.total_hours || 0), 0) / personnelHours.length).toFixed(1) : 0,
+    top_ot_workers: personnelHours
+      .filter(ph => (ph.overtime_hours || 0) > 0)
+      .sort((a, b) => (b.overtime_hours || 0) - (a.overtime_hours || 0))
+      .slice(0, 3)
+      .map(ph => `${ph.canonical_name}: ${ph.overtime_hours} hrs`),
 
     calculated_at: timestamp,
     ttl: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)
