@@ -683,8 +683,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
 
       {/* Report Modal */}
       {reportModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setReportModal(null)}>
-          <div className="bg-dark-bg rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden glass-gold border border-gold/30" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={() => setReportModal(null)}>
+          <div className="bg-dark-bg/98 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden border border-gold/30 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-gold-light/20 to-gold-dark/20 border-b border-gold/20 p-6 flex justify-between items-center">
               <h2 className="text-2xl font-display font-bold text-white">
@@ -1088,8 +1088,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
 
       {/* Vendor Detail Modal */}
       {vendorDetailModal && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4" onClick={() => setVendorDetailModal(null)}>
-          <div className="bg-dark-bg rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden glass-gold border border-gold/30" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[60] p-4 backdrop-blur-sm" onClick={() => setVendorDetailModal(null)}>
+          <div className="bg-dark-bg/98 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gold/30 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
             <div className="bg-gradient-to-r from-gold-light/20 to-gold-dark/20 border-b border-gold/20 p-6 flex justify-between items-center">
               <div>
