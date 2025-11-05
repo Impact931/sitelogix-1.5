@@ -1622,6 +1622,26 @@ exports.handler = async (event) => {
 
     console.log(`Processing ${method} ${path}`);
 
+    // Parse request body for POST/PUT/DELETE requests
+    let body = {};
+    if (['POST', 'PUT', 'DELETE'].includes(method) && event.body) {
+      try {
+        body = JSON.parse(event.body);
+        console.log('Parsed request body:', JSON.stringify(body, null, 2));
+      } catch (e) {
+        console.error('Failed to parse request body:', e);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Invalid JSON in request body',
+            code: 'INVALID_JSON'
+          })
+        };
+      }
+    }
+
     // Route handling
     if (path.endsWith('/managers') && method === 'GET') {
       const result = await getManagers();
@@ -2259,26 +2279,60 @@ exports.handler = async (event) => {
 
     // POST /api/auth/login
     if (path.endsWith('/auth/login') && method === 'POST') {
-      const result = await handleLogin(event);
+      const result = await handleLogin(body);
       return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
     // POST /api/auth/logout
     if (path.endsWith('/auth/logout') && method === 'POST') {
-      const result = await handleLogout(event);
-      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      try {
+        const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
+        if (!token) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
+          };
+        }
+        const user = await verifyToken(token);
+        const result = await handleLogout(body, user);
+        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      } catch (error) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+        };
+      }
     }
 
     // POST /api/auth/refresh
     if (path.endsWith('/auth/refresh') && method === 'POST') {
-      const result = await handleRefreshToken(event);
+      const result = await handleRefreshToken(body);
       return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
     // GET /api/auth/me
     if (path.endsWith('/auth/me') && method === 'GET') {
-      const result = await handleGetCurrentUser(event);
-      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      try {
+        const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
+        if (!token) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
+          };
+        }
+        const user = await verifyToken(token);
+        const result = await handleGetCurrentUser(user);
+        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      } catch (error) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+        };
+      }
     }
 
     // =====================================================================
