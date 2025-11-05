@@ -51,35 +51,30 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
         setLoading(true);
 
         try {
-          // Try to fetch personnel from DynamoDB
-          const managersResponse = await fetch(`${API_BASE_URL}/personnel`, {
+          // Fetch master data (personnel and projects from entity normalization)
+          const masterDataResponse = await fetch(`${API_BASE_URL}/extract/master-data`, {
             signal: AbortSignal.timeout(5000) // 5 second timeout
           });
-          const managersData = await managersResponse.json();
+          const masterData = await masterDataResponse.json();
 
-          if (managersData.success && managersData.personnel) {
-            // Map personnel to manager format
-            const mappedManagers = managersData.personnel.map((p: any) => ({
-              id: p.personnel_id,
-              name: p.full_name,
-              position: p.role || 'Foreman',
-              phone: p.phone || '',
-              email: p.email || ''
+          if (masterData.success && masterData.personnel) {
+            // Map master personnel to manager format
+            const mappedManagers = Object.entries(masterData.personnel).map(([id, person]: [string, any]) => ({
+              id,
+              name: person.canonical_name,
+              position: person.role || 'Foreman',
+              phone: '',
+              email: ''
             }));
             setManagers(mappedManagers);
           } else {
             throw new Error('Failed to load personnel from API');
           }
 
-          // Fetch projects from master data
-          const projectsResponse = await fetch(`${API_BASE_URL}/extract/master-data`, {
-            signal: AbortSignal.timeout(5000) // 5 second timeout
-          });
-          const projectsData = await projectsResponse.json();
-
-          if (projectsData.success && projectsData.projects) {
+          // Use projects from same master data response
+          if (masterData.success && masterData.projects) {
             // Map master projects to project format
-            const mappedProjects = Object.entries(projectsData.projects).map(([id, proj]: [string, any]) => ({
+            const mappedProjects = Object.entries(masterData.projects).map(([id, proj]: [string, any]) => ({
               id,
               name: proj.canonical_name,
               location: proj.location || 'TBD',
