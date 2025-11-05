@@ -76,6 +76,8 @@ async function getExecutiveDashboard() {
         projects[projectId] = {
           project_id: projectId,
           project_name: item.project_name,
+          report_id: item.report_id, // Store report_id for linking
+          report_date: item.report_date, // Store report_date
           health_score: item.overall_health_score || 0,
           quality_score: item.quality_score || 0,
           schedule_score: item.schedule_score || 0,
@@ -139,12 +141,24 @@ async function getExecutiveDashboard() {
       });
     });
 
+    // Calculate overtime metrics
+    const totalRegularHours = (hoursSummaries.Items || []).reduce((sum, s) => sum + (s.total_regular_hours || 0), 0);
+    const totalOvertimeHours = (hoursSummaries.Items || []).reduce((sum, s) => sum + (s.total_overtime_hours || 0), 0);
+    const totalDoubletimeHours = (hoursSummaries.Items || []).reduce((sum, s) => sum + (s.total_doubletime_hours || 0), 0);
+    const totalHours = totalRegularHours + totalOvertimeHours + totalDoubletimeHours;
+    const overtimePercentage = totalHours > 0 ? ((totalOvertimeHours + totalDoubletimeHours) / totalHours * 100).toFixed(1) : 0;
+
+    // Count total active constraints
+    const totalConstraints = (constraintSummaries.Items || []).reduce((sum, s) => sum + (s.total_constraints || 0), 0);
+
     // Calculate portfolio-level metrics
     const portfolioHealth = {
       average_quality_score: projectCount > 0 ? Math.round(totalQualityScore / projectCount) : 0,
       average_schedule_score: projectCount > 0 ? Math.round(totalScheduleScore / projectCount) : 0,
       total_active_projects: projectCount,
-      projects_at_risk: Object.values(projects).filter(p => p.health_score < 70).length
+      projects_at_risk: Object.values(projects).filter(p => p.health_score < 70).length,
+      overtime_percentage: parseFloat(overtimePercentage),
+      total_constraints: totalConstraints
     };
 
     // Calculate financial snapshot
@@ -160,16 +174,28 @@ async function getExecutiveDashboard() {
       portfolio_roi: parseFloat(portfolioROI)
     };
 
-    // Aggregate top wins and concerns across all projects
+    // Aggregate top wins and concerns across all projects with clickable metadata
     const allWins = [];
     const allConcerns = [];
 
     Object.values(projects).forEach(project => {
       (project.top_wins || []).forEach(win => {
-        allWins.push(`[${project.project_name}] ${win}`);
+        allWins.push({
+          text: `[${project.project_name}] ${win}`,
+          project_id: project.project_id,
+          project_name: project.project_name,
+          report_id: project.report_id,
+          report_date: project.report_date
+        });
       });
       (project.top_concerns || []).forEach(concern => {
-        allConcerns.push(`[${project.project_name}] ${concern}`);
+        allConcerns.push({
+          text: `[${project.project_name}] ${concern}`,
+          project_id: project.project_id,
+          project_name: project.project_name,
+          report_id: project.report_id,
+          report_date: project.report_date
+        });
       });
     });
 

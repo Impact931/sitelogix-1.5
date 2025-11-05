@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MetricTooltip from './MetricTooltip';
 
 interface Manager {
   id: string;
@@ -10,12 +11,22 @@ interface Project {
   name: string;
 }
 
+interface ConcernOrWin {
+  text: string;
+  project_id: string;
+  project_name: string;
+  report_id: string;
+  report_date: string;
+}
+
 interface Insights {
   portfolio_health: {
     average_quality_score: number;
     average_schedule_score: number;
     total_active_projects: number;
     projects_at_risk: number;
+    overtime_percentage: number;
+    total_constraints: number;
   };
   financial_snapshot: {
     total_labor_cost_month: number;
@@ -24,8 +35,8 @@ interface Insights {
     cost_reduction_opportunities: number;
     portfolio_roi: number;
   };
-  top_wins: Array<string>;
-  top_concerns: Array<string>;
+  top_wins: Array<ConcernOrWin | string>; // Support both formats for backward compatibility
+  top_concerns: Array<ConcernOrWin | string>;
   urgent_actions: Array<{
     title?: string;
     project?: string;
@@ -424,75 +435,124 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                       Top Concerns Requiring Attention
                     </h2>
                     <div className="space-y-3">
-                      {insights.top_concerns.slice(0, 5).map((concern, index) => (
-                        <div
-                          key={index}
-                          className="w-full bg-white/5 rounded-lg p-4 text-left"
-                        >
-                          <div className="flex items-start space-x-3">
-                            <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400">
-                              CONCERN
-                            </span>
-                            <div className="flex-1">
-                              <p className="text-gray-300 text-sm">{concern}</p>
+                      {insights.top_concerns.slice(0, 5).map((concern, index) => {
+                        const isObject = typeof concern === 'object' && concern !== null;
+                        const concernText = isObject ? (concern as ConcernOrWin).text : concern;
+                        const concernData = isObject ? (concern as ConcernOrWin) : null;
+
+                        return (
+                          <div
+                            key={index}
+                            className="w-full bg-white/5 rounded-lg p-4 text-left hover:bg-white/10 transition group"
+                          >
+                            <div className="flex items-start space-x-3">
+                              <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-400 flex-shrink-0">
+                                CONCERN
+                              </span>
+                              <div className="flex-1">
+                                <p className="text-gray-300 text-sm">{concernText}</p>
+                                {concernData && concernData.report_id && (
+                                  <button
+                                    onClick={() => {
+                                      const url = `${API_BASE_URL}/reports/${concernData.report_id}/html?projectId=${concernData.project_id}&reportDate=${concernData.report_date}`;
+                                      window.open(url, '_blank');
+                                    }}
+                                    className="mt-2 flex items-center space-x-1 text-gold hover:text-gold-light transition text-xs"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span className="underline">View Source Report</span>
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* KPI Cards - Executive Dashboard */}
+                {/* KPI Cards - Executive Dashboard with Tooltips */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Portfolio Quality Score */}
-                  <div className="glass rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Portfolio Quality</p>
-                      <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <p className="text-3xl font-bold text-white">{insights.portfolio_health.average_quality_score}</p>
-                    <p className="text-xs text-gray-500 mt-2">{insights.portfolio_health.total_active_projects} active projects</p>
-                  </div>
-
                   {/* Labor Costs */}
-                  <div className="glass rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Labor Costs (MTD)</p>
-                      <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
-                      </svg>
+                  <MetricTooltip
+                    title="Labor Costs (Month-to-Date)"
+                    explanation="Total cost of all labor hours worked across all projects this month, including regular time, overtime, and double-time."
+                    calculation="Sum of (Hours × Hourly Rate) for all personnel across all projects"
+                    source="Hours summaries from daily reports"
+                  >
+                    <div className="glass rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-gray-400 text-sm font-semibold">Labor Costs (MTD)</p>
+                        <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-3xl font-bold text-white">${(insights.financial_snapshot.total_labor_cost_month / 1000).toFixed(0)}k</p>
+                      <p className="text-xs text-gray-500 mt-2">{insights.portfolio_health.total_active_projects} active projects</p>
                     </div>
-                    <p className="text-3xl font-bold text-white">${(insights.financial_snapshot.total_labor_cost_month / 1000).toFixed(0)}k</p>
-                    <p className="text-xs text-gray-500 mt-2">Month-to-date total</p>
-                  </div>
+                  </MetricTooltip>
 
-                  {/* Cost Reduction Opportunities */}
-                  <div className="glass rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Savings Potential</p>
-                      <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11 4a1 1 0 10-2 0v4a1 1 0 102 0V7zm-3 1a1 1 0 10-2 0v3a1 1 0 102 0V8zM8 9a1 1 0 00-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
-                      </svg>
+                  {/* Overtime Percentage */}
+                  <MetricTooltip
+                    title="Overtime Percentage"
+                    explanation="Percentage of total hours worked that are overtime or double-time. High overtime indicates potential schedule pressure or understaffing."
+                    calculation="(OT Hours + DT Hours) / Total Hours × 100"
+                    goodRange="< 15% is healthy for construction projects"
+                    source="Hours summaries from daily reports"
+                  >
+                    <div className="glass rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-gray-400 text-sm font-semibold">Overtime %</p>
+                        <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-3xl font-bold text-white">{insights.portfolio_health.overtime_percentage}%</p>
+                      <p className={`text-xs mt-2 ${insights.portfolio_health.overtime_percentage < 15 ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {insights.portfolio_health.overtime_percentage < 15 ? 'Within healthy range' : 'Monitor closely'}
+                      </p>
                     </div>
-                    <p className="text-3xl font-bold text-white">${(insights.financial_snapshot.cost_reduction_opportunities / 1000).toFixed(0)}k</p>
-                    <p className="text-xs text-green-400 mt-2">{insights.financial_snapshot.portfolio_roi}x ROI</p>
-                  </div>
+                  </MetricTooltip>
 
-                  {/* Projects at Risk */}
-                  <div className="glass rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-sm font-semibold">Projects at Risk</p>
-                      <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+                  {/* Active Constraints */}
+                  <MetricTooltip
+                    title="Active Constraints"
+                    explanation="Total number of active issues, delays, coordination problems, and technical constraints identified across all projects. Each constraint represents a potential risk to schedule or budget."
+                    source="Constraints identified in daily reports"
+                  >
+                    <div className="glass rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-gray-400 text-sm font-semibold">Active Constraints</p>
+                        <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-3xl font-bold text-white">{insights.portfolio_health.total_constraints}</p>
+                      <p className="text-xs text-gray-500 mt-2">Issues requiring resolution</p>
                     </div>
-                    <p className="text-3xl font-bold text-white">{insights.portfolio_health.projects_at_risk}</p>
-                    <p className="text-xs text-red-400 mt-2">Requiring attention</p>
-                  </div>
+                  </MetricTooltip>
+
+                  {/* Constraint Costs */}
+                  <MetricTooltip
+                    title="Constraint Cost Impact"
+                    explanation="Total estimated cost impact of all active constraints and issues across the portfolio. Includes delays, rework, coordination problems, and technical issues."
+                    source="Cost impacts from constraint records"
+                  >
+                    <div className="glass rounded-xl p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-gray-400 text-sm font-semibold">Constraint Costs</p>
+                        <svg className="w-8 h-8 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <p className="text-3xl font-bold text-white">${(insights.financial_snapshot.total_constraint_cost_month / 1000).toFixed(0)}k</p>
+                      <p className="text-xs text-red-400 mt-2">Month-to-date impact</p>
+                    </div>
+                  </MetricTooltip>
                 </div>
 
                 {/* Quick Queries */}
