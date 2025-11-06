@@ -1667,6 +1667,20 @@ exports.handler = async (event) => {
       return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
+    // PUT /api/projects/:id
+    if (path.match(/\/projects\/[^/]+$/) && method === 'PUT' && !path.includes('/admin')) {
+      const projectId = path.split('/').pop();
+      const result = await handleUpdateProject(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // DELETE /api/projects/:id
+    if (path.match(/\/projects\/[^/]+$/) && method === 'DELETE' && !path.includes('/admin')) {
+      const projectId = path.split('/').pop();
+      const result = await handleDeleteProject(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
     // GET /api/reports/:reportId/html
     if (path.match(/\/reports\/[^/]+\/html$/) && method === 'GET') {
       const reportId = path.split('/')[path.split('/').length - 2];

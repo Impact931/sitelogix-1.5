@@ -50,7 +50,7 @@ function getAuthToken(): string | null {
 export const fetchUsers = async (): Promise<User[]> => {
   try {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/employees`, {
+    const response = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const fetchUsers = async (): Promise<User[]> => {
 export const createUser = async (userData: CreateUserData): Promise<User> => {
   try {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/employees`, {
+    const response = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export const createUser = async (userData: CreateUserData): Promise<User> => {
 export const updateUser = async (userId: string, userData: UpdateUserData): Promise<User> => {
   try {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/employees/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/employees/${userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export const updateUser = async (userId: string, userData: UpdateUserData): Prom
 export const deleteUser = async (userId: string): Promise<void> => {
   try {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/employees/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/employees/${userId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
