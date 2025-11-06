@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { fetchUsers, type User } from '../services/userService';
 
 interface Employee {
   id: string;
@@ -24,61 +25,40 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToUserManagement, onNavigateToChangePassword }) => {
-  // Mock employee data
-  const [employees, setEmployees] = useState<Employee[]>([
-    {
-      id: 'emp_001',
-      name: 'John Martinez',
-      email: 'john.martinez@sitelogix.com',
-      phone: '(555) 123-4567',
-      employeeNumber: 'EMP-001',
-      role: 'manager',
-      team: 'Project Alpha',
-      hourlyRate: 85,
-      status: 'active',
-      hoursThisWeek: 42,
-      totalHours: 1280
-    },
-    {
-      id: 'emp_002',
-      name: 'Sarah Johnson',
-      email: 'sarah.j@sitelogix.com',
-      phone: '(555) 234-5678',
-      employeeNumber: 'EMP-002',
-      role: 'user',
-      team: 'Project Beta',
-      hourlyRate: 65,
-      status: 'active',
-      hoursThisWeek: 38,
-      totalHours: 956
-    },
-    {
-      id: 'emp_003',
-      name: 'Mike Chen',
-      email: 'mike.chen@sitelogix.com',
-      phone: '(555) 345-6789',
-      employeeNumber: 'EMP-003',
-      role: 'user',
-      team: 'Project Alpha',
-      hourlyRate: 70,
-      status: 'active',
-      hoursThisWeek: 40,
-      totalHours: 1120
-    },
-    {
-      id: 'emp_004',
-      name: 'Emily Rodriguez',
-      email: 'emily.r@sitelogix.com',
-      phone: '(555) 456-7890',
-      employeeNumber: 'EMP-004',
-      role: 'admin',
-      team: 'Operations',
-      hourlyRate: 95,
-      status: 'active',
-      hoursThisWeek: 40,
-      totalHours: 1600
-    }
-  ]);
+  // Real employee data from API
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real employees from API
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoading(true);
+        const users = await fetchUsers();
+        // Map User type to Employee type
+        const mappedEmployees: Employee[] = users.map(user => ({
+          id: user.userId,
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          phone: user.phone || 'N/A',
+          employeeNumber: user.userId.substring(0, 8).toUpperCase(),
+          role: (user.role === 'superadmin' ? 'admin' : user.role) as 'user' | 'manager' | 'admin',
+          team: 'N/A',
+          hourlyRate: 0,
+          status: user.status as 'active' | 'inactive' | 'on-leave',
+          hoursThisWeek: 0,
+          totalHours: 0
+        }));
+        setEmployees(mappedEmployees);
+      } catch (error) {
+        console.error('Failed to load employees:', error);
+        setEmployees([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadEmployees();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
