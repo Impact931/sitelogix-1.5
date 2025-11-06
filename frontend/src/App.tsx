@@ -6,6 +6,8 @@ import AdminDashboard from './components/AdminDashboard';
 import ProjectSetup from './components/ProjectSetup';
 import ProjectProfile from './components/ProjectProfile';
 import ProjectSelector from './components/ProjectSelector';
+import UserManagement from './components/UserManagement';
+import ChangePassword from './components/ChangePassword';
 import HomePage from './components/HomePage';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
@@ -24,7 +26,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuth();
@@ -105,6 +107,14 @@ function AppContent() {
     setCurrentScreen('recording');
   };
 
+  const handleNavigateToUserManagement = () => {
+    setCurrentScreen('user-management');
+  };
+
+  const handleNavigateToChangePassword = () => {
+    setCurrentScreen('change-password');
+  };
+
   // Show auth login for authenticated system
   if (currentScreen === 'auth-login') {
     return <Login onSwitchToLegacy={() => setCurrentScreen('login')} />;
@@ -117,6 +127,8 @@ function AppContent() {
         onNavigateToProjectSetup={() => setCurrentScreen('project-setup')}
         onNavigateToProjectProfile={handleNavigateToProjectProfile}
         onNavigateToRoxy={handleNavigateToRoxyFromAdmin}
+        onNavigateToUserManagement={handleNavigateToUserManagement}
+        onNavigateToChangePassword={handleNavigateToChangePassword}
       />
     );
   }
@@ -129,6 +141,16 @@ function AppContent() {
   // Show project selector for admin Roxy access
   if (currentScreen === 'project-selector') {
     return <ProjectSelector onProjectSelect={handleProjectSelect} onBack={handleBackToAdmin} />;
+  }
+
+  // Show user management for super admin
+  if (currentScreen === 'user-management') {
+    return <UserManagement onBack={handleBackToAdmin} />;
+  }
+
+  // Show change password for users
+  if (currentScreen === 'change-password') {
+    return <ChangePassword onBack={handleBackToAdmin} />;
   }
 
   // Show project setup for managers

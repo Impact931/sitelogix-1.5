@@ -19,9 +19,11 @@ interface AdminDashboardProps {
   onNavigateToProjectSetup?: () => void;
   onNavigateToProjectProfile?: () => void;
   onNavigateToRoxy?: () => void;
+  onNavigateToUserManagement?: () => void;
+  onNavigateToChangePassword?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToUserManagement, onNavigateToChangePassword }) => {
   // Mock employee data
   const [employees, setEmployees] = useState<Employee[]>([
     {
@@ -221,6 +223,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                   <span>Manage Projects</span>
+                </button>
+              )}
+              {onNavigateToUserManagement && (
+                <button
+                  onClick={onNavigateToUserManagement}
+                  className="px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition text-sm font-semibold flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  <span>Manage Users</span>
+                </button>
+              )}
+              {onNavigateToChangePassword && (
+                <button
+                  onClick={onNavigateToChangePassword}
+                  className="px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition text-sm font-semibold flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span>Change Password</span>
                 </button>
               )}
               {onNavigateToRoxy && (
