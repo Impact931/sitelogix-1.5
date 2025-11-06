@@ -1077,6 +1077,207 @@ async function handleDeleteEmployee(employeeId, queryParams, user) {
 // EXPORTS
 // ============================================================================
 
+/**
+ * POST /api/auth/change-password
+ * Allow users to change their own password
+ */
+async function handleChangePassword(body, user) {
+  try {
+    const { currentPassword, newPassword } = body;
+
+    if (!currentPassword || !newPassword) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'Current password and new password are required',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 8) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'New password must be at least 8 characters long',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+
+    // Get current user from DynamoDB
+    const getUserCommand = new GetItemCommand({
+      TableName: 'sitelogix-users',
+      Key: marshall({ userId: user.userId })
+    });
+
+    const userResult = await dynamoClient.send(getUserCommand);
+    if (!userResult.Item) {
+      return {
+        statusCode: 404,
+        body: {
+          success: false,
+          error: 'User not found',
+          code: 'USER_NOT_FOUND'
+        }
+      };
+    }
+
+    const currentUser = unmarshall(userResult.Item);
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, currentUser.passwordHash);
+    if (!isValidPassword) {
+      return {
+        statusCode: 401,
+        body: {
+          success: false,
+          error: 'Current password is incorrect',
+          code: 'INVALID_PASSWORD'
+        }
+      };
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update password in DynamoDB
+    const updateCommand = new UpdateItemCommand({
+      TableName: 'sitelogix-users',
+      Key: marshall({ userId: user.userId }),
+      UpdateExpression: 'SET passwordHash = :passwordHash, updatedAt = :updatedAt, mustChangePassword = :mustChangePassword',
+      ExpressionAttributeValues: marshall({
+        ':passwordHash': newPasswordHash,
+        ':updatedAt': new Date().toISOString(),
+        ':mustChangePassword': false
+      })
+    });
+
+    await dynamoClient.send(updateCommand);
+
+    return {
+      statusCode: 200,
+      body: {
+        success: true,
+        message: 'Password changed successfully'
+      }
+    };
+
+  } catch (error) {
+    console.error('Error changing password:', error);
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: 'Failed to change password',
+        code: 'INTERNAL_ERROR'
+      }
+    };
+  }
+}
+
+/**
+ * POST /api/auth/reset-password
+ * Allow admins to reset a user's password
+ */
+async function handleResetPassword(body, user) {
+  try {
+    const { userId, newPassword } = body;
+
+    // Check if user has admin permissions
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return {
+        statusCode: 403,
+        body: {
+          success: false,
+          error: 'Insufficient permissions to reset passwords',
+          code: 'FORBIDDEN'
+        }
+      };
+    }
+
+    if (!userId || !newPassword) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'User ID and new password are required',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 8) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'New password must be at least 8 characters long',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+
+    // Check if target user exists
+    const getUserCommand = new GetItemCommand({
+      TableName: 'sitelogix-users',
+      Key: marshall({ userId })
+    });
+
+    const userResult = await dynamoClient.send(getUserCommand);
+    if (!userResult.Item) {
+      return {
+        statusCode: 404,
+        body: {
+          success: false,
+          error: 'User not found',
+          code: 'USER_NOT_FOUND'
+        }
+      };
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update password in DynamoDB and require password change on next login
+    const updateCommand = new UpdateItemCommand({
+      TableName: 'sitelogix-users',
+      Key: marshall({ userId }),
+      UpdateExpression: 'SET passwordHash = :passwordHash, updatedAt = :updatedAt, mustChangePassword = :mustChangePassword',
+      ExpressionAttributeValues: marshall({
+        ':passwordHash': newPasswordHash,
+        ':updatedAt': new Date().toISOString(),
+        ':mustChangePassword': true // User must change password on next login
+      })
+    });
+
+    await dynamoClient.send(updateCommand);
+
+    return {
+      statusCode: 200,
+      body: {
+        success: true,
+        message: 'Password reset successfully. User will be required to change password on next login.'
+      }
+    };
+
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return {
+      statusCode: 500,
+      body: {
+        success: false,
+        error: 'Failed to reset password',
+        code: 'INTERNAL_ERROR'
+      }
+    };
+  }
+}
+
 module.exports = {
   // Authentication
   handleLogin,
@@ -1084,6 +1285,8 @@ module.exports = {
   handleRefreshToken,
   handleGetCurrentUser,
   handleRegister,
+  handleChangePassword,
+  handleResetPassword,
 
   // Employee Management
   handleListEmployees,

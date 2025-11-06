@@ -2,6 +2,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 export interface Project {
+  id?: string;  // For component compatibility
   projectId?: string;
   projectName: string;
   projectCode: string;

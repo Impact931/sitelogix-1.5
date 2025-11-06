@@ -5,7 +5,6 @@ import {
   updateProject,
   deleteProject as deleteProjectAPI,
   fetchPersonnel,
-  type Project as APIProject,
   type Personnel
 } from '../services/projectService';
 
@@ -61,7 +60,6 @@ interface ProjectProfileProps {
 export default function ProjectProfile({ onBack }: ProjectProfileProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [personnel, setPersonnel] = useState<Personnel[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -103,7 +101,6 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
   useEffect(() => {
     const loadData = async () => {
       try {
-        setLoading(true);
         const [fetchedProjects, fetchedPersonnel] = await Promise.all([
           fetchProjects(),
           fetchPersonnel()
@@ -123,8 +120,6 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
         }
       } catch (error) {
         console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
       }
     };
 

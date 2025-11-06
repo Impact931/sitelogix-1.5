@@ -31,6 +31,8 @@ const {
   handleRefreshToken,
   handleGetCurrentUser,
   handleRegister,
+  handleChangePassword,
+  handleResetPassword,
   handleListEmployees,
   handleGetEmployee,
   handleCreateEmployee,
@@ -2341,6 +2343,52 @@ exports.handler = async (event) => {
     if (path.endsWith('/auth/register') && method === 'POST') {
       const result = await handleRegister(body);
       return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/auth/change-password
+    if (path.endsWith('/auth/change-password') && method === 'POST') {
+      try {
+        const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
+        if (!token) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
+          };
+        }
+        const user = await verifyToken(token);
+        const result = await handleChangePassword(body, user);
+        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      } catch (error) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+        };
+      }
+    }
+
+    // POST /api/auth/reset-password
+    if (path.endsWith('/auth/reset-password') && method === 'POST') {
+      try {
+        const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
+        if (!token) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
+          };
+        }
+        const user = await verifyToken(token);
+        const result = await handleResetPassword(body, user);
+        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      } catch (error) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+        };
+      }
     }
 
     // =====================================================================
