@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { fetchUsers, type User } from '../services/userService';
+import { fetchUsers } from '../services/userService';
 
 interface Employee {
   id: string;
@@ -27,13 +27,11 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToUserManagement, onNavigateToChangePassword }) => {
   // Real employee data from API
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Fetch real employees from API
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        setLoading(true);
         const users = await fetchUsers();
         // Map User type to Employee type
         const mappedEmployees: Employee[] = users.map(user => ({
@@ -53,8 +51,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
       } catch (error) {
         console.error('Failed to load employees:', error);
         setEmployees([]);
-      } finally {
-        setLoading(false);
       }
     };
     loadEmployees();
