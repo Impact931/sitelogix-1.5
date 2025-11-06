@@ -49,7 +49,7 @@ export interface Personnel {
  */
 export const fetchProjects = async (): Promise<Project[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/projects/admin`, {
+    const response = await fetch(`${API_BASE_URL}/projects`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ export const fetchProjects = async (): Promise<Project[]> => {
  */
 export const createProject = async (project: Project): Promise<Project> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/projects/admin`, {
+    const response = await fetch(`${API_BASE_URL}/projects`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export const createProject = async (project: Project): Promise<Project> => {
  */
 export const updateProject = async (projectId: string, project: Project): Promise<Project> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/projects/admin/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export const updateProject = async (projectId: string, project: Project): Promis
  */
 export const deleteProject = async (projectId: string): Promise<void> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/projects/admin/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

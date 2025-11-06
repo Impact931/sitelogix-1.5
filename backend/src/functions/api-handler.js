@@ -1657,12 +1657,14 @@ exports.handler = async (event) => {
     }
 
     if (path.endsWith('/projects') && method === 'GET') {
-      const result = await getProjects();
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(result)
-      };
+      const result = await handleListProjectsAdmin(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/projects
+    if (path.endsWith('/projects') && method === 'POST') {
+      const result = await handleCreateProject(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
     // GET /api/reports/:reportId/html
