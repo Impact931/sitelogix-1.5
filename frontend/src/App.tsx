@@ -92,6 +92,12 @@ function AppContent() {
     setCurrentScreen('admin');
   };
 
+  const handleNavigateToRoxyFromAdmin = () => {
+    // For admin access to Roxy, we can set up a default project/manager
+    // Or we could show a project selection modal first
+    setCurrentScreen('recording');
+  };
+
   // Show auth login for authenticated system
   if (currentScreen === 'auth-login') {
     return <Login onSwitchToLegacy={() => setCurrentScreen('login')} />;
@@ -103,6 +109,7 @@ function AppContent() {
       <AdminDashboard
         onNavigateToProjectSetup={() => setCurrentScreen('project-setup')}
         onNavigateToProjectProfile={handleNavigateToProjectProfile}
+        onNavigateToRoxy={handleNavigateToRoxyFromAdmin}
       />
     );
   }

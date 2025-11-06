@@ -106,6 +106,9 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(projects[0]);
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [showPersonnelModal, setShowPersonnelModal] = useState(false);
   const [newProject, setNewProject] = useState<Omit<Project, 'id' | 'createdAt' | 'updatedAt'>>({
     projectName: '',
     projectCode: '',
@@ -180,6 +183,53 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
       if (selectedProject?.id === projectId) {
         setSelectedProject(projects.filter(p => p.id !== projectId)[0] || null);
       }
+    }
+  };
+
+  const handleEditProject = () => {
+    if (selectedProject) {
+      setEditingProject({ ...selectedProject });
+      setShowEditModal(true);
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (editingProject) {
+      setProjects(projects.map(p =>
+        p.id === editingProject.id
+          ? { ...editingProject, updatedAt: new Date().toISOString() }
+          : p
+      ));
+      setSelectedProject({ ...editingProject, updatedAt: new Date().toISOString() });
+      setShowEditModal(false);
+      setEditingProject(null);
+    }
+  };
+
+  const handleAddPersonnel = (personnelId: string, name: string, role: string) => {
+    if (selectedProject) {
+      const updatedProject = {
+        ...selectedProject,
+        assignedManagers: [
+          ...selectedProject.assignedManagers,
+          { managerId: personnelId, name, role }
+        ],
+        updatedAt: new Date().toISOString()
+      };
+      setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+      setSelectedProject(updatedProject);
+    }
+  };
+
+  const handleRemovePersonnel = (managerId: string) => {
+    if (selectedProject) {
+      const updatedProject = {
+        ...selectedProject,
+        assignedManagers: selectedProject.assignedManagers.filter(m => m.managerId !== managerId),
+        updatedAt: new Date().toISOString()
+      };
+      setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+      setSelectedProject(updatedProject);
     }
   };
 
@@ -258,6 +308,15 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
             <div className="max-w-5xl mx-auto space-y-6">
               {/* Quick Actions */}
               <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleEditProject}
+                  className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition text-sm font-semibold flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <span>Edit Project</span>
+                </button>
                 <button
                   onClick={() => handleDeleteProject(selectedProject.id)}
                   className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition text-sm font-semibold flex items-center space-x-2"
@@ -394,23 +453,46 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                 </p>
               </div>
 
-              {/* Assigned Managers */}
+              {/* Assigned Personnel */}
               <div className="bg-gradient-to-r from-white/5 to-white/10 rounded-2xl p-6 border border-white/20">
-                <h2 className="text-xl font-display font-bold text-white mb-4 flex items-center space-x-2">
-                  <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span>Assigned Managers</span>
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-display font-bold text-white flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>Assigned Personnel</span>
+                  </h2>
+                  <button
+                    onClick={() => setShowPersonnelModal(true)}
+                    className="px-3 py-1.5 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg hover:shadow-lg hover:shadow-gold/20 transition text-xs font-semibold flex items-center space-x-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Add Personnel</span>
+                  </button>
+                </div>
                 <div className="space-y-2">
-                  {selectedProject.assignedManagers.map((manager) => (
-                    <div key={manager.managerId} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                      <div>
-                        <p className="text-white font-semibold">{manager.name}</p>
-                        <p className="text-xs text-white/60">{manager.role}</p>
+                  {selectedProject.assignedManagers.length > 0 ? (
+                    selectedProject.assignedManagers.map((manager) => (
+                      <div key={manager.managerId} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                        <div>
+                          <p className="text-white font-semibold">{manager.name}</p>
+                          <p className="text-xs text-white/60">{manager.role}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemovePersonnel(manager.managerId)}
+                          className="text-red-400 hover:text-red-300 transition"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-white/40 text-sm text-center py-4">No personnel assigned yet</p>
+                  )}
                 </div>
               </div>
 
@@ -685,6 +767,285 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                 className="px-6 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Project Modal */}
+      {showEditModal && editingProject && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 backdrop-blur-sm overflow-y-auto" onClick={() => setShowEditModal(false)}>
+          <div className="bg-dark-bg/98 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gold/30 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-gold-light/20 to-gold-dark/20 border-b border-gold/20 p-6 flex justify-between items-center sticky top-0 z-10">
+              <h2 className="text-2xl font-display font-bold text-white">Edit Project</h2>
+              <button onClick={() => setShowEditModal(false)} className="text-white/60 hover:text-white transition">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Basic Info */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-white/80 mb-1">Project Name *</label>
+                    <input
+                      type="text"
+                      value={editingProject.projectName}
+                      onChange={(e) => setEditingProject({ ...editingProject, projectName: e.target.value })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-white/80 mb-1">Status</label>
+                    <select
+                      value={editingProject.status}
+                      onChange={(e) => setEditingProject({ ...editingProject, status: e.target.value as any })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    >
+                      <option value="planning">Planning</option>
+                      <option value="active">Active</option>
+                      <option value="on_hold">On Hold</option>
+                      <option value="completed">Completed</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm text-white/80 mb-1">Description</label>
+                    <textarea
+                      value={editingProject.description}
+                      onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline & Budget */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-3">Timeline</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-white/80 mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={editingProject.startDate}
+                        onChange={(e) => setEditingProject({ ...editingProject, startDate: e.target.value })}
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-white/80 mb-1">Estimated End Date</label>
+                      <input
+                        type="date"
+                        value={editingProject.estimatedEndDate}
+                        onChange={(e) => setEditingProject({ ...editingProject, estimatedEndDate: e.target.value })}
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-3">Budget ($)</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-white/80 mb-1">Total Budget</label>
+                      <input
+                        type="number"
+                        value={editingProject.budget.total}
+                        onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, total: Number(e.target.value) } })}
+                        className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs text-white/60 mb-1">Labor</label>
+                        <input
+                          type="number"
+                          value={editingProject.budget.labor}
+                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, labor: Number(e.target.value) } })}
+                          className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/60 mb-1">Materials</label>
+                        <input
+                          type="number"
+                          value={editingProject.budget.materials}
+                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, materials: Number(e.target.value) } })}
+                          className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/60 mb-1">Equipment</label>
+                        <input
+                          type="number"
+                          value={editingProject.budget.equipment}
+                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, equipment: Number(e.target.value) } })}
+                          className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* KPI Targets */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">KPI Targets</h3>
+                <div className="grid grid-cols-5 gap-3">
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Health Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingProject.kpiTargets.healthScore}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, healthScore: Number(e.target.value) } })}
+                      className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Quality Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingProject.kpiTargets.qualityScore}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, qualityScore: Number(e.target.value) } })}
+                      className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Schedule Score</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingProject.kpiTargets.scheduleScore}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, scheduleScore: Number(e.target.value) } })}
+                      className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Max OT %</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingProject.kpiTargets.maxOvertimePercent}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, maxOvertimePercent: Number(e.target.value) } })}
+                      className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-white/60 mb-1">Vendor On-Time %</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingProject.kpiTargets.vendorOnTimeRate}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, vendorOnTimeRate: Number(e.target.value) } })}
+                      className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-white/5 border-t border-white/10 p-4 flex justify-end space-x-3 sticky bottom-0">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-6 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-6 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Personnel Modal */}
+      {showPersonnelModal && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={() => setShowPersonnelModal(false)}>
+          <div className="bg-dark-bg/98 rounded-2xl max-w-md w-full border border-gold/30 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-gold-light/20 to-gold-dark/20 border-b border-gold/20 p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-display font-bold text-white">Add Personnel</h2>
+              <button onClick={() => setShowPersonnelModal(false)} className="text-white/60 hover:text-white transition">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-white/80 mb-2">Select Personnel</label>
+                  <select
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    id="personnel-select"
+                  >
+                    <option value="">-- Select Employee --</option>
+                    <option value="emp_001|John Martinez">John Martinez</option>
+                    <option value="emp_002|Sarah Johnson">Sarah Johnson</option>
+                    <option value="emp_003|Mike Chen">Mike Chen</option>
+                    <option value="emp_004|Emily Rodriguez">Emily Rodriguez</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-white/80 mb-2">Project Role</label>
+                  <select
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    id="role-select"
+                  >
+                    <option value="">-- Select Role --</option>
+                    <option value="Project Manager">Project Manager</option>
+                    <option value="Site Supervisor">Site Supervisor</option>
+                    <option value="Foreman">Foreman</option>
+                    <option value="Safety Officer">Safety Officer</option>
+                    <option value="Quality Control">Quality Control</option>
+                    <option value="Equipment Manager">Equipment Manager</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border-t border-white/10 p-4 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowPersonnelModal(false)}
+                className="px-6 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const personnelSelect = document.getElementById('personnel-select') as HTMLSelectElement;
+                  const roleSelect = document.getElementById('role-select') as HTMLSelectElement;
+                  if (personnelSelect.value && roleSelect.value) {
+                    const [id, name] = personnelSelect.value.split('|');
+                    handleAddPersonnel(id, name, roleSelect.value);
+                    setShowPersonnelModal(false);
+                  }
+                }}
+                className="px-6 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold"
+              >
+                Add to Project
               </button>
             </div>
           </div>
