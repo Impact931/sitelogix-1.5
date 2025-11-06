@@ -1148,6 +1148,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                           <thead>
                             <tr className="border-b border-white/10">
                               <th className="text-left text-sm font-semibold text-gray-400 pb-3">Project</th>
+                              <th className="text-center text-sm font-semibold text-gray-400 pb-3">Status</th>
                               <th className="text-center text-sm font-semibold text-gray-400 pb-3">Regular Hrs</th>
                               <th className="text-center text-sm font-semibold text-gray-400 pb-3">OT Hrs</th>
                               <th className="text-center text-sm font-semibold text-gray-400 pb-3">Total Hrs</th>
@@ -1159,6 +1160,17 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
                             {reportModal.data.by_project.map((proj: any, i: number) => (
                               <tr key={i} className="border-b border-white/5 hover:bg-white/5">
                                 <td className="py-3 text-sm font-semibold text-white">{proj.project_name}</td>
+                                <td className="py-3 text-sm text-center">
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    proj.status === 'Active' ? 'bg-green-500/20 text-green-400' :
+                                    proj.status === 'Complete' ? 'bg-gray-500/20 text-gray-400' :
+                                    proj.status === 'On-Hold' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    proj.status === 'Planning' ? 'bg-blue-500/20 text-blue-400' :
+                                    'bg-gray-500/20 text-gray-400'
+                                  }`}>
+                                    {proj.status || 'Unknown'}
+                                  </span>
+                                </td>
                                 <td className="py-3 text-sm text-blue-400 text-center">{proj.regular_hours?.toFixed(1)}</td>
                                 <td className="py-3 text-sm text-yellow-400 text-center">{proj.overtime_hours?.toFixed(1)}</td>
                                 <td className="py-3 text-sm text-white text-center">{proj.total_hours?.toFixed(1)}</td>

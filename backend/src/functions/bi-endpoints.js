@@ -1015,18 +1015,28 @@ async function getOvertimeReport() {
       byProject[projectId].total_cost += (s.total_labor_cost || 0);
     });
 
-    // Calculate OT % for each project
+    // Calculate OT % for each project and add status
     const projectAnalysis = Object.values(byProject).map(p => {
       const totalHrs = p.regular_hours + p.overtime_hours + p.doubletime_hours;
       const otHrs = p.overtime_hours + p.doubletime_hours;
       const otPercentage = totalHrs > 0 ? (otHrs / totalHrs * 100).toFixed(1) : 0;
       const otCost = (p.overtime_hours * avgHourlyRate * 0.5) + (p.doubletime_hours * avgHourlyRate * 1.0);
 
+      // Determine project status
+      // Active project: LG-Clarksville (or any project with "LG" in the name)
+      // Complete: All historical projects
+      let status = 'Complete';
+      const projectName = (p.project_name || '').toLowerCase();
+      if (projectName.includes('lg') || projectName.includes('clarksville')) {
+        status = 'Active';
+      }
+
       return {
         ...p,
         total_hours: totalHrs,
         overtime_percentage: parseFloat(otPercentage),
-        overtime_cost_impact: Math.round(otCost)
+        overtime_cost_impact: Math.round(otCost),
+        status: status
       };
     }).sort((a, b) => b.overtime_percentage - a.overtime_percentage);
 
