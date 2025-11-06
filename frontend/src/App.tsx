@@ -5,6 +5,7 @@ import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
 import ProjectSetup from './components/ProjectSetup';
 import ProjectProfile from './components/ProjectProfile';
+import ProjectSelector from './components/ProjectSelector';
 import HomePage from './components/HomePage';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
@@ -23,7 +24,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuth();
@@ -93,8 +94,14 @@ function AppContent() {
   };
 
   const handleNavigateToRoxyFromAdmin = () => {
-    // For admin access to Roxy, we can set up a default project/manager
-    // Or we could show a project selection modal first
+    // Navigate to project selector so admin can choose which project to report on
+    setCurrentScreen('project-selector');
+  };
+
+  const handleProjectSelect = (selectedProject: Project, selectedManager: Manager) => {
+    // Set the manager and project for the admin user
+    setProject(selectedProject);
+    setManager(selectedManager);
     setCurrentScreen('recording');
   };
 
@@ -117,6 +124,11 @@ function AppContent() {
   // Show project profile management
   if (currentScreen === 'project-profile') {
     return <ProjectProfile onBack={handleBackToAdmin} />;
+  }
+
+  // Show project selector for admin Roxy access
+  if (currentScreen === 'project-selector') {
+    return <ProjectSelector onProjectSelect={handleProjectSelect} onBack={handleBackToAdmin} />;
   }
 
   // Show project setup for managers
