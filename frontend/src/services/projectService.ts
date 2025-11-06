@@ -140,11 +140,11 @@ export const deleteProject = async (projectId: string): Promise<void> => {
 };
 
 /**
- * Fetch all personnel for assignment
+ * Fetch all personnel (users) for assignment to projects
  */
 export const fetchPersonnel = async (): Promise<Personnel[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/personnel`, {
+    const response = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -156,7 +156,14 @@ export const fetchPersonnel = async (): Promise<Personnel[]> => {
     }
 
     const data = await response.json();
-    return data.personnel || [];
+    // Map employee data to personnel format
+    const employees = data.employees || [];
+    return employees.map((emp: any) => ({
+      id: emp.userId,
+      name: `${emp.firstName} ${emp.lastName}`,
+      role: emp.role,
+      status: emp.status
+    }));
   } catch (error) {
     console.error('Error fetching personnel:', error);
     throw error;

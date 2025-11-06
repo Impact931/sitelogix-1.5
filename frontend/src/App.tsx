@@ -71,6 +71,11 @@ function AppContent() {
     setCurrentScreen('login');
   };
 
+  const handleChangeProject = () => {
+    // Don't clear session - just navigate back to home
+    setCurrentScreen('home');
+  };
+
   const handleNavigateToRoxy = () => {
     setCurrentScreen('recording');
   };
@@ -171,6 +176,7 @@ function AppContent() {
         onNavigateToRoxy={handleNavigateToRoxy}
         onNavigateToReports={handleViewReports}
         onNavigateToAnalytics={handleViewAnalytics}
+        onNavigateToAdmin={() => setCurrentScreen('admin')}
         onLogout={handleLogout}
       />
     );
@@ -201,7 +207,7 @@ function AppContent() {
     <VoiceReportingScreen
       manager={manager!}
       project={project!}
-      onChangeProject={handleLogout}
+      onChangeProject={handleChangeProject}
       onViewReports={handleViewReports}
       onViewAnalytics={handleViewAnalytics}
     />

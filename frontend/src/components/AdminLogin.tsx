@@ -24,19 +24,6 @@ interface AdminLoginProps {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
-// Fallback data when API is unavailable
-const FALLBACK_MANAGERS: Manager[] = [
-  { id: 'MGR001', name: 'John Smith', goByName: 'John', position: 'Project Manager', phone: '555-0101', email: 'john@example.com' },
-  { id: 'MGR002', name: 'Sarah Johnson', goByName: 'Sarah', position: 'Site Manager', phone: '555-0102', email: 'sarah@example.com' },
-  { id: 'MGR003', name: 'Michael Brown', goByName: 'Mike', position: 'Foreman', phone: '555-0103', email: 'mike@example.com' },
-];
-
-const FALLBACK_PROJECTS: Project[] = [
-  { id: 'PRJ001', name: 'Parkway Plaza Development', location: 'Downtown District' },
-  { id: 'PRJ002', name: 'Sunset Ridge Construction', location: 'West Side' },
-  { id: 'PRJ003', name: 'Harbor View Complex', location: 'Waterfront' },
-];
-
 // Super Admin Developer Account - Credentials from environment
 const SUPER_ADMIN = {
   username: import.meta.env.VITE_SUPER_ADMIN_USERNAME || 'admin',
@@ -61,56 +48,57 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError('');
 
-        try {
-          // Fetch master data (personnel and projects from entity normalization)
-          const masterDataResponse = await fetch(`${API_BASE_URL}/extract/master-data`, {
-            signal: AbortSignal.timeout(5000) // 5 second timeout
-          });
-          const masterData = await masterDataResponse.json();
+        // Fetch active employees from sitelogix-users table
+        const employeesResponse = await fetch(`${API_BASE_URL}/admin/employees`, {
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
 
-          if (masterData.success && masterData.personnel) {
-            // Map master personnel to manager format
-            const mappedManagers = Object.entries(masterData.personnel).map(([id, person]: [string, any]) => ({
-              id,
-              name: person.canonical_name,
-              position: person.role || 'Foreman',
-              phone: '',
-              email: ''
-            }));
-            setManagers(mappedManagers);
-          } else {
-            throw new Error('Failed to load personnel from API');
-          }
-
-          // Use projects from same master data response
-          if (masterData.success && masterData.projects) {
-            // Map master projects to project format
-            const mappedProjects = Object.entries(masterData.projects).map(([id, proj]: [string, any]) => ({
-              id,
-              name: proj.canonical_name,
-              location: proj.location || 'TBD',
-              managerId: proj.primary_manager
-            }));
-            setProjects(mappedProjects);
-          } else {
-            throw new Error('Failed to load projects from API');
-          }
-
-          console.log('✅ Successfully loaded data from API');
-        } catch (apiError) {
-          // Use fallback data if API is unavailable
-          console.warn('⚠️ API unavailable, using fallback data:', apiError);
-          setManagers(FALLBACK_MANAGERS);
-          setProjects(FALLBACK_PROJECTS);
-          setError(''); // Clear error since we have fallback data
+        if (!employeesResponse.ok) {
+          throw new Error(`Failed to fetch employees: ${employeesResponse.status}`);
         }
+
+        const employeesData = await employeesResponse.json();
+        const activeEmployees = (employeesData.employees || [])
+          .filter((emp: any) => emp.status === 'active')
+          .map((emp: any) => ({
+            id: emp.userId,
+            name: `${emp.firstName} ${emp.lastName}`,
+            position: emp.role,
+            phone: emp.phone || '',
+            email: emp.email
+          }));
+
+        setManagers(activeEmployees);
+
+        // Fetch active projects from sitelogix-projects table
+        const projectsResponse = await fetch(`${API_BASE_URL}/projects`, {
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+
+        if (!projectsResponse.ok) {
+          throw new Error(`Failed to fetch projects: ${projectsResponse.status}`);
+        }
+
+        const projectsData = await projectsResponse.json();
+        const activeProjects = (projectsData.projects || [])
+          .filter((proj: any) => proj.status === 'active')
+          .map((proj: any) => ({
+            id: proj.projectId || proj.id,
+            name: proj.projectName,
+            location: proj.location?.city || proj.location?.address || 'TBD',
+            managerId: proj.assignedManagers?.[0]?.managerId
+          }));
+
+        setProjects(activeProjects);
+
+        console.log('✅ Successfully loaded employees and projects from API');
       } catch (err) {
         console.error('Error loading data:', err);
-        // Final fallback - use hardcoded data
-        setManagers(FALLBACK_MANAGERS);
-        setProjects(FALLBACK_PROJECTS);
-        setError(''); // Clear error since we have fallback data
+        setError('Failed to load employees and projects. Please contact support.');
+        setManagers([]);
+        setProjects([]);
       } finally {
         setLoading(false);
       }
