@@ -47,7 +47,8 @@ const {
   handleUpdateProject,
   handleDeleteProject,
   handleUpdateProjectStatus,
-  handleUpdateProjectTimeline
+  handleUpdateProjectTimeline,
+  handleListPersonnel
 } = require('./project-endpoints');
 const {
   handleCreateTimeEntry,
@@ -2383,6 +2384,16 @@ exports.handler = async (event) => {
     if (path.match(/\/employees\/[^/]+\/hours$/) && method === 'GET') {
       const employeeId = path.split('/')[path.split('/').length - 2];
       const result = await handleGetEmployeeHours(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // =====================================================================
+    // PERSONNEL ENDPOINTS
+    // =====================================================================
+
+    // GET /api/personnel
+    if (path.endsWith('/personnel') && method === 'GET') {
+      const result = await handleListPersonnel(event);
       return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 

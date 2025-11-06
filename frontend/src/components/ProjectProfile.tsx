@@ -1,4 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  fetchProjects,
+  createProject,
+  updateProject,
+  deleteProject as deleteProjectAPI,
+  fetchPersonnel,
+  type Project as APIProject,
+  type Personnel
+} from '../services/projectService';
 
 interface Project {
   id: string;
@@ -50,61 +59,10 @@ interface ProjectProfileProps {
 }
 
 export default function ProjectProfile({ onBack }: ProjectProfileProps) {
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 'proj_1',
-      projectName: 'Sample Project Alpha',
-      projectCode: 'PRJ-001',
-      description: 'Commercial build-out for new retail complex',
-      location: {
-        address: '123 Main St',
-        city: 'San Francisco',
-        state: 'CA',
-        zip: '94102'
-      },
-      projectType: 'commercial',
-      status: 'active',
-      startDate: '2025-01-15',
-      estimatedEndDate: '2025-12-31',
-      targetCompletionPercentage: 100,
-      budget: {
-        total: 2500000,
-        labor: 1200000,
-        materials: 900000,
-        equipment: 400000
-      },
-      kpiTargets: {
-        healthScore: 85,
-        qualityScore: 90,
-        scheduleScore: 85,
-        maxOvertimePercent: 15,
-        vendorOnTimeRate: 90
-      },
-      assignedManagers: [
-        { managerId: 'mgr_1', name: 'John Smith', role: 'Project Manager' }
-      ],
-      milestones: [
-        {
-          id: 'ms_1',
-          name: 'Site Preparation',
-          targetDate: '2025-02-28',
-          deliverables: 'Site cleared, utilities connected',
-          status: 'completed'
-        },
-        {
-          id: 'ms_2',
-          name: 'Foundation Complete',
-          targetDate: '2025-04-30',
-          deliverables: 'All foundation work completed and inspected',
-          status: 'in_progress'
-        }
-      ],
-      createdAt: '2025-01-10T00:00:00Z',
-      updatedAt: '2025-01-10T00:00:00Z'
-    }
-  ]);
-
-  const [selectedProject, setSelectedProject] = useState<Project | null>(projects[0]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [personnel, setPersonnel] = useState<Personnel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -141,47 +99,97 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
     milestones: []
   });
 
-  const handleAddProject = () => {
-    const projectToAdd: Project = {
-      ...newProject,
-      id: `proj_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  // Fetch projects and personnel on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [fetchedProjects, fetchedPersonnel] = await Promise.all([
+          fetchProjects(),
+          fetchPersonnel()
+        ]);
+
+        // Map API projects to component format (projectId -> id)
+        const mappedProjects = fetchedProjects.map(p => ({
+          ...p,
+          id: p.projectId || p.id
+        })) as Project[];
+
+        setProjects(mappedProjects);
+        setPersonnel(fetchedPersonnel);
+
+        if (mappedProjects.length > 0) {
+          setSelectedProject(mappedProjects[0]);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setProjects([...projects, projectToAdd]);
-    setSelectedProject(projectToAdd);
-    setShowAddProjectModal(false);
+    loadData();
+  }, []);
 
-    // Reset form
-    setNewProject({
-      projectName: '',
-      projectCode: '',
-      description: '',
-      location: { address: '', city: '', state: '', zip: '' },
-      projectType: 'commercial',
-      status: 'planning',
-      startDate: '',
-      estimatedEndDate: '',
-      targetCompletionPercentage: 100,
-      budget: { total: 0, labor: 0, materials: 0, equipment: 0 },
-      kpiTargets: {
-        healthScore: 85,
-        qualityScore: 90,
-        scheduleScore: 85,
-        maxOvertimePercent: 15,
-        vendorOnTimeRate: 90
-      },
-      assignedManagers: [],
-      milestones: []
-    });
+  const handleAddProject = async () => {
+    try {
+      // Call backend API to create project
+      const createdProject = await createProject(newProject);
+
+      // Map to component format
+      const projectToAdd = {
+        ...createdProject,
+        id: createdProject.projectId || createdProject.id
+      } as Project;
+
+      setProjects([...projects, projectToAdd]);
+      setSelectedProject(projectToAdd);
+      setShowAddProjectModal(false);
+
+      // Reset form
+      setNewProject({
+        projectName: '',
+        projectCode: '',
+        description: '',
+        location: { address: '', city: '', state: '', zip: '' },
+        projectType: 'commercial',
+        status: 'planning',
+        startDate: '',
+        estimatedEndDate: '',
+        targetCompletionPercentage: 100,
+        budget: { total: 0, labor: 0, materials: 0, equipment: 0 },
+        kpiTargets: {
+          healthScore: 85,
+          qualityScore: 90,
+          scheduleScore: 85,
+          maxOvertimePercent: 15,
+          vendorOnTimeRate: 90
+        },
+        assignedManagers: [],
+        milestones: []
+      });
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('Failed to create project. Please try again.');
+    }
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     if (confirm('Are you sure you want to delete this project?')) {
-      setProjects(projects.filter(p => p.id !== projectId));
-      if (selectedProject?.id === projectId) {
-        setSelectedProject(projects.filter(p => p.id !== projectId)[0] || null);
+      try {
+        // Call backend API to delete project
+        await deleteProjectAPI(projectId);
+
+        // Update local state
+        const remainingProjects = projects.filter(p => p.id !== projectId);
+        setProjects(remainingProjects);
+
+        if (selectedProject?.id === projectId) {
+          setSelectedProject(remainingProjects[0] || null);
+        }
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Failed to delete project. Please try again.');
       }
     }
   };
@@ -193,43 +201,81 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
     }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (editingProject) {
-      setProjects(projects.map(p =>
-        p.id === editingProject.id
-          ? { ...editingProject, updatedAt: new Date().toISOString() }
-          : p
-      ));
-      setSelectedProject({ ...editingProject, updatedAt: new Date().toISOString() });
-      setShowEditModal(false);
-      setEditingProject(null);
+      try {
+        // Call backend API to update project
+        const updatedProject = await updateProject(editingProject.id, editingProject);
+
+        // Map to component format
+        const mappedProject = {
+          ...updatedProject,
+          id: updatedProject.projectId || updatedProject.id
+        } as Project;
+
+        setProjects(projects.map(p => p.id === editingProject.id ? mappedProject : p));
+        setSelectedProject(mappedProject);
+        setShowEditModal(false);
+        setEditingProject(null);
+      } catch (error) {
+        console.error('Error updating project:', error);
+        alert('Failed to update project. Please try again.');
+      }
     }
   };
 
-  const handleAddPersonnel = (personnelId: string, name: string, role: string) => {
+  const handleAddPersonnel = async (personnelId: string, name: string, role: string) => {
     if (selectedProject) {
-      const updatedProject = {
-        ...selectedProject,
-        assignedManagers: [
-          ...selectedProject.assignedManagers,
-          { managerId: personnelId, name, role }
-        ],
-        updatedAt: new Date().toISOString()
-      };
-      setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
-      setSelectedProject(updatedProject);
+      try {
+        const updatedProject = {
+          ...selectedProject,
+          assignedManagers: [
+            ...selectedProject.assignedManagers,
+            { managerId: personnelId, name, role }
+          ]
+        };
+
+        // Call backend API to update project with new personnel
+        const savedProject = await updateProject(selectedProject.id, updatedProject);
+
+        // Map to component format
+        const mappedProject = {
+          ...savedProject,
+          id: savedProject.projectId || savedProject.id
+        } as Project;
+
+        setProjects(projects.map(p => p.id === selectedProject.id ? mappedProject : p));
+        setSelectedProject(mappedProject);
+      } catch (error) {
+        console.error('Error adding personnel:', error);
+        alert('Failed to add personnel. Please try again.');
+      }
     }
   };
 
-  const handleRemovePersonnel = (managerId: string) => {
+  const handleRemovePersonnel = async (managerId: string) => {
     if (selectedProject) {
-      const updatedProject = {
-        ...selectedProject,
-        assignedManagers: selectedProject.assignedManagers.filter(m => m.managerId !== managerId),
-        updatedAt: new Date().toISOString()
-      };
-      setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
-      setSelectedProject(updatedProject);
+      try {
+        const updatedProject = {
+          ...selectedProject,
+          assignedManagers: selectedProject.assignedManagers.filter(m => m.managerId !== managerId)
+        };
+
+        // Call backend API to update project with personnel removed
+        const savedProject = await updateProject(selectedProject.id, updatedProject);
+
+        // Map to component format
+        const mappedProject = {
+          ...savedProject,
+          id: savedProject.projectId || savedProject.id
+        } as Project;
+
+        setProjects(projects.map(p => p.id === selectedProject.id ? mappedProject : p));
+        setSelectedProject(mappedProject);
+      } catch (error) {
+        console.error('Error removing personnel:', error);
+        alert('Failed to remove personnel. Please try again.');
+      }
     }
   };
 
@@ -1001,10 +1047,11 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     id="personnel-select"
                   >
                     <option value="">-- Select Employee --</option>
-                    <option value="emp_001|John Martinez">John Martinez</option>
-                    <option value="emp_002|Sarah Johnson">Sarah Johnson</option>
-                    <option value="emp_003|Mike Chen">Mike Chen</option>
-                    <option value="emp_004|Emily Rodriguez">Emily Rodriguez</option>
+                    {personnel.map(person => (
+                      <option key={person.id} value={`${person.id}|${person.name}`}>
+                        {person.name} - {person.role}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
