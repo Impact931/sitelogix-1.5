@@ -982,6 +982,25 @@ async function getOvertimeReport() {
 
     const summaries = hoursSummaries.Items || [];
 
+    // Fetch all project profiles from sitelogix-projects
+    const projectProfiles = await docClient.send(new ScanCommand({
+      TableName: 'sitelogix-projects'
+    }));
+
+    // Create a lookup map of project data by project_id
+    const projectDataMap = {};
+    (projectProfiles.Items || []).forEach(proj => {
+      const pid = proj.projectId || proj.id;
+      if (pid) {
+        projectDataMap[pid] = {
+          status: proj.status || 'unknown',
+          projectType: proj.projectType || 'Unknown',
+          location: proj.location || {},
+          projectCode: proj.projectCode || ''
+        };
+      }
+    });
+
     // Calculate portfolio-wide overtime metrics
     const totalRegularHours = summaries.reduce((sum, s) => sum + (s.total_regular_hours || 0), 0);
     const totalOvertimeHours = summaries.reduce((sum, s) => sum + (s.total_overtime_hours || 0), 0);
@@ -1015,20 +1034,28 @@ async function getOvertimeReport() {
       byProject[projectId].total_cost += (s.total_labor_cost || 0);
     });
 
-    // Calculate OT % for each project and add status
+    // Calculate OT % for each project and add project profile data
     const projectAnalysis = Object.values(byProject).map(p => {
       const totalHrs = p.regular_hours + p.overtime_hours + p.doubletime_hours;
       const otHrs = p.overtime_hours + p.doubletime_hours;
       const otPercentage = totalHrs > 0 ? (otHrs / totalHrs * 100).toFixed(1) : 0;
       const otCost = (p.overtime_hours * avgHourlyRate * 0.5) + (p.doubletime_hours * avgHourlyRate * 1.0);
 
-      // Determine project status
-      // Active project: LG-Clarksville (or any project with "LG" in the name)
-      // Complete: All historical projects
-      let status = 'Complete';
-      const projectName = (p.project_name || '').toLowerCase();
-      if (projectName.includes('lg') || projectName.includes('clarksville')) {
-        status = 'Active';
+      // Get project profile data from the lookup map
+      const profileData = projectDataMap[p.project_id] || {};
+
+      // Use real status from project profile, or fallback to 'Complete' for historical projects
+      let status = profileData.status || 'Complete';
+
+      // Format location if available
+      let locationStr = 'N/A';
+      if (profileData.location) {
+        const loc = profileData.location;
+        if (loc.city && loc.state) {
+          locationStr = `${loc.city}, ${loc.state}`;
+        } else if (loc.address) {
+          locationStr = loc.address;
+        }
       }
 
       return {
@@ -1036,7 +1063,10 @@ async function getOvertimeReport() {
         total_hours: totalHrs,
         overtime_percentage: parseFloat(otPercentage),
         overtime_cost_impact: Math.round(otCost),
-        status: status
+        status: status,
+        project_type: profileData.projectType || 'Unknown',
+        location: locationStr,
+        project_code: profileData.projectCode || ''
       };
     }).sort((a, b) => b.overtime_percentage - a.overtime_percentage);
 
