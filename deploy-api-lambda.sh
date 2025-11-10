@@ -106,7 +106,7 @@ fi
 # Create deployment package
 echo "Creating zip file..."
 rm -f $PACKAGE_FILE
-zip -r $PACKAGE_FILE api-handler.js bi-endpoints.js admin-endpoints.js project-endpoints.js time-tracking-endpoints.js entityNormalizationService.js node_modules/ > /dev/null 2>&1
+zip -r $PACKAGE_FILE *.js ../services/*.js node_modules/ > /dev/null 2>&1
 
 echo "✅ Deployment package created: $(du -h $PACKAGE_FILE | cut -f1)"
 echo ""
@@ -155,12 +155,13 @@ if [ -f ".env" ]; then
     # Update Lambda environment variables (AWS_REGION is reserved, Lambda sets it automatically)
     aws lambda update-function-configuration \
         --function-name $FUNCTION_NAME \
-        --environment "Variables={ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,NODE_ENV=production}" \
+        --environment "Variables={ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,OPENAI_API_KEY=$OPENAI_API_KEY,NODE_ENV=production}" \
         --region $REGION \
         > /dev/null
 
     echo "✅ Environment variables updated in Lambda"
     echo "   - ANTHROPIC_API_KEY: ✓"
+    echo "   - OPENAI_API_KEY: ✓"
     echo "   - NODE_ENV: production"
     echo "   - AWS_REGION: $REGION (auto-set by Lambda)"
 else
@@ -314,6 +315,43 @@ if [ -z "$ROUTE_ID" ]; then
 else
     echo "✅ Route already exists: GET $ROUTE"
 fi
+
+echo ""
+echo "💼 Creating Payroll API routes..."
+
+# Create payroll GET routes
+for ROUTE in "/api/payroll/daily/{date}" "/api/payroll/export/daily/{date}"; do
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='GET $ROUTE'].RouteId" --output text)
+
+    if [ -z "$ROUTE_ID" ]; then
+        aws apigatewayv2 create-route \
+            --api-id $API_ID \
+            --route-key "GET $ROUTE" \
+            --target "integrations/$INTEGRATION_ID" \
+            --region $REGION \
+            > /dev/null
+        echo "✅ Route created: GET $ROUTE"
+    else
+        echo "✅ Route already exists: GET $ROUTE"
+    fi
+done
+
+# Create payroll POST routes
+for ROUTE in "/api/payroll/bulk" "/api/personnel/match"; do
+    ROUTE_ID=$(aws apigatewayv2 get-routes --api-id $API_ID --region $REGION --query "Items[?RouteKey=='POST $ROUTE'].RouteId" --output text)
+
+    if [ -z "$ROUTE_ID" ]; then
+        aws apigatewayv2 create-route \
+            --api-id $API_ID \
+            --route-key "POST $ROUTE" \
+            --target "integrations/$INTEGRATION_ID" \
+            --region $REGION \
+            > /dev/null
+        echo "✅ Route created: POST $ROUTE"
+    else
+        echo "✅ Route already exists: POST $ROUTE"
+    fi
+done
 
 # Create default stage
 STAGE_NAME='$default'

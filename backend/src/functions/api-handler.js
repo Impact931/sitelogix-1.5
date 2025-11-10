@@ -58,6 +58,35 @@ const {
   handleUpdateTimeEntry,
   handleGetEmployeeHours
 } = require('./time-tracking-endpoints');
+const {
+  handleMatchOrCreateEmployee,
+  handleCreateEmployee: handleCreatePersonnelEmployee,
+  handleGetEmployee: handleGetPersonnelEmployee,
+  handleListEmployees: handleListPersonnelEmployees,
+  handleUpdateEmployee: handleUpdatePersonnelEmployee,
+  handleDeleteEmployee: handleDeletePersonnelEmployee,
+  handleAddEmployeeAlias,
+  handleSearchEmployees,
+  handleGetEmployeeByNumber
+} = require('./personnel-endpoints');
+const {
+  handleCreatePayrollEntry,
+  handleCreateBulkPayrollEntries,
+  handleGetPayrollEntry,
+  handleGetPayrollByReport,
+  handleGetPayrollByEmployee,
+  handleGetPayrollByProject,
+  handleGetPayrollByDate,
+  handleGetPayrollNeedingReview,
+  handleUpdatePayrollEntry,
+  handleMarkAsReviewed,
+  handleDeletePayrollEntry,
+  handleGenerateDailyReport,
+  handleExportDailyCSV,
+  handleGetEmployeeTimesheet,
+  handleGetProjectLaborCosts
+} = require('./payroll-endpoints');
+const { processTranscriptForPayroll } = require('../services/payrollExtractionService');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -871,6 +900,30 @@ async function saveReport(reportData) {
 
     await dynamoClient.send(dynamoCommand);
     console.log('✅ Report entry created in DynamoDB');
+
+    // Trigger payroll extraction asynchronously (don't block report save)
+    setImmediate(async () => {
+      try {
+        console.log('💼 Triggering payroll extraction for report:', reportId);
+
+        // Convert transcript object to text if needed
+        let transcriptText = transcript;
+        if (typeof transcript === 'object') {
+          transcriptText = JSON.stringify(transcript);
+        }
+
+        await processTranscriptForPayroll(transcriptText, {
+          reportId,
+          projectId,
+          projectName,
+          reportDate,
+          managerId
+        });
+      } catch (payrollError) {
+        console.error('⚠️ Payroll extraction failed (non-fatal):', payrollError.message);
+        // Don't fail the report save if payroll extraction fails
+      }
+    });
 
     return {
       success: true,
@@ -2532,6 +2585,183 @@ exports.handler = async (event) => {
     if (path.match(/\/time-entries\/[^/]+$/) && method === 'PUT') {
       const entryId = path.split('/').pop();
       const result = await handleUpdateTimeEntry(event, entryId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // =====================================================================
+    // PERSONNEL MANAGEMENT ENDPOINTS
+    // =====================================================================
+
+    // POST /api/personnel/match - Match or create employee (used by Roxy)
+    if (path.endsWith('/personnel/match') && method === 'POST') {
+      const result = await handleMatchOrCreateEmployee(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/personnel/search - Search employees by name
+    if (path.endsWith('/personnel/search') && method === 'GET') {
+      const result = await handleSearchEmployees(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/personnel/number/:employeeNumber - Get employee by employee number
+    if (path.match(/\/personnel\/number\/[^/]+$/) && method === 'GET') {
+      const employeeNumber = path.split('/').pop();
+      const result = await handleGetEmployeeByNumber(event, employeeNumber);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/personnel/:id/aliases - Add employee alias
+    if (path.match(/\/personnel\/[^/]+\/aliases$/) && method === 'POST') {
+      const employeeId = path.split('/')[path.split('/').length - 2];
+      const result = await handleAddEmployeeAlias(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/personnel - Create employee
+    if (path.endsWith('/personnel') && method === 'POST') {
+      const result = await handleCreatePersonnelEmployee(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/personnel - List employees
+    if (path.endsWith('/personnel') && method === 'GET') {
+      const result = await handleListPersonnelEmployees(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/personnel/:id - Get employee by ID
+    if (path.match(/\/personnel\/[^/]+$/) && method === 'GET') {
+      const employeeId = path.split('/').pop();
+      const result = await handleGetPersonnelEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // PUT /api/personnel/:id - Update employee
+    if (path.match(/\/personnel\/[^/]+$/) && method === 'PUT') {
+      const employeeId = path.split('/').pop();
+      const result = await handleUpdatePersonnelEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // DELETE /api/personnel/:id - Terminate employee
+    if (path.match(/\/personnel\/[^/]+$/) && method === 'DELETE') {
+      const employeeId = path.split('/').pop();
+      const result = await handleDeletePersonnelEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // =====================================================================
+    // PAYROLL MANAGEMENT ENDPOINTS
+    // =====================================================================
+
+    // POST /api/payroll/bulk - Create bulk payroll entries
+    if (path.endsWith('/payroll/bulk') && method === 'POST') {
+      const result = await handleCreateBulkPayrollEntries(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/review - Get entries needing review
+    if (path.endsWith('/payroll/review') && method === 'GET') {
+      const result = await handleGetPayrollNeedingReview(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/report/:reportId - Get payroll by report
+    if (path.match(/\/payroll\/report\/[^/]+$/) && method === 'GET') {
+      const reportId = path.split('/').pop();
+      const result = await handleGetPayrollByReport(event, reportId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/employee/:employeeId/timesheet - Get employee timesheet
+    if (path.match(/\/payroll\/employee\/[^/]+\/timesheet$/) && method === 'GET') {
+      const employeeId = path.split('/')[path.split('/').length - 2];
+      const result = await handleGetEmployeeTimesheet(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/employee/:employeeId - Get payroll by employee
+    if (path.match(/\/payroll\/employee\/[^/]+$/) && method === 'GET') {
+      const employeeId = path.split('/').pop();
+      const result = await handleGetPayrollByEmployee(event, employeeId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/project/:projectId/costs - Get project labor costs
+    if (path.match(/\/payroll\/project\/[^/]+\/costs$/) && method === 'GET') {
+      const projectId = path.split('/')[path.split('/').length - 2];
+      const result = await handleGetProjectLaborCosts(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/project/:projectId - Get payroll by project
+    if (path.match(/\/payroll\/project\/[^/]+$/) && method === 'GET') {
+      const projectId = path.split('/').pop();
+      const result = await handleGetPayrollByProject(event, projectId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/date/:date - Get payroll by date
+    if (path.match(/\/payroll\/date\/[^/]+$/) && method === 'GET') {
+      const date = path.split('/').pop();
+      const result = await handleGetPayrollByDate(event, date);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/report/daily/:date - Generate daily payroll report
+    if (path.match(/\/payroll\/report\/daily\/[^/]+$/) && method === 'GET') {
+      const date = path.split('/').pop();
+      const result = await handleGenerateDailyReport(event, date);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/export/daily/:date - Export daily CSV
+    if (path.match(/\/payroll\/export\/daily\/[^/]+$/) && method === 'GET') {
+      const date = path.split('/').pop();
+      const result = await handleExportDailyCSV(event, date);
+      // CSV export returns different headers
+      return {
+        statusCode: result.statusCode,
+        headers: {
+          ...headers,
+          ...(result.headers || {})
+        },
+        body: result.body
+      };
+    }
+
+    // PUT /api/payroll/:id/review - Mark entry as reviewed
+    if (path.match(/\/payroll\/[^/]+\/review$/) && method === 'PUT') {
+      const entryId = path.split('/')[path.split('/').length - 2];
+      const result = await handleMarkAsReviewed(event, entryId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // POST /api/payroll - Create payroll entry
+    if (path.endsWith('/payroll') && method === 'POST') {
+      const result = await handleCreatePayrollEntry(event);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // GET /api/payroll/:id - Get payroll entry
+    if (path.match(/\/payroll\/[^/]+$/) && method === 'GET') {
+      const entryId = path.split('/').pop();
+      const result = await handleGetPayrollEntry(event, entryId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // PUT /api/payroll/:id - Update payroll entry
+    if (path.match(/\/payroll\/[^/]+$/) && method === 'PUT') {
+      const entryId = path.split('/').pop();
+      const result = await handleUpdatePayrollEntry(event, entryId);
+      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+    }
+
+    // DELETE /api/payroll/:id - Delete payroll entry
+    if (path.match(/\/payroll\/[^/]+$/) && method === 'DELETE') {
+      const entryId = path.split('/').pop();
+      const result = await handleDeletePayrollEntry(event, entryId);
       return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
     }
 
