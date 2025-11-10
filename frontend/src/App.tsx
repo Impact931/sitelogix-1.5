@@ -12,6 +12,8 @@ import HomePage from './components/HomePage';
 import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import PayrollDashboard from './components/PayrollDashboard';
+import EmployeeManagement from './components/EmployeeManagement';
 
 interface Manager {
   id: string;
@@ -26,7 +28,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics' | 'payroll' | 'employee-management';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuth();
@@ -120,6 +122,14 @@ function AppContent() {
     setCurrentScreen('change-password');
   };
 
+  const handleNavigateToPayroll = () => {
+    setCurrentScreen('payroll');
+  };
+
+  const handleNavigateToEmployeeManagement = () => {
+    setCurrentScreen('employee-management');
+  };
+
   // Show auth login for authenticated system
   if (currentScreen === 'auth-login') {
     return <Login onSwitchToLegacy={() => setCurrentScreen('login')} />;
@@ -134,6 +144,8 @@ function AppContent() {
         onNavigateToRoxy={handleNavigateToRoxyFromAdmin}
         onNavigateToUserManagement={handleNavigateToUserManagement}
         onNavigateToChangePassword={handleNavigateToChangePassword}
+        onNavigateToPayroll={handleNavigateToPayroll}
+        onNavigateToEmployeeManagement={handleNavigateToEmployeeManagement}
       />
     );
   }
@@ -201,6 +213,14 @@ function AppContent() {
         onBack={handleBackToHome}
       />
     );
+  }
+
+  if (currentScreen === 'payroll') {
+    return <PayrollDashboard onClose={handleBackToAdmin} />;
+  }
+
+  if (currentScreen === 'employee-management') {
+    return <EmployeeManagement onBack={handleBackToAdmin} />;
   }
 
   return (

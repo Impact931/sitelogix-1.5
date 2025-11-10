@@ -1,0 +1,124 @@
+{
+  "TableName": "sitelogix-personnel",
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "full_name",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "employee_number",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "employment_status",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "last_seen_date",
+      "AttributeType": "S"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI1-NameIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "full_name",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    },
+    {
+      "IndexName": "GSI2-EmployeeNumberIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "employee_number",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    },
+    {
+      "IndexName": "GSI3-StatusIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "employment_status",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "last_seen_date",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    }
+  ],
+  "BillingMode": "PROVISIONED",
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 10,
+    "WriteCapacityUnits": 10
+  },
+  "StreamSpecification": {
+    "StreamEnabled": true,
+    "StreamViewType": "NEW_AND_OLD_IMAGES"
+  },
+  "SSESpecification": {
+    "Enabled": true,
+    "SSEType": "AES256"
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "SiteLogix"
+    },
+    {
+      "Key": "Environment",
+      "Value": "Production"
+    },
+    {
+      "Key": "Purpose",
+      "Value": "Personnel and Payroll Tracking"
+    }
+  ]
+}

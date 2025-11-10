@@ -1,0 +1,144 @@
+{
+  "TableName": "sitelogix-payroll-entries",
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "employee_id",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "report_date",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "project_id",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "needs_review",
+      "AttributeType": "S"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI1-EmployeeDateIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "employee_id",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "report_date",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 10,
+        "WriteCapacityUnits": 10
+      }
+    },
+    {
+      "IndexName": "GSI2-ProjectDateIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "project_id",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "report_date",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 10,
+        "WriteCapacityUnits": 10
+      }
+    },
+    {
+      "IndexName": "GSI3-DateIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "report_date",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "employee_id",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 15,
+        "WriteCapacityUnits": 5
+      }
+    },
+    {
+      "IndexName": "GSI4-ReviewIndex",
+      "KeySchema": [
+        {
+          "AttributeName": "needs_review",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "report_date",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    }
+  ],
+  "BillingMode": "PROVISIONED",
+  "ProvisionedThroughput": {
+    "ReadCapacityUnits": 20,
+    "WriteCapacityUnits": 15
+  },
+  "StreamSpecification": {
+    "StreamEnabled": true,
+    "StreamViewType": "NEW_AND_OLD_IMAGES"
+  },
+  "Tags": [
+    {
+      "Key": "Project",
+      "Value": "SiteLogix"
+    },
+    {
+      "Key": "Environment",
+      "Value": "Production"
+    },
+    {
+      "Key": "Purpose",
+      "Value": "Daily Payroll Time Tracking"
+    }
+  ]
+}
