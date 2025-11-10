@@ -15,10 +15,11 @@ export interface ChecklistItem {
 }
 
 export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
+  // Section 1 - Admin (Required)
   {
     id: 'arrival_time',
     question: 'What time did you arrive at the site?',
-    keywords: ['arrive at site', 'arrival time', 'got to site', 'started work', 'begin work'],
+    keywords: ['arrive', 'arrival time', 'got to site', 'started work', 'got here'],
     required: true,
     order: 1,
     category: 'time'
@@ -26,7 +27,7 @@ export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'departure_time',
     question: 'What time did you leave the site?',
-    keywords: ['leave site', 'left site', 'departure time', 'end of day', 'finished work'],
+    keywords: ['leave', 'left', 'departure time', 'end of day', 'finished'],
     required: true,
     order: 2,
     category: 'time'
@@ -34,7 +35,7 @@ export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'personnel_count',
     question: 'How many personnel were on site today?',
-    keywords: ['how many personnel', 'number of workers', 'crew size', 'total people'],
+    keywords: ['how many', 'number of workers', 'crew size', 'total people', 'personnel count'],
     required: true,
     order: 3,
     category: 'personnel'
@@ -42,41 +43,95 @@ export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: 'personnel_names',
     question: 'Please name the personnel present',
-    keywords: ['name the personnel', 'who was there', 'list the names', 'crew members'],
+    keywords: ['name', 'who was there', 'list the names', 'crew members', 'team members'],
     required: true,
     order: 4,
     category: 'personnel'
   },
   {
-    id: 'team_assignments',
-    question: 'Describe team assignments and activities',
-    keywords: ['team assignments', 'work activities', 'what they were doing', 'tasks'],
+    id: 'onsite_activities',
+    question: 'Describe the on-site team activities',
+    keywords: ['activities', 'work', 'tasks', 'what they did', 'team activities'],
     required: true,
     order: 5,
     category: 'general'
   },
+
+  // Section 2 - Materials (Optional)
   {
-    id: 'deliveries',
-    question: 'Were there any material deliveries?',
-    keywords: ['deliveries', 'materials delivered', 'shipments', 'supplies arrived'],
+    id: 'material_deliveries',
+    question: 'Were there any material deliveries by supplier?',
+    keywords: ['deliveries', 'materials', 'shipments', 'supplies', 'supplier'],
     required: false,
     order: 6,
     category: 'materials'
   },
   {
-    id: 'constraints',
-    question: 'Describe any constraints or delays',
-    keywords: ['constraints', 'delays', 'problems', 'issues', 'hold ups'],
+    id: 'materials_returned',
+    question: 'Were any materials returned?',
+    keywords: ['returned', 'return', 'sent back', 'materials back'],
     required: false,
     order: 7,
+    category: 'materials'
+  },
+  {
+    id: 'material_issues',
+    question: 'Were there any issues with material delivery?',
+    keywords: ['issues', 'problems', 'delivery issues', 'material problems'],
+    required: false,
+    order: 8,
+    category: 'materials'
+  },
+
+  // Section 3 - Off-Site (Optional)
+  {
+    id: 'offsite_personnel_count',
+    question: 'How many off-site or specialty personnel worked today?',
+    keywords: ['off-site', 'offsite', 'specialty', 'off site personnel'],
+    required: false,
+    order: 9,
+    category: 'personnel'
+  },
+  {
+    id: 'offsite_total_hours',
+    question: 'What were the total off-site hours?',
+    keywords: ['off-site hours', 'offsite hours', 'specialty hours'],
+    required: false,
+    order: 10,
+    category: 'time'
+  },
+  {
+    id: 'offsite_activities',
+    question: 'What were the off-site team activities?',
+    keywords: ['off-site activities', 'offsite work', 'specialty activities'],
+    required: false,
+    order: 11,
+    category: 'general'
+  },
+
+  // Section 4 - General
+  {
+    id: 'weather',
+    question: 'How was the weather today?',
+    keywords: ['weather', 'rain', 'sunny', 'temperature', 'conditions'],
+    required: false,
+    order: 12,
     category: 'general'
   },
   {
-    id: 'safety',
+    id: 'constraints_delays',
+    question: 'Were there any constraints or delays?',
+    keywords: ['constraints', 'delays', 'hold ups', 'issues', 'problems'],
+    required: false,
+    order: 13,
+    category: 'general'
+  },
+  {
+    id: 'safety_incidents',
     question: 'Were there any safety incidents?',
-    keywords: ['safety incidents', 'accidents', 'injuries', 'safety issues'],
+    keywords: ['safety', 'incidents', 'accidents', 'injuries', 'safety issues'],
     required: true,
-    order: 8,
+    order: 14,
     category: 'safety'
   },
   {
@@ -84,7 +139,7 @@ export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
     question: 'Any additional notes or observations?',
     keywords: ['additional notes', 'anything else', 'other information', 'final notes'],
     required: false,
-    order: 9,
+    order: 15,
     category: 'general'
   }
 ];

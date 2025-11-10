@@ -3,6 +3,7 @@ import { useElevenLabsConversation } from '../hooks/useElevenLabsConversation';
 import { saveReport } from '../services/reportService';
 import { getChecklistItems, getChecklistKeywords } from '../config/checklistConfig';
 import TranscriptViewer from './TranscriptViewer';
+import DailyReportChecklist from './DailyReportChecklist';
 
 interface Manager {
   id: string;
@@ -439,43 +440,11 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
             )}
 
             {/* Checklist Progress */}
-            <div className="glass rounded-2xl p-6">
-              <h3 className="text-sm font-semibold text-white mb-4">
-                Report Checklist ({completedItems.size}/{checklistItems.length} complete)
-              </h3>
-              <div className="space-y-3">
-                {checklistItems.map((item, index) => {
-                  const isCompleted = completedItems.has(index);
-                  return (
-                    <div key={item.id} className="flex items-start space-x-3">
-                      <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${
-                        isCompleted
-                          ? 'border-green-500 bg-green-500'
-                          : item.required
-                          ? 'border-white/30'
-                          : 'border-white/20'
-                      }`}>
-                        {isCompleted && (
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                          </svg>
-                        )}
-                      </div>
-                      <p className={`text-sm ${
-                        isCompleted
-                          ? 'text-white font-medium line-through opacity-70'
-                          : item.required
-                          ? 'text-gray-400'
-                          : 'text-gray-500'
-                      }`}>
-                        {item.question}
-                        {!item.required && <span className="ml-2 text-xs text-gray-600">(optional)</span>}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <DailyReportChecklist
+              items={checklistItems}
+              completedItemIds={completedItems}
+              compact={true}
+            />
 
             {/* End Conversation Button */}
             <button
