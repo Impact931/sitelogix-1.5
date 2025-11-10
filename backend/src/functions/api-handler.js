@@ -86,7 +86,7 @@ const {
   handleGetEmployeeTimesheet,
   handleGetProjectLaborCosts
 } = require('./payroll-endpoints');
-const { processTranscriptForPayroll } = require('../services/payrollExtractionService');
+const { processTranscriptForPayroll } = require('./payrollExtractionService');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });

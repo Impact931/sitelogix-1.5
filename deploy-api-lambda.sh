@@ -106,7 +106,15 @@ fi
 # Create deployment package
 echo "Creating zip file..."
 rm -f $PACKAGE_FILE
-zip -r $PACKAGE_FILE *.js ../services/*.js node_modules/ > /dev/null 2>&1
+
+# Copy service files to functions directory for flat structure
+cp ../services/*.js . 2>/dev/null || true
+
+# Create zip with flat structure
+zip -r $PACKAGE_FILE *.js node_modules/ > /dev/null 2>&1
+
+# Clean up copied service files
+rm -f personnelService.js payrollService.js payrollExtractionService.js 2>/dev/null || true
 
 echo "✅ Deployment package created: $(du -h $PACKAGE_FILE | cut -f1)"
 echo ""
