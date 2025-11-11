@@ -220,7 +220,7 @@ function AppContent() {
   }
 
   if (currentScreen === 'employee-management') {
-    return <EmployeeManagement onBack={handleBackToAdmin} />;
+    return <EmployeeManagement onClose={handleBackToAdmin} />;
   }
 
   return (
