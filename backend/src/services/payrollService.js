@@ -150,7 +150,11 @@ class PayrollService {
         const client = new client_dynamodb_1.DynamoDBClient({
             region: process.env.AWS_REGION || 'us-east-1',
         });
-        this.docClient = lib_dynamodb_1.DynamoDBDocumentClient.from(client);
+        this.docClient = lib_dynamodb_1.DynamoDBDocumentClient.from(client, {
+            marshallOptions: {
+                removeUndefinedValues: true
+            }
+        });
     }
     // ==========================================================================
     // CREATE OPERATIONS

@@ -63,12 +63,20 @@ const PayrollDashboard: React.FC<PayrollDashboardProps> = ({ onClose }) => {
       setLoading(true);
       setError(null);
       const response = await fetch(`${API_BASE_URL}/payroll/report/daily/${selectedDate}`);
+
+      if (!response.ok) {
+        // Network or HTTP error
+        setError('Failed to fetch payroll data');
+        setDailyReport(null);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success) {
         setDailyReport(data.data);
       } else {
-        setError(data.error || 'Failed to fetch daily report');
+        // API returned error - treat as empty data rather than error
         setDailyReport(null);
       }
     } catch (err) {
