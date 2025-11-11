@@ -6,6 +6,7 @@ interface Employee {
   personId: string;
   first_name: string;
   last_name: string;
+  preferred_name?: string;
   employee_number?: string;
   email?: string;
   phone?: string;
@@ -83,6 +84,24 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
   };
 
   const handleAddEmployee = async () => {
+    // Validate required fields
+    if (!formData.first_name?.trim()) {
+      alert('First name is required');
+      return;
+    }
+    if (!formData.last_name?.trim()) {
+      alert('Last name is required');
+      return;
+    }
+    if (!formData.preferred_name?.trim()) {
+      alert('Preferred name (nickname) is required');
+      return;
+    }
+    if (!formData.employee_number?.trim()) {
+      alert('Employee number is required');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/personnel`, {
         method: 'POST',
@@ -90,6 +109,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
         body: JSON.stringify({
           firstName: formData.first_name,
           lastName: formData.last_name,
+          preferredName: formData.preferred_name,
           employeeNumber: formData.employee_number,
           email: formData.email,
           phone: formData.phone,
@@ -118,6 +138,24 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
   const handleUpdateEmployee = async () => {
     if (!selectedEmployee) return;
 
+    // Validate required fields
+    if (!formData.first_name?.trim()) {
+      alert('First name is required');
+      return;
+    }
+    if (!formData.last_name?.trim()) {
+      alert('Last name is required');
+      return;
+    }
+    if (!formData.preferred_name?.trim()) {
+      alert('Preferred name (nickname) is required');
+      return;
+    }
+    if (!formData.employee_number?.trim()) {
+      alert('Employee number is required');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/personnel/${selectedEmployee.personId}`, {
         method: 'PUT',
@@ -125,6 +163,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
         body: JSON.stringify({
           firstName: formData.first_name,
           lastName: formData.last_name,
+          preferredName: formData.preferred_name,
           employeeNumber: formData.employee_number,
           email: formData.email,
           phone: formData.phone,
@@ -394,14 +433,26 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number</label>
-                <input
-                  type="text"
-                  value={formData.employee_number || ''}
-                  onChange={(e) => setFormData({ ...formData, employee_number: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Preferred Name/Nickname *</label>
+                  <input
+                    type="text"
+                    value={formData.preferred_name || ''}
+                    onChange={(e) => setFormData({ ...formData, preferred_name: e.target.value })}
+                    placeholder="What they go by"
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number *</label>
+                  <input
+                    type="text"
+                    value={formData.employee_number || ''}
+                    onChange={(e) => setFormData({ ...formData, employee_number: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -517,14 +568,26 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number</label>
-                <input
-                  type="text"
-                  value={formData.employee_number || ''}
-                  onChange={(e) => setFormData({ ...formData, employee_number: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Preferred Name/Nickname *</label>
+                  <input
+                    type="text"
+                    value={formData.preferred_name || ''}
+                    onChange={(e) => setFormData({ ...formData, preferred_name: e.target.value })}
+                    placeholder="What they go by"
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number *</label>
+                  <input
+                    type="text"
+                    value={formData.employee_number || ''}
+                    onChange={(e) => setFormData({ ...formData, employee_number: e.target.value })}
+                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
