@@ -442,14 +442,19 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Preferred Name/Nickname *</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Nickname (for Roxy Voice Recognition) *
+                  </label>
                   <input
                     type="text"
                     value={formData.preferred_name || ''}
                     onChange={(e) => setFormData({ ...formData, preferred_name: e.target.value })}
-                    placeholder="What they go by"
+                    placeholder="What they go by (e.g., Bob, Mike, JT)"
                     className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gold"
                   />
+                  <p className="mt-1 text-xs text-blue-300">
+                    ℹ️ This is how Roxy will identify this person in voice reports
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number *</label>
@@ -577,14 +582,19 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Preferred Name/Nickname *</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Nickname (for Roxy Voice Recognition) *
+                  </label>
                   <input
                     type="text"
                     value={formData.preferred_name || ''}
                     onChange={(e) => setFormData({ ...formData, preferred_name: e.target.value })}
-                    placeholder="What they go by"
+                    placeholder="What they go by (e.g., Bob, Mike, JT)"
                     className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gold"
                   />
+                  <p className="mt-1 text-xs text-blue-300">
+                    ℹ️ This is how Roxy will identify this person in voice reports
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number *</label>
