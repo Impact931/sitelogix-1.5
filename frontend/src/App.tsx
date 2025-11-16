@@ -14,6 +14,7 @@ import ReportsList from './components/ReportsList';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import PayrollDashboard from './components/PayrollDashboard';
 import EmployeeManagement from './components/EmployeeManagement';
+import TeamManagement from './components/TeamManagement';
 
 interface Manager {
   id: string;
@@ -28,7 +29,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics' | 'payroll' | 'employee-management';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics' | 'payroll' | 'employee-management' | 'team-management';
 
 function AppContent() {
   const { isAuthenticated, user } = useAuth();
@@ -130,6 +131,10 @@ function AppContent() {
     setCurrentScreen('employee-management');
   };
 
+  const handleNavigateToTeamManagement = () => {
+    setCurrentScreen('team-management');
+  };
+
   // Show auth login for authenticated system
   if (currentScreen === 'auth-login') {
     return <Login onSwitchToLegacy={() => setCurrentScreen('login')} />;
@@ -146,6 +151,7 @@ function AppContent() {
         onNavigateToChangePassword={handleNavigateToChangePassword}
         onNavigateToPayroll={handleNavigateToPayroll}
         onNavigateToEmployeeManagement={handleNavigateToEmployeeManagement}
+        onNavigateToTeamManagement={handleNavigateToTeamManagement}
       />
     );
   }
@@ -221,6 +227,10 @@ function AppContent() {
 
   if (currentScreen === 'employee-management') {
     return <EmployeeManagement onClose={handleBackToAdmin} />;
+  }
+
+  if (currentScreen === 'team-management') {
+    return <TeamManagement onClose={handleBackToAdmin} />;
   }
 
   return (
