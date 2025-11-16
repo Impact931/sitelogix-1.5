@@ -136,32 +136,6 @@ export default function UserManagement({ onBack }: UserManagementProps) {
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!selectedUser) return;
-
-    if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (resetPasswordData.newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-
-    try {
-      setError(null);
-      await resetPassword(selectedUser.userId, resetPasswordData.newPassword);
-      setSuccess('Password reset successfully. User will be required to change password on next login.');
-      setShowResetPasswordModal(false);
-      setSelectedUser(null);
-      setResetPasswordData({ newPassword: '', confirmPassword: '' });
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset password');
-    }
-  };
-
   const openEditModal = (user: User) => {
     setSelectedUser(user);
     setEditUserData({
@@ -176,11 +150,6 @@ export default function UserManagement({ onBack }: UserManagementProps) {
     setResetPasswordData({ newPassword: '', confirmPassword: '' });
     setShowResetPasswordModal(false);
     setShowEditModal(true);
-  };
-
-  const openResetPasswordModal = (user: User) => {
-    setSelectedUser(user);
-    setShowResetPasswordModal(true);
   };
 
   if (loading) {
