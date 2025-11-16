@@ -86,11 +86,33 @@ export default function UserManagement({ onBack }: UserManagementProps) {
 
     try {
       setError(null);
+
+      // Update user details
       await updateUser(selectedUser.userId, editUserData);
-      setSuccess('User updated successfully');
+
+      // Handle password reset if requested
+      if (showResetPasswordModal && resetPasswordData.newPassword) {
+        if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+          setError('Passwords do not match');
+          return;
+        }
+
+        if (resetPasswordData.newPassword.length < 8) {
+          setError('Password must be at least 8 characters long');
+          return;
+        }
+
+        await resetPassword(selectedUser.userId, resetPasswordData.newPassword);
+        setSuccess('User updated and password reset successfully');
+      } else {
+        setSuccess('User updated successfully');
+      }
+
       setShowEditModal(false);
       setSelectedUser(null);
       setEditUserData({});
+      setResetPasswordData({ newPassword: '', confirmPassword: '' });
+      setShowResetPasswordModal(false);
       await loadUsers();
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
@@ -151,6 +173,8 @@ export default function UserManagement({ onBack }: UserManagementProps) {
       phone: user.phone,
       permissions: user.permissions
     });
+    setResetPasswordData({ newPassword: '', confirmPassword: '' });
+    setShowResetPasswordModal(false);
     setShowEditModal(true);
   };
 
@@ -265,12 +289,6 @@ export default function UserManagement({ onBack }: UserManagementProps) {
                       className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition text-sm"
                     >
                       Edit
-                    </button>
-                    <button
-                      onClick={() => openResetPasswordModal(user)}
-                      className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition text-sm"
-                    >
-                      Reset Password
                     </button>
                     <button
                       onClick={() => handleDeleteUser(user)}
@@ -464,6 +482,58 @@ export default function UserManagement({ onBack }: UserManagementProps) {
                   <option value="suspended">Suspended</option>
                 </select>
               </div>
+
+              {/* Password Reset Section - Integrated into Edit Modal */}
+              <div className="pt-4 border-t border-white/10">
+                <h3 className="text-lg font-semibold text-white mb-4">Password Management</h3>
+
+                <div className="mb-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showResetPasswordModal}
+                      onChange={(e) => {
+                        setShowResetPasswordModal(e.target.checked);
+                        if (!e.target.checked) {
+                          setResetPasswordData({ newPassword: '', confirmPassword: '' });
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500"
+                    />
+                    <span className="text-white/80">Change Password</span>
+                  </label>
+                </div>
+
+                {showResetPasswordModal && (
+                  <div className="space-y-4 bg-white/5 border border-white/10 rounded-lg p-4">
+                    <div>
+                      <label className="block text-white/80 mb-2">New Password (min 8 characters)</label>
+                      <input
+                        type="password"
+                        value={resetPasswordData.newPassword}
+                        onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-white/80 mb-2">Confirm Password</label>
+                      <input
+                        type="password"
+                        value={resetPasswordData.confirmPassword}
+                        onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
+                      />
+                    </div>
+
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                      <p className="text-yellow-400 text-sm">
+                        User will be required to change their password on next login.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end space-x-4 mt-8">
@@ -488,65 +558,6 @@ export default function UserManagement({ onBack }: UserManagementProps) {
         </div>
       )}
 
-      {/* Reset Password Modal */}
-      {showResetPasswordModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-dark-card border border-white/10 rounded-2xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-white mb-6">Reset Password</h2>
-            <p className="text-white/60 mb-6">
-              Reset password for <span className="text-white font-semibold">{selectedUser.username}</span>
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-white/80 mb-2">New Password (min 8 characters)</label>
-                <input
-                  type="password"
-                  value={resetPasswordData.newPassword}
-                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-white/80 mb-2">Confirm Password</label>
-                <input
-                  type="password"
-                  value={resetPasswordData.confirmPassword}
-                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white"
-                />
-              </div>
-
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                <p className="text-yellow-400 text-sm">
-                  User will be required to change their password on next login.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-4 mt-8">
-              <button
-                onClick={() => {
-                  setShowResetPasswordModal(false);
-                  setSelectedUser(null);
-                  setResetPasswordData({ newPassword: '', confirmPassword: '' });
-                  setError(null);
-                }}
-                className="px-6 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResetPassword}
-                className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-600 hover:to-orange-600 transition"
-              >
-                Reset Password
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
