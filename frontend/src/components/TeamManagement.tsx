@@ -55,7 +55,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       const data = await response.json();
 
       if (data.success) {
-        const members = (data.data?.employees || data.employees || []).map((emp: any) => ({
+        const members = (data.personnel || data.data?.employees || data.employees || []).map((emp: any) => ({
           personId: emp.personId,
           employeeNumber: emp.employeeNumber || emp.employee_number,
           firstName: emp.firstName || emp.first_name,
@@ -138,6 +138,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         preferredName: formData.preferredName,
+        employeeNumber: formData.employeeNumber,
         email: formData.email,
         phone: formData.phone,
         jobTitle: formData.jobTitle,
@@ -189,6 +190,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         preferredName: formData.preferredName,
+        employeeNumber: formData.employeeNumber,
         email: formData.email,
         phone: formData.phone,
         jobTitle: formData.jobTitle,
@@ -276,6 +278,10 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="active">Active</option>
+              <option value="healthy">Healthy</option>
+              <option value="injured">Injured</option>
+              <option value="on-leave">On Leave</option>
+              <option value="inactive">Inactive</option>
               <option value="all">All</option>
               <option value="terminated">Terminated</option>
             </select>
@@ -299,9 +305,11 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee #</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nickname</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Login Access</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -312,7 +320,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                   <tr key={member.personId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{member.fullName}</div>
-                      <div className="text-sm text-gray-500">{member.employeeNumber}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {member.employeeNumber || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {member.preferredName}
@@ -323,6 +333,18 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {member.jobTitle || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        member.employmentStatus === 'active' ? 'bg-green-100 text-green-800' :
+                        member.employmentStatus === 'healthy' ? 'bg-blue-100 text-blue-800' :
+                        member.employmentStatus === 'injured' ? 'bg-yellow-100 text-yellow-800' :
+                        member.employmentStatus === 'on-leave' ? 'bg-purple-100 text-purple-800' :
+                        member.employmentStatus === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {member.employmentStatus || 'Active'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${member.hourlyRate?.toFixed(2) || '-'}
@@ -404,6 +426,18 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Employee Number
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.employeeNumber || ''}
+                      onChange={(e) => setFormData({ ...formData, employeeNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="e.g., PKW01, IC101"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nickname for Roxy * <span className="text-xs text-gray-500">(How Roxy identifies them)</span>
                     </label>
                     <input
@@ -424,6 +458,23 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                       onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Employment Status
+                    </label>
+                    <select
+                      value={formData.employmentStatus || 'active'}
+                      onChange={(e) => setFormData({ ...formData, employmentStatus: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="active">Active</option>
+                      <option value="healthy">Healthy</option>
+                      <option value="injured">Injured</option>
+                      <option value="on-leave">On Leave</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="terminated">Terminated</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
