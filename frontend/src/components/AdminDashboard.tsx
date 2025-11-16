@@ -27,7 +27,7 @@ interface AdminDashboardProps {
   onNavigateToTeamManagement?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToUserManagement, onNavigateToChangePassword, onNavigateToPayroll, onNavigateToEmployeeManagement, onNavigateToTeamManagement }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToChangePassword, onNavigateToPayroll, onNavigateToTeamManagement }) => {
   // Real employee data from API
   const [employees, setEmployees] = useState<Employee[]>([]);
 
