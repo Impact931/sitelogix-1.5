@@ -867,6 +867,49 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                 </div>
               </div>
 
+              {/* Location */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">Location</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm text-white/80 mb-1">Address</label>
+                    <input
+                      type="text"
+                      value={editingProject.location.address}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, address: e.target.value } })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-white/80 mb-1">City</label>
+                    <input
+                      type="text"
+                      value={editingProject.location.city}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, city: e.target.value } })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-white/80 mb-1">State</label>
+                    <input
+                      type="text"
+                      value={editingProject.location.state}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, state: e.target.value } })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-white/80 mb-1">ZIP Code</label>
+                    <input
+                      type="text"
+                      value={editingProject.location.zip}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, zip: e.target.value } })}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Timeline & Budget */}
               <div className="grid grid-cols-2 gap-6">
                 <div>

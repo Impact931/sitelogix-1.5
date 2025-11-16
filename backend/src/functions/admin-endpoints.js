@@ -17,6 +17,8 @@ const { DynamoDBClient, GetItemCommand, PutItemCommand, UpdateItemCommand, Delet
 const { marshall, unmarshall } = require('@aws-sdk/util-dynamodb');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { v4: uuidv4 } = require('uuid');
+const { personnelService } = require('./personnelService');
+const { payrollService } = require('./payrollService');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -813,83 +815,135 @@ async function handleGetEmployee(employeeId, user) {
  */
 async function handleCreateEmployee(body, user) {
   try {
-    // Check permissions
-    if (!hasPermission(user, 'create:employees')) {
-      return {
-        statusCode: 403,
-        body: {
-          success: false,
-          error: 'Insufficient permissions',
-          code: 'PERMISSION_DENIED'
-        }
-      };
-    }
+    // Log incoming data for debugging
+    console.log('Creating employee with data:', {
+      firstName: body.firstName,
+      lastName: body.lastName,
+      username: body.username,
+      email: body.email,
+      password: body.password ? '[REDACTED]' : undefined,
+      role: body.role
+    });
 
-    const { fullName, email, phone, role, hourlyRate } = body;
+    // This endpoint is for creating USER ACCOUNTS (login credentials)
+    // Not to be confused with personnel records in sitelogix-personnel table
 
-    // Validation
-    if (!fullName || !email || !role || !hourlyRate) {
+    // Validate required fields for user account creation
+    if (!body.username?.trim()) {
       return {
         statusCode: 400,
         body: {
           success: false,
-          error: 'Validation failed',
-          details: [
-            { field: 'fullName', message: 'Full name is required' },
-            { field: 'email', message: 'Email is required' },
-            { field: 'role', message: 'Role is required' },
-            { field: 'hourlyRate', message: 'Hourly rate is required' }
-          ].filter(d => !body[d.field])
+          error: 'Username is required',
+          code: 'VALIDATION_ERROR'
         }
       };
     }
 
-    const employeeId = uuidv4();
-    const timestamp = new Date().toISOString();
+    if (!body.firstName?.trim() || !body.lastName?.trim()) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'First name and last name are required',
+          code: 'VALIDATION_ERROR',
+          details: {
+            firstName: body.firstName,
+            lastName: body.lastName,
+            hasFirstName: !!body.firstName,
+            hasLastName: !!body.lastName
+          }
+        }
+      };
+    }
 
-    const employee = {
-      PK: `PERSONNEL#${employeeId}`,
-      SK: 'METADATA',
-      personnel_id: employeeId,
-      full_name: fullName,
-      go_by_name: body.goByName || fullName,
-      email,
-      phone,
-      emergency_contact: body.emergencyContact,
-      role,
-      status: 'active',
-      hourly_rate: parseFloat(hourlyRate),
-      overtime_rate: parseFloat(hourlyRate) * 1.5,
-      project_assignments: body.projectAssignments || [],
-      skills: body.skills || [],
-      certifications: body.certifications || [],
-      date_hired: body.dateHired || timestamp.split('T')[0],
-      created_at: timestamp,
-      updated_at: timestamp
-    };
+    if (!body.email?.trim()) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'Email is required',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
 
-    const command = new PutItemCommand({
-      TableName: 'sitelogix-personnel',
-      Item: marshall(employee)
+    if (!body.password || body.password.length < 8) {
+      return {
+        statusCode: 400,
+        body: {
+          success: false,
+          error: 'Password must be at least 8 characters long',
+          code: 'VALIDATION_ERROR'
+        }
+      };
+    }
+
+    // Check if username already exists
+    const checkUserCommand = new QueryCommand({
+      TableName: 'sitelogix-users',
+      IndexName: 'UsernameIndex',
+      KeyConditionExpression: 'username = :username',
+      ExpressionAttributeValues: marshall({
+        ':username': body.username
+      })
     });
 
-    await dynamoClient.send(command);
+    const existingUser = await dynamoClient.send(checkUserCommand);
+
+    if (existingUser.Items && existingUser.Items.length > 0) {
+      return {
+        statusCode: 409,
+        body: {
+          success: false,
+          error: 'Username already exists',
+          code: 'USERNAME_EXISTS'
+        }
+      };
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(body.password, 12);
+
+    // Create new user account in sitelogix-users table
+    const userId = uuidv4();
+    const timestamp = new Date().toISOString();
+
+    const newUser = {
+      userId,
+      username: body.username,
+      email: body.email,
+      passwordHash,
+      role: body.role || 'employee',
+      firstName: body.firstName,
+      lastName: body.lastName,
+      phone: body.phone || '',
+      status: 'active',
+      permissions: body.permissions || [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      lastLogin: null,
+      mustChangePassword: false,
+      failedLoginAttempts: 0
+    };
+
+    const putCommand = new PutItemCommand({
+      TableName: 'sitelogix-users',
+      Item: marshall(newUser)
+    });
+
+    await dynamoClient.send(putCommand);
+
+    console.log('User account created:', userId, body.username);
+
+    // Return the created user (without password hash)
+    delete newUser.passwordHash;
 
     return {
       statusCode: 201,
       body: {
         success: true,
-        employee: {
-          employeeId,
-          fullName,
-          goByName: employee.go_by_name,
-          email,
-          phone,
-          role,
-          status: 'active',
-          hourlyRate: employee.hourly_rate,
-          createdAt: timestamp
-        }
+        employee: newUser // Called 'employee' to match frontend expectation
       }
     };
   } catch (error) {
@@ -898,7 +952,7 @@ async function handleCreateEmployee(body, user) {
       statusCode: 500,
       body: {
         success: false,
-        error: 'Internal server error',
+        error: error.message || 'Internal server error',
         code: 'INTERNAL_ERROR'
       }
     };

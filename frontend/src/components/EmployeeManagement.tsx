@@ -54,7 +54,9 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
       const data = await response.json();
 
       if (data.success) {
-        setEmployees(data.data.employees || []);
+        // API returns { success: true, data: { employees: [...] } }
+        const employeesList = data.data?.employees || data.employees || [];
+        setEmployees(employeesList);
       } else {
         setError(data.error || 'Failed to fetch employees');
       }
@@ -240,7 +242,12 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-display font-bold text-white">Employee Management</h1>
-              <p className="text-gray-400 text-sm mt-1">Manage employee profiles, rates, and aliases</p>
+              <p className="text-gray-400 text-sm mt-1">Personnel database for payroll, reporting, and hours tracking</p>
+              <div className="mt-2 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <p className="text-green-300 text-xs">
+                  <strong>Employees:</strong> Personnel records for payroll and time tracking. Roxy references this database for hours, overtime, and daily reports.
+                </p>
+              </div>
             </div>
             <button
               onClick={onClose}

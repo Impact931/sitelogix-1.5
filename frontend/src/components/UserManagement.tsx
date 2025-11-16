@@ -184,7 +184,15 @@ export default function UserManagement({ onBack }: UserManagementProps) {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-display font-bold text-white mb-2">User Management</h1>
-            <p className="text-white/60">Manage system users and permissions</p>
+            <p className="text-white/60">Manage system user accounts and login credentials</p>
+            <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <p className="text-blue-300 text-sm">
+                <strong>Users:</strong> System login accounts with access to Roxy voice interface and admin tools.
+              </p>
+              <p className="text-blue-300/80 text-xs mt-1">
+                For employee payroll records, use Employee Management instead.
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}

@@ -58,8 +58,6 @@ const {
   handleUpdateTimeEntry,
   handleGetEmployeeHours
 } = require('./time-tracking-endpoints');
-const { personnelService } = require('./personnelService');
-const { payrollService } = require('./payrollService');
 const {
   handleMatchOrCreateEmployee,
   handleCreateEmployee: handleCreatePersonnelEmployee,
