@@ -201,16 +201,19 @@ async function handleLogin(body) {
     }
 
     // Get user from personnel table by username (using Scan since no GSI exists)
-    const getUserCommand = new ScanCommand({
+    // Note: "username" is a reserved word in DynamoDB, so we need ExpressionAttributeNames
+    const scanParams = {
       TableName: 'sitelogix-personnel',
-      FilterExpression: 'username = :username AND SK = :sk',
+      FilterExpression: '#username = :username',
+      ExpressionAttributeNames: {
+        '#username': 'username'
+      },
       ExpressionAttributeValues: marshall({
-        ':username': username,
-        ':sk': 'PROFILE'
-      }),
-      Limit: 1
-    });
+        ':username': username
+      })
+    };
 
+    const getUserCommand = new ScanCommand(scanParams);
     const userResult = await dynamoClient.send(getUserCommand);
 
     if (!userResult.Items || userResult.Items.length === 0) {
@@ -224,7 +227,24 @@ async function handleLogin(body) {
       };
     }
 
-    const personnel = unmarshall(userResult.Items[0]);
+    // Filter for PROFILE records (there may be multiple items with same username)
+    const profileRecords = userResult.Items.filter(item => {
+      const unmarshalled = unmarshall(item);
+      return unmarshalled.SK === 'PROFILE';
+    });
+
+    if (profileRecords.length === 0) {
+      return {
+        statusCode: 401,
+        body: {
+          success: false,
+          error: 'Invalid credentials',
+          code: 'AUTH_FAILED'
+        }
+      };
+    }
+
+    const personnel = unmarshall(profileRecords[0]);
 
     // Map personnel fields to expected user format
     const user = {
