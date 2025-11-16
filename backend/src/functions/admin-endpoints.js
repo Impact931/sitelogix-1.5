@@ -200,13 +200,13 @@ async function handleLogin(body) {
       };
     }
 
-    // Get user from DynamoDB by username using GSI
-    const getUserCommand = new QueryCommand({
-      TableName: 'sitelogix-users',
-      IndexName: 'UsernameIndex',
-      KeyConditionExpression: 'username = :username',
+    // Get user from personnel table by username (using Scan since no GSI exists)
+    const getUserCommand = new ScanCommand({
+      TableName: 'sitelogix-personnel',
+      FilterExpression: 'username = :username AND SK = :sk',
       ExpressionAttributeValues: marshall({
-        ':username': username
+        ':username': username,
+        ':sk': 'PROFILE'
       }),
       Limit: 1
     });
@@ -224,10 +224,23 @@ async function handleLogin(body) {
       };
     }
 
-    const user = unmarshall(userResult.Items[0]);
+    const personnel = unmarshall(userResult.Items[0]);
+
+    // Map personnel fields to expected user format
+    const user = {
+      userId: personnel.personId,
+      username: personnel.username,
+      email: personnel.email,
+      firstName: personnel.firstName,
+      lastName: personnel.lastName,
+      role: personnel.role,
+      permissions: personnel.permissions || [], // Default empty array if not set
+      employmentStatus: personnel.employmentStatus,
+      passwordHash: personnel.passwordHash
+    };
 
     // Verify password using bcrypt
-    const isValidPassword = await bcrypt.compare(passcode, user.passwordHash);
+    const isValidPassword = await bcrypt.compare(passcode, personnel.passwordHash);
 
     if (!isValidPassword) {
       return {
@@ -240,8 +253,8 @@ async function handleLogin(body) {
       };
     }
 
-    // Check if user is active
-    if (user.status !== 'active') {
+    // Check if employee is active
+    if (user.employmentStatus !== 'active') {
       return {
         statusCode: 403,
         body: {
@@ -256,16 +269,17 @@ async function handleLogin(body) {
     const token = await generateToken(user);
     const refreshToken = await generateRefreshToken(user.userId);
 
-    // Update last login timestamp
+    // Update last login timestamp in personnel table
     const updateCommand = new UpdateItemCommand({
-      TableName: 'sitelogix-users',
-      Key: {
-        userId: { S: user.userId }
-      },
+      TableName: 'sitelogix-personnel',
+      Key: marshall({
+        PK: personnel.PK,
+        SK: personnel.SK
+      }),
       UpdateExpression: 'SET lastLogin = :lastLogin',
-      ExpressionAttributeValues: {
-        ':lastLogin': { S: new Date().toISOString() }
-      }
+      ExpressionAttributeValues: marshall({
+        ':lastLogin': new Date().toISOString()
+      })
     });
 
     await dynamoClient.send(updateCommand);
