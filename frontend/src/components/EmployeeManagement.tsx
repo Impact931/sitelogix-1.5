@@ -34,7 +34,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('active');
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState<Partial<Employee>>({});
@@ -83,58 +82,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
     }
 
     setFilteredEmployees(filtered);
-  };
-
-  const handleAddEmployee = async () => {
-    // Validate required fields
-    if (!formData.first_name?.trim()) {
-      alert('First name is required');
-      return;
-    }
-    if (!formData.last_name?.trim()) {
-      alert('Last name is required');
-      return;
-    }
-    if (!formData.preferred_name?.trim()) {
-      alert('Preferred name (nickname) is required');
-      return;
-    }
-    if (!formData.employee_number?.trim()) {
-      alert('Employee number is required');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/personnel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: formData.first_name,
-          lastName: formData.last_name,
-          preferredName: formData.preferred_name,
-          employeeNumber: formData.employee_number,
-          email: formData.email,
-          phone: formData.phone,
-          position: formData.position,
-          projectId: formData.project_id,
-          hourlyRate: formData.hourly_rate,
-          overtimeRate: formData.overtime_rate,
-          doubleTimeRate: formData.double_time_rate
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShowAddModal(false);
-        setFormData({});
-        fetchEmployees();
-      } else {
-        alert(`Error: ${data.error}`);
-      }
-    } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : 'Failed to add employee'}`);
-    }
   };
 
   const handleUpdateEmployee = async () => {
@@ -221,11 +168,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
     setShowEditModal(true);
   };
 
-  const openAddModal = () => {
-    setFormData({});
-    setShowAddModal(true);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
@@ -269,7 +211,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
 
         {/* Filters and Actions */}
         <div className="glass rounded-xl p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="md:col-span-2">
               <input
@@ -291,14 +233,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
               <option value="terminated">Terminated</option>
               <option value="all">All</option>
             </select>
-
-            {/* Add Button */}
-            <button
-              onClick={openAddModal}
-              className="px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg hover:shadow-lg hover:shadow-gold/20 transition font-semibold"
-            >
-              Add Employee
-            </button>
           </div>
 
           <div className="mt-4 flex items-center justify-between text-sm">
@@ -411,144 +345,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ onClose }) => {
           )}
         </div>
       </main>
-
-      {/* Add Employee Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="glass rounded-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-white mb-6">Add New Employee</h2>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">First Name *</label>
-                  <input
-                    type="text"
-                    value={formData.first_name || ''}
-                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Last Name *</label>
-                  <input
-                    type="text"
-                    value={formData.last_name || ''}
-                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Nickname (for Roxy Voice Recognition) *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.preferred_name || ''}
-                    onChange={(e) => setFormData({ ...formData, preferred_name: e.target.value })}
-                    placeholder="What they go by (e.g., Bob, Mike, JT)"
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                  <p className="mt-1 text-xs text-blue-300">
-                    ℹ️ This is how Roxy will identify this person in voice reports
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Employee Number *</label>
-                  <input
-                    type="text"
-                    value={formData.employee_number || ''}
-                    onChange={(e) => setFormData({ ...formData, employee_number: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.phone || ''}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">Position</label>
-                <input
-                  type="text"
-                  value={formData.position || ''}
-                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Hourly Rate</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.hourly_rate || ''}
-                    onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Overtime Rate</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.overtime_rate || ''}
-                    onChange={(e) => setFormData({ ...formData, overtime_rate: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Double Time Rate</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.double_time_rate || ''}
-                    onChange={(e) => setFormData({ ...formData, double_time_rate: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex space-x-4 mt-8">
-              <button
-                onClick={handleAddEmployee}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg hover:shadow-lg hover:shadow-gold/20 transition font-semibold"
-              >
-                Add Employee
-              </button>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-6 py-3 glass text-white rounded-lg hover:bg-white/10 transition font-medium"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Edit Employee Modal */}
       {showEditModal && selectedEmployee && (
