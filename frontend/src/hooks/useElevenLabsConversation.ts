@@ -230,20 +230,20 @@ export const useElevenLabsConversation = ({
     }
 
     try {
-      const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
-      const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`, {
-        headers: {
-          'xi-api-key': apiKey,
-        },
-      });
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_BASE_URL}/elevenlabs/transcript/${conversationId}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch conversation: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      console.log('Conversation data:', data);
-      return data;
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch transcript');
+      }
+
+      console.log('Conversation data:', result.data);
+      return result.data;
     } catch (error) {
       console.error('Failed to get conversation transcript:', error);
       onError?.(error as Error);
@@ -257,61 +257,50 @@ export const useElevenLabsConversation = ({
       return null;
     }
 
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`Attempting to fetch conversation audio (attempt ${attempt}/${retries})...`);
 
-        const apiKey = import.meta.env.VITE_ELEVEN_LABS_API_KEY;
+        const response = await fetch(`${API_BASE_URL}/elevenlabs/audio/${conversationId}`);
 
-        // Try multiple possible endpoints
-        const endpoints = [
-          `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
-          `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/recording`
-        ];
+        console.log(`Response status: ${response.status} ${response.statusText}`);
 
-        let lastError = null;
-
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`Trying endpoint: ${endpoint}`);
-
-            const response = await fetch(endpoint, {
-              method: 'GET',
-              headers: {
-                'xi-api-key': apiKey,
-                'Accept': 'audio/*,application/octet-stream'
-              },
-            });
-
-            console.log(`Response status: ${response.status} ${response.statusText}`);
-            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-            if (response.ok) {
-              const audioBlob = await response.blob();
-              console.log('Audio blob downloaded:', audioBlob.size, 'bytes', 'type:', audioBlob.type);
-
-              if (audioBlob.size > 0) {
-                return audioBlob;
-              } else {
-                console.warn('Audio blob is empty, trying next endpoint or retry...');
-              }
-            } else {
-              const errorText = await response.text();
-              console.error(`Endpoint ${endpoint} failed:`, response.status, errorText);
-              lastError = new Error(`${response.status}: ${errorText}`);
-            }
-          } catch (endpointError) {
-            console.error(`Error with endpoint ${endpoint}:`, endpointError);
-            lastError = endpointError;
+        if (response.ok) {
+          const result = await response.json();
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to fetch audio');
           }
+
+          // Convert base64 back to blob
+          const audioBase64 = result.data;
+          const binaryString = atob(audioBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const audioBlob = new Blob([bytes], { type: result.contentType || 'audio/webm' });
+
+          console.log('Audio blob created:', audioBlob.size, 'bytes', 'type:', audioBlob.type);
+
+          if (audioBlob.size > 0) {
+            return audioBlob;
+          } else {
+            console.warn('Audio blob is empty, retrying...');
+          }
+        } else {
+          const errorText = await response.text();
+          console.error(`Backend audio fetch failed:`, response.status, errorText);
+          throw new Error(`${response.status}: ${errorText}`);
         }
 
-        // If we got here, all endpoints failed
+        // If we got here, the blob was empty or failed
         if (attempt < retries) {
-          console.log(`All endpoints failed, waiting ${delayMs}ms before retry ${attempt + 1}...`);
+          console.log(`Waiting ${delayMs}ms before retry ${attempt + 1}...`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
         } else {
-          throw lastError || new Error('All audio endpoints failed');
+          throw new Error('Failed to fetch valid audio after all retries');
         }
 
       } catch (error) {

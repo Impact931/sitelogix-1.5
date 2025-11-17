@@ -146,16 +146,24 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     setTimeout(async () => {
       setStatus('Downloading conversation data...');
       try {
-        // Get transcript first
-        const transcript = await getConversationTranscript();
-
-        if (!transcript) {
-          console.error('Failed to get transcript');
-          setStatus('Error: Failed to get transcript');
-          return;
+        // Get transcript first (but don't fail if unavailable)
+        let transcript = null;
+        try {
+          transcript = await getConversationTranscript();
+          if (transcript) {
+            console.log('Full conversation transcript:', transcript);
+          } else {
+            console.warn('Transcript not available yet - will retry in background');
+          }
+        } catch (transcriptError) {
+          console.warn('Could not fetch transcript immediately, report will be saved with conversationId for later retrieval:', transcriptError);
+          // Create a minimal transcript object with conversation ID for reference
+          transcript = {
+            conversation_id: conversationId,
+            status: 'pending',
+            note: 'Transcript fetch failed - may be available later from ElevenLabs'
+          };
         }
-
-        console.log('Full conversation transcript:', transcript);
 
         // Try to get audio with retries (increased delays for processing time)
         let audioBlob: Blob | null = null;

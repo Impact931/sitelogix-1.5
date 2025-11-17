@@ -880,6 +880,7 @@ async function saveReport(reportData) {
     console.log('✅ Transcript uploaded to S3:', transcriptPath);
 
     // 3. Create DynamoDB entry
+    const submissionTimestamp = new Date().toISOString();
     const dynamoCommand = new PutItemCommand({
       TableName: 'sitelogix-reports',
       Item: marshall({
@@ -888,15 +889,20 @@ async function saveReport(reportData) {
         report_id: reportId,
         project_id: projectId,
         project_name: projectName,
+        project_location: projectLocation,
         manager_id: managerId,
         manager_name: managerName,
         report_date: reportDate,
+        submission_timestamp: submissionTimestamp,
         conversation_id: conversationId,
         audio_s3_path: audioPath ? `s3://${BUCKET_NAME}/${audioPath}` : null,
         transcript_s3_path: `s3://${BUCKET_NAME}/${transcriptPath}`,
+        transcript_data: transcript, // Store full transcript data in DynamoDB for easy access
+        has_audio: !!audioPath,
+        has_transcript: !!transcript,
         status: 'uploaded',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: submissionTimestamp,
+        updated_at: submissionTimestamp,
       }),
     });
 
@@ -1787,33 +1793,64 @@ exports.handler = async (event) => {
       const reportId = path.split('/')[path.split('/').length - 2];
 
       try {
-        const getCommand = new GetItemCommand({
+        // First, we need to query by report_id since we don't have projectId in the path
+        const queryCommand = new QueryCommand({
           TableName: 'sitelogix-reports',
-          Key: {
-            PK: { S: `REPORT#${reportId}` },
-            SK: { S: 'METADATA' }
-          }
+          IndexName: 'report_id-index', // We may need to create this GSI
+          KeyConditionExpression: 'report_id = :reportId',
+          ExpressionAttributeValues: marshall({
+            ':reportId': reportId
+          }),
+          Limit: 1
         });
 
-        const result = await dynamoClient.send(getCommand);
+        let result;
+        try {
+          result = await dynamoClient.send(queryCommand);
+        } catch (queryError) {
+          // Fallback: If GSI doesn't exist, scan the table (less efficient)
+          console.log('GSI not found, falling back to scan');
+          const scanCommand = new ScanCommand({
+            TableName: 'sitelogix-reports',
+            FilterExpression: 'report_id = :reportId',
+            ExpressionAttributeValues: marshall({
+              ':reportId': reportId
+            }),
+            Limit: 1
+          });
+          result = await dynamoClient.send(scanCommand);
+        }
 
-        if (!result.Item) {
+        if (!result.Items || result.Items.length === 0) {
           return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
         }
 
-        const report = unmarshall(result.Item);
+        const report = unmarshall(result.Items[0]);
 
-        if (!report.transcript_s3_key) {
+        // Check if transcript_data is available in DynamoDB (preferred)
+        let transcriptData = report.transcript_data;
+        let transcriptText = '';
+
+        if (transcriptData) {
+          // If transcript is stored in DynamoDB, use it
+          if (typeof transcriptData === 'string') {
+            transcriptText = transcriptData;
+          } else {
+            transcriptText = JSON.stringify(transcriptData, null, 2);
+          }
+        } else if (report.transcript_s3_path || report.transcript_s3_key) {
+          // Fallback to S3 if not in DynamoDB
+          const s3Key = report.transcript_s3_path?.replace('s3://sitelogix-prod/', '') || report.transcript_s3_key;
+          const s3Command = new GetObjectCommand({
+            Bucket: 'sitelogix-prod',
+            Key: s3Key
+          });
+
+          const s3Result = await s3Client.send(s3Command);
+          transcriptText = await s3Result.Body.transformToString();
+        } else {
           return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Transcript not found' }) };
         }
-
-        const s3Command = new GetObjectCommand({
-          Bucket: 'sitelogix-prod',
-          Key: report.transcript_s3_key
-        });
-
-        const s3Result = await s3Client.send(s3Command);
-        const transcriptText = await s3Result.Body.transformToString();
 
         const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1847,6 +1884,78 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers: { ...headers, 'Content-Type': 'text/html' }, body: html };
       } catch (error) {
         console.error('Error fetching transcript:', error);
+        return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+      }
+    }
+
+    // GET /api/reports/:reportId/audio - Get audio file
+    if (path.match(/\/reports\/[^/]+\/audio$/) && method === 'GET') {
+      const reportId = path.split('/')[path.split('/').length - 2];
+
+      try {
+        // Query for the report
+        const queryCommand = new QueryCommand({
+          TableName: 'sitelogix-reports',
+          IndexName: 'report_id-index',
+          KeyConditionExpression: 'report_id = :reportId',
+          ExpressionAttributeValues: marshall({
+            ':reportId': reportId
+          }),
+          Limit: 1
+        });
+
+        let result;
+        try {
+          result = await dynamoClient.send(queryCommand);
+        } catch (queryError) {
+          // Fallback to scan if GSI doesn't exist
+          console.log('GSI not found, falling back to scan');
+          const scanCommand = new ScanCommand({
+            TableName: 'sitelogix-reports',
+            FilterExpression: 'report_id = :reportId',
+            ExpressionAttributeValues: marshall({
+              ':reportId': reportId
+            }),
+            Limit: 1
+          });
+          result = await dynamoClient.send(scanCommand);
+        }
+
+        if (!result.Items || result.Items.length === 0) {
+          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
+        }
+
+        const report = unmarshall(result.Items[0]);
+
+        if (!report.audio_s3_path) {
+          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Audio not found for this report' }) };
+        }
+
+        // Get audio from S3
+        const s3Key = report.audio_s3_path.replace('s3://sitelogix-prod/', '');
+        const s3Command = new GetObjectCommand({
+          Bucket: 'sitelogix-prod',
+          Key: s3Key
+        });
+
+        const s3Result = await s3Client.send(s3Command);
+        const audioBuffer = await s3Result.Body.transformToByteArray();
+        const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: audioBase64,
+            contentType: s3Result.ContentType || 'audio/webm',
+            reportDate: report.report_date,
+            projectName: report.project_name,
+            managerName: report.manager_name
+          })
+        };
+      } catch (error) {
+        console.error('Error fetching audio:', error);
         return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
       }
     }
@@ -2005,6 +2114,122 @@ exports.handler = async (event) => {
         };
       } catch (error) {
         console.error('Error fetching ElevenLabs config:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // GET /api/elevenlabs/transcript/:conversationId - Securely fetch conversation transcript
+    if (path.match(/\/elevenlabs\/transcript\/[^/]+$/) && method === 'GET') {
+      try {
+        const conversationId = path.split('/').pop();
+        console.log('🔍 Fetching transcript for conversation:', conversationId);
+
+        const elevenLabsSecret = await getSecret('sitelogix/elevenlabs');
+
+        // Fetch transcript from ElevenLabs API
+        const elevenLabsResponse = await fetch(
+          `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
+          {
+            headers: {
+              'xi-api-key': elevenLabsSecret.api_key
+            }
+          }
+        );
+
+        if (!elevenLabsResponse.ok) {
+          const errorText = await elevenLabsResponse.text();
+          console.error('ElevenLabs API error:', elevenLabsResponse.status, errorText);
+          return {
+            statusCode: elevenLabsResponse.status,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: `ElevenLabs API error: ${elevenLabsResponse.statusText}`
+            })
+          };
+        }
+
+        const transcriptData = await elevenLabsResponse.json();
+        console.log('✅ Successfully fetched transcript');
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: transcriptData
+          })
+        };
+      } catch (error) {
+        console.error('Error fetching transcript:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
+    // GET /api/elevenlabs/audio/:conversationId - Securely fetch conversation audio
+    if (path.match(/\/elevenlabs\/audio\/[^/]+$/) && method === 'GET') {
+      try {
+        const conversationId = path.split('/').pop();
+        console.log('🔍 Fetching audio for conversation:', conversationId);
+
+        const elevenLabsSecret = await getSecret('sitelogix/elevenlabs');
+
+        // Try the recording endpoint first (newer API)
+        let audioUrl = `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/recording`;
+        let elevenLabsResponse = await fetch(audioUrl, {
+          headers: {
+            'xi-api-key': elevenLabsSecret.api_key
+          }
+        });
+
+        // If that fails, try the audio endpoint (older API)
+        if (!elevenLabsResponse.ok) {
+          audioUrl = `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`;
+          elevenLabsResponse = await fetch(audioUrl, {
+            headers: {
+              'xi-api-key': elevenLabsSecret.api_key
+            }
+          });
+        }
+
+        if (!elevenLabsResponse.ok) {
+          const errorText = await elevenLabsResponse.text();
+          console.error('ElevenLabs audio API error:', elevenLabsResponse.status, errorText);
+          return {
+            statusCode: elevenLabsResponse.status,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: `ElevenLabs audio API error: ${elevenLabsResponse.statusText}`
+            })
+          };
+        }
+
+        // Get the audio as a buffer
+        const audioBuffer = await elevenLabsResponse.arrayBuffer();
+        const audioBase64 = Buffer.from(audioBuffer).toString('base64');
+
+        console.log('✅ Successfully fetched audio');
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            data: audioBase64,
+            contentType: elevenLabsResponse.headers.get('content-type') || 'audio/webm'
+          })
+        };
+      } catch (error) {
+        console.error('Error fetching audio:', error);
         return {
           statusCode: 500,
           headers,
