@@ -377,37 +377,9 @@ async function generateHtmlFromReport(report) {
     return { success: true, html: report.report_html };
   }
 
-  // Generate HTML from transcript_data if available (new format)
-  if (report.transcript_data) {
-    console.log(`📝 Generating HTML from transcript data for report ${report.report_id}`);
-
-    // Create extracted data structure from transcript
-    let extractedData = {
-      work_completed: [],
-      work_in_progress: [],
-      issues: [],
-      vendors: [],
-      additional_personnel: [],
-      ambiguities: []
-    };
-
-    // Try to parse transcript_data if it's a string
-    let transcriptData = report.transcript_data;
-    if (typeof transcriptData === 'string') {
-      try {
-        transcriptData = JSON.parse(transcriptData);
-      } catch (e) {
-        console.warn('Could not parse transcript_data as JSON');
-      }
-    }
-
-    const html = generateReportHTML(report, extractedData);
-    return { success: true, html };
-  }
-
-  // Generate HTML from extracted_data if available (legacy format)
+  // PRIORITY: Generate HTML from extracted_data if available (has analytics from Claude)
   if (report.extracted_data) {
-    console.log(`📝 Generating HTML from extracted data for report ${report.report_id}`);
+    console.log(`📝 Generating HTML from extracted analytics data for report ${report.report_id}`);
 
     let extractedData;
     try {
