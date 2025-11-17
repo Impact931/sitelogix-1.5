@@ -203,15 +203,13 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       setReportHtml(''); // Clear previous HTML
       setError(null); // Clear previous errors
 
-      const url = `${API_BASE_URL}/reports/${report.report_id}/transcript?projectId=${report.project_id}&reportDate=${report.report_date}`;
+      // Add cache-busting timestamp
+      const cacheBuster = `_cb=${Date.now()}`;
+      const url = `${API_BASE_URL}/reports/${report.report_id}/transcript?projectId=${report.project_id}&reportDate=${report.report_date}&${cacheBuster}`;
       console.log('📡 Fetching transcript from URL:', url);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        credentials: 'omit',
-        cache: 'no-store',
-        mode: 'cors'
-      });
+      // SIMPLE FETCH - no CORS options
+      const response = await fetch(url);
 
       console.log('📥 Transcript response:', {
         status: response.status,
@@ -251,16 +249,13 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       setReportHtml(''); // Clear previous HTML
       setError(null); // Clear previous errors
 
-      // Always use API endpoint - it will proxy from S3 if needed
-      const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}`;
+      // Add cache-busting timestamp to force fresh fetch
+      const cacheBuster = `_cb=${Date.now()}`;
+      const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}&${cacheBuster}`;
       console.log('📡 Fetching from URL:', url);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        credentials: 'omit',
-        cache: 'no-store',
-        mode: 'cors'
-      });
+      // SIMPLE FETCH - no CORS options to avoid preflight/credentials mismatch
+      const response = await fetch(url);
 
       console.log('📥 Response received:', {
         status: response.status,
