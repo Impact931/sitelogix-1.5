@@ -47,10 +47,16 @@ export default function ProjectSelector({ onProjectSelect, onBack }: ProjectSele
     const mappedProject = {
       id: project.id || project.projectId || '',
       name: project.projectName,
-      location: typeof project.location === 'string' 
-        ? project.location 
+      location: typeof project.location === 'string'
+        ? project.location
         : `${project.location?.city || ''}, ${project.location?.state || ''}`.trim()
     };
+
+    console.log('🔍 ProjectSelector - Selected project:', {
+      originalProject: project,
+      mappedProject,
+      manager
+    });
 
     onProjectSelect(mappedProject, manager);
   };

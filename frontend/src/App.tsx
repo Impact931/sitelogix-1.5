@@ -54,8 +54,16 @@ function AppContent() {
     const savedProject = localStorage.getItem('sitelogix_project');
 
     if (savedManager && savedProject) {
-      setManager(JSON.parse(savedManager));
-      setProject(JSON.parse(savedProject));
+      const parsedManager = JSON.parse(savedManager);
+      const parsedProject = JSON.parse(savedProject);
+
+      console.log('🔍 App.tsx - Loading from localStorage:', {
+        parsedManager,
+        parsedProject
+      });
+
+      setManager(parsedManager);
+      setProject(parsedProject);
       setCurrentScreen('home');
     }
   }, [isAuthenticated, user]);
@@ -109,6 +117,11 @@ function AppContent() {
   };
 
   const handleProjectSelect = (selectedProject: Project, selectedManager: Manager) => {
+    console.log('🔍 App.tsx - handleProjectSelect:', {
+      selectedProject,
+      selectedManager
+    });
+
     // Set the manager and project for the admin user
     setProject(selectedProject);
     setManager(selectedManager);

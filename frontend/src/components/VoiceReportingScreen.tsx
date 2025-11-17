@@ -192,6 +192,12 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
           setStatus('Uploading report to S3 and DynamoDB...');
 
           try {
+            console.log('🔍 VoiceReportingScreen - Saving report with project:', {
+              project,
+              projectId: project.id,
+              projectName: project.name
+            });
+
             const result = await saveReport({
               audioBlob,
               transcript,
@@ -210,7 +216,8 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
             console.log('Report ID:', result.reportId);
             console.log('Conversation ID:', conversationId);
             console.log('Manager:', manager.name, `(${manager.id})`);
-            console.log('Project:', project.name);
+            console.log('Project ID:', project.id);
+            console.log('Project Name:', project.name);
             console.log('Audio S3 Path:', result.audioPath || 'No audio');
             console.log('Transcript S3 Path:', result.transcriptPath);
             console.log('Full transcript:', transcript);

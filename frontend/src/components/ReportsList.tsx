@@ -128,6 +128,13 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
         queryParams.append('projectId', selectedProject !== 'all' ? selectedProject : project.id);
       }
 
+      console.log('🔍 ReportsList - Fetching reports with:', {
+        filter,
+        selectedProject,
+        projectId: selectedProject !== 'all' ? selectedProject : project.id,
+        projectObject: project
+      });
+
       const url = `${API_BASE_URL}/reports${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const response = await fetch(url);
       const data = await response.json();
