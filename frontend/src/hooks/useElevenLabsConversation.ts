@@ -131,19 +131,67 @@ export const useElevenLabsConversation = ({
         const defaultDeviceId = 'default';
         console.log('🎯 Using audio output: "default" (system default device)');
 
-        // Function to set sink ID on audio elements
+        // Function to set sink ID on audio elements AND monitor/trigger playback
         const setAudioOutputDevice = async (audioElement: HTMLAudioElement) => {
+          // LOG: Detailed audio element state
+          console.log('🔧 Configuring audio element:', {
+            muted: audioElement.muted,
+            volume: audioElement.volume,
+            paused: audioElement.paused,
+            src: audioElement.src,
+            srcObject: audioElement.srcObject,
+            readyState: audioElement.readyState,
+            networkState: audioElement.networkState
+          });
+
+          // CRITICAL: Ensure unmuted and max volume
+          audioElement.muted = false;
+          audioElement.volume = 1.0;
+          audioElement.autoplay = true;
+
+          // Set output device
           if (typeof audioElement.setSinkId === 'function') {
             try {
               await audioElement.setSinkId(defaultDeviceId);
-              console.log('✅ Audio routed to default device:', audioElement);
-              return true;
+              console.log('✅ Audio routed to default device');
             } catch (sinkError) {
-              console.warn('⚠️  Could not set sink ID:', sinkError);
-              return false;
+              console.warn('⚠️ Could not set sink ID:', sinkError);
             }
           }
-          return false;
+
+          // CRITICAL: Monitor and attempt playback
+          const tryPlay = async (reason: string) => {
+            if ((audioElement.src || audioElement.srcObject) && audioElement.paused) {
+              try {
+                console.log(`🎵 [${reason}] Audio has source, attempting play...`);
+                await audioElement.play();
+                console.log('✅ Audio playing!');
+              } catch (playError) {
+                console.warn(`⚠️ Play failed (${reason}):`, playError);
+              }
+            }
+          };
+
+          // Try to play immediately if source exists
+          await tryPlay('initial');
+
+          // Watch for source changes
+          const checkForSource = async () => {
+            if (audioElement.srcObject && audioElement.paused) {
+              console.log('🎵 srcObject detected (WebRTC stream)!');
+              await tryPlay('srcObject-detected');
+            }
+          };
+
+          // Add event listeners
+          audioElement.addEventListener('loadeddata', () => tryPlay('loadeddata'));
+          audioElement.addEventListener('canplay', () => tryPlay('canplay'));
+
+          // Monitor for srcObject changes every second (WebRTC streams)
+          const monitorInterval = setInterval(checkForSource, 1000);
+          (audioElement as any)._monitorInterval = monitorInterval;
+
+          return true;
         };
 
         // Method 1: Try to set on existing audio elements
@@ -209,6 +257,16 @@ export const useElevenLabsConversation = ({
           observer.disconnect();
           console.log('🔇 Audio observer disconnected');
         }
+
+        // Clean up all audio monitoring intervals
+        const audioElements = document.querySelectorAll('audio');
+        audioElements.forEach((audioEl) => {
+          const interval = (audioEl as any)._monitorInterval;
+          if (interval) {
+            clearInterval(interval);
+            console.log('🔇 Audio monitor interval cleared');
+          }
+        });
 
         await conversationRef.current.endSession();
         conversationRef.current = null;
