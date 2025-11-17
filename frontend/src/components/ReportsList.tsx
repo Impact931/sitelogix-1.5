@@ -136,7 +136,14 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       });
 
       const url = `${API_BASE_URL}/reports${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit', // Don't send credentials to avoid CORS preflight
+        cache: 'no-store' // Prevent caching issues
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -193,7 +200,14 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       setError(null); // Clear previous errors
 
       const url = `${API_BASE_URL}/reports/${report.report_id}/transcript?projectId=${report.project_id}&reportDate=${report.report_date}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit',
+        cache: 'no-store'
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch transcript: ${response.status}`);
@@ -222,7 +236,14 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
       // Always use API endpoint - it will proxy from S3 if needed
       const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit',
+        cache: 'no-store'
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch report: ${response.status}`);
@@ -303,7 +324,10 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
         },
+        credentials: 'omit',
+        cache: 'no-store'
       });
 
       console.log('🗑️ DELETE response status:', response.status);
