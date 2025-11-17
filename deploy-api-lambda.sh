@@ -222,6 +222,15 @@ else
     echo "✅ API Gateway already exists: $API_ID"
 fi
 
+# Update CORS configuration (ensures credentials support)
+echo "🔧 Updating API Gateway CORS configuration..."
+aws apigatewayv2 update-api \
+    --api-id $API_ID \
+    --region $REGION \
+    --cors-configuration AllowOrigins='https://main.d2mp0300tkuah.amplifyapp.com',AllowMethods='GET,POST,PUT,DELETE,OPTIONS',AllowHeaders='content-type,authorization,x-amz-date,x-api-key,x-amz-security-token',AllowCredentials=true,MaxAge=3600 \
+    > /dev/null
+echo "✅ CORS configuration updated"
+
 # Create integration
 INTEGRATION_ID=$(aws apigatewayv2 create-integration \
     --api-id $API_ID \
