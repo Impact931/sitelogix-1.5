@@ -35,7 +35,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess: _onLoginSuccess, onSwitch
     firstName: '',
     lastName: ''
   });
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,7 +46,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess: _onLoginSuccess, onSwitch
     setLoading(true);
 
     try {
-      await login(credentials.username, credentials.passcode, rememberMe);
+      await login(credentials.username, credentials.passcode);
       // AuthContext will handle navigation via App.tsx
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -190,21 +189,6 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess: _onLoginSuccess, onSwitch
                   required
                   disabled={loading}
                 />
-              </div>
-
-              {/* Remember Me Checkbox */}
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-gold focus:ring-2 focus:ring-gold/50 transition cursor-pointer"
-                  disabled={loading}
-                />
-                <label htmlFor="remember-me" className="ml-2 text-sm text-gray-400 cursor-pointer">
-                  Remember me
-                </label>
               </div>
 
               {/* Submit Button */}

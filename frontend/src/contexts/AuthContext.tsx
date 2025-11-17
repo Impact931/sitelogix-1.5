@@ -112,7 +112,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   // Login function
-  const login = async (username: string, passcode: string, rememberMe = false) => {
+  const login = async (username: string, passcode: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -129,11 +129,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const data = await response.json();
 
-      // Store tokens
+      // Store tokens (always store refresh token for session persistence)
       localStorage.setItem('accessToken', data.accessToken);
-      if (rememberMe) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
+      localStorage.setItem('refreshToken', data.refreshToken);
 
       // Set user
       setUser(data.user);

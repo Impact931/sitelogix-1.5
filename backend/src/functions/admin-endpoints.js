@@ -398,12 +398,13 @@ async function handleRefreshToken(body) {
       };
     }
 
-    // Get user data
+    // Get user data from personnel table (same table used during login)
     const getUserCommand = new GetItemCommand({
-      TableName: 'sitelogix-users',
-      Key: {
-        userId: { S: decoded.userId }
-      }
+      TableName: 'sitelogix-personnel',
+      Key: marshall({
+        PK: decoded.userId,  // userId is the personId (e.g., "PER#PKW01")
+        SK: 'PROFILE'
+      })
     });
 
     const userResult = await dynamoClient.send(getUserCommand);
@@ -419,7 +420,19 @@ async function handleRefreshToken(body) {
       };
     }
 
-    const user = unmarshall(userResult.Item);
+    const personnel = unmarshall(userResult.Item);
+
+    // Map personnel fields to expected user format (same as login)
+    const user = {
+      userId: personnel.personId,
+      username: personnel.username,
+      email: personnel.email,
+      firstName: personnel.firstName,
+      lastName: personnel.lastName,
+      role: personnel.role,
+      permissions: personnel.permissions || [],
+      employmentStatus: personnel.employmentStatus
+    };
 
     // Generate new tokens
     const newToken = await generateToken(user);

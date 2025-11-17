@@ -106,14 +106,28 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
   useEffect(() => {
     fetchReports();
-  }, [filter, selectedProject, sortBy]);
+
+    // Auto-refresh after 3 seconds to catch reports that are still being processed
+    const refreshTimeout = setTimeout(() => {
+      console.log('Auto-refreshing reports to catch late-arriving data...');
+      fetchReports();
+    }, 3000);
+
+    return () => clearTimeout(refreshTimeout);
+  }, [filter, selectedProject, sortBy, project.id]);
 
   const fetchReports = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const url = `${API_BASE_URL}/reports`;
+      // Pass projectId to optimize backend query (uses Query instead of Scan)
+      const queryParams = new URLSearchParams();
+      if (filter === 'project' || selectedProject !== 'all') {
+        queryParams.append('projectId', selectedProject !== 'all' ? selectedProject : project.id);
+      }
+
+      const url = `${API_BASE_URL}/reports${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const response = await fetch(url);
       const data = await response.json();
 
