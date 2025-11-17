@@ -193,32 +193,44 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
   const handleViewTranscript = async (report: Report, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      console.log('Opening transcript:', report.report_id);
+      console.log('🔍 Opening transcript with details:', {
+        report_id: report.report_id,
+        project_id: report.project_id,
+        report_date: report.report_date
+      });
       setLoadingReport(true);
       setViewingReport(report);
       setReportHtml(''); // Clear previous HTML
       setError(null); // Clear previous errors
 
       const url = `${API_BASE_URL}/reports/${report.report_id}/transcript?projectId=${report.project_id}&reportDate=${report.report_date}`;
+      console.log('📡 Fetching transcript from URL:', url);
+
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         credentials: 'omit',
-        cache: 'no-store'
+        cache: 'no-store',
+        mode: 'cors'
+      });
+
+      console.log('📥 Transcript response:', {
+        status: response.status,
+        ok: response.ok
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch transcript: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Transcript response not OK:', response.status, errorText);
+        throw new Error(`Failed to fetch transcript: ${response.status} - ${errorText}`);
       }
 
       const html = await response.text();
+      console.log('✅ Transcript loaded, length:', html.length);
       setReportHtml(html);
-      console.log('Transcript loaded successfully');
+      console.log('✅ Transcript loaded successfully');
     } catch (err) {
-      console.error('Error loading transcript:', err);
-      setError('Failed to load transcript. Please try again.');
+      console.error('❌ Error loading transcript:', err);
+      setError(`Failed to load transcript. Error: ${err instanceof Error ? err.message : String(err)}`);
       setViewingReport(null);
       setReportHtml('');
     } finally {
@@ -228,7 +240,12 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
   const handleViewReport = async (report: Report) => {
     try {
-      console.log('Opening report:', report.report_id);
+      console.log('🔍 Opening report with details:', {
+        report_id: report.report_id,
+        project_id: report.project_id,
+        report_date: report.report_date,
+        full_report_object: report
+      });
       setLoadingReport(true);
       setViewingReport(report);
       setReportHtml(''); // Clear previous HTML
@@ -236,25 +253,36 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
       // Always use API endpoint - it will proxy from S3 if needed
       const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}`;
+      console.log('📡 Fetching from URL:', url);
+
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         credentials: 'omit',
-        cache: 'no-store'
+        cache: 'no-store',
+        mode: 'cors'
+      });
+
+      console.log('📥 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch report: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Response not OK. Status:', response.status, 'Body:', errorText);
+        throw new Error(`Failed to fetch report: ${response.status} - ${errorText}`);
       }
 
       const html = await response.text();
+      console.log('✅ HTML received, length:', html.length);
       setReportHtml(html);
-      console.log('Report loaded successfully');
+      console.log('✅ Report loaded successfully');
     } catch (err) {
-      console.error('Error opening report:', err);
-      setError('Failed to open report. Please try again.');
+      console.error('❌ Error opening report:', err);
+      console.error('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      setError(`Failed to open report. Please try again. Error: ${err instanceof Error ? err.message : String(err)}`);
       setViewingReport(null);
       setReportHtml('');
     } finally {
