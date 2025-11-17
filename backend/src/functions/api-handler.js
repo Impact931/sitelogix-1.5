@@ -2382,23 +2382,14 @@ async function processBatchTranscripts(options = {}) {
 exports.handler = async (event) => {
   console.log('Received event:', JSON.stringify(event, null, 2));
 
-  // CORS headers - restrict to Amplify domain with credentials support
+  // API Gateway handles CORS headers automatically - don't set them in Lambda
+  // Setting CORS headers in both places causes duplicate header conflicts that browsers reject
   const headers = {
-    'Access-Control-Allow-Origin': 'https://main.d2mp0300tkuah.amplifyapp.com',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Credentials': 'true',
     'Content-Type': 'application/json'
   };
 
-  // Handle OPTIONS request for CORS
-  if (event.requestContext?.http?.method === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
-  }
+  // API Gateway handles OPTIONS preflight requests automatically with CORS configuration
+  // No need to handle them in Lambda
 
   try {
     const path = event.requestContext?.http?.path || event.path || '';
