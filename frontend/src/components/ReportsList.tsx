@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Manager {
   id: string;
@@ -77,6 +78,7 @@ interface ReportsListProps {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onNavigateToAnalytics }) => {
+  const { user } = useAuth();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -229,6 +231,43 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       setViewingReport(null);
       setReportHtml('');
       setLoadingReport(false);
+    }
+  };
+
+  const handleDeleteReport = async (report: Report, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // Confirm deletion
+    if (!window.confirm(`Are you sure you want to delete this report?\n\nProject: ${report.project_name}\nDate: ${formatDate(report.report_date)}\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) {
+        setError('Not authenticated');
+        return;
+      }
+
+      const url = `${API_BASE_URL}/reports/${report.report_id}?projectId=${report.project_id}&reportDate=${report.report_date}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete report');
+      }
+
+      // Remove report from local state
+      setReports(prevReports => prevReports.filter(r => r.report_id !== report.report_id));
+      console.log('Report deleted successfully');
+    } catch (err) {
+      console.error('Error deleting report:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete report');
     }
   };
 
@@ -550,6 +589,20 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
                             </svg>
                             <span>Transcript</span>
                           </button>
+
+                          {/* Delete Button - Admin Only */}
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={(e) => handleDeleteReport(report, e)}
+                              className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 rounded-lg text-xs font-semibold text-red-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/50 transition flex items-center space-x-1"
+                              title="Delete Report (Admin Only)"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              <span>Delete</span>
+                            </button>
+                          )}
 
                           {/* View Report Button */}
                           <div className="flex items-center text-gold text-sm font-semibold group-hover:translate-x-1 transition">

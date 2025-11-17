@@ -2446,6 +2446,84 @@ exports.handler = async (event) => {
       };
     }
 
+    // DELETE /api/reports/:reportId - Delete a report (admin only)
+    if (path.match(/\/reports\/[^/]+$/) && method === 'DELETE') {
+      const reportId = path.split('/').pop();
+      const queryParams = event.queryStringParameters || {};
+      const projectId = queryParams.projectId;
+      const reportDate = queryParams.reportDate;
+
+      try {
+        // Verify admin role from Authorization header
+        const authHeader = event.headers?.Authorization || event.headers?.authorization;
+        if (!authHeader) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ success: false, error: 'Unauthorized - No auth token provided' })
+          };
+        }
+
+        // Extract token and verify user role
+        const token = authHeader.replace('Bearer ', '');
+        let userRole;
+        try {
+          // Decode JWT to get user info (simple base64 decode for now)
+          const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          userRole = payload.role;
+        } catch (err) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ success: false, error: 'Invalid token' })
+          };
+        }
+
+        // Check if user is admin
+        if (userRole !== 'admin') {
+          return {
+            statusCode: 403,
+            headers,
+            body: JSON.stringify({ success: false, error: 'Forbidden - Admin access required' })
+          };
+        }
+
+        if (!projectId || !reportDate) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: 'Missing projectId or reportDate' })
+          };
+        }
+
+        // Delete from DynamoDB
+        const deleteCommand = new DeleteItemCommand({
+          TableName: 'sitelogix-reports',
+          Key: marshall({
+            PK: `PROJECT#${projectId}`,
+            SK: `REPORT#${reportDate}#${reportId}`
+          })
+        });
+
+        await dynamoClient.send(deleteCommand);
+
+        console.log(`🗑️ Deleted report ${reportId} by admin user`);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, message: 'Report deleted successfully' })
+        };
+      } catch (error) {
+        console.error('Error deleting report:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
     // GET /api/analytics/insights
     if (path.endsWith('/analytics/insights') && method === 'GET') {
       const result = await getAnalyticsInsights();
