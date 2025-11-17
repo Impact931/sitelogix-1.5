@@ -39,6 +39,25 @@ export const useElevenLabsConversation = ({
 
       console.log('🎤 Microphone access granted', stream.getTracks());
 
+      onStatusChange?.('Fetching secure conversation token...');
+
+      // Fetch conversation token from backend (secure - API key not exposed)
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      console.log('🔐 Requesting conversation token from backend...');
+
+      const tokenResponse = await fetch(`${API_BASE_URL}/elevenlabs/conversation-token`);
+      if (!tokenResponse.ok) {
+        throw new Error(`Failed to fetch conversation token: ${tokenResponse.statusText}`);
+      }
+
+      const tokenData = await tokenResponse.json();
+      if (!tokenData.success || !tokenData.signedUrl) {
+        throw new Error('Invalid token response from backend');
+      }
+
+      const conversationToken = tokenData.signedUrl;
+      console.log('✅ Conversation token received');
+
       onStatusChange?.('Connecting to Roxy...');
 
       // Initialize ElevenLabs conversation with dynamic variables
@@ -51,13 +70,13 @@ export const useElevenLabsConversation = ({
       if (customContext?.projectLocation) dynamicVars.project_location = customContext.projectLocation;
 
       console.log('🔧 Starting ElevenLabs session with config:', {
-        agentId,
+        conversationToken: conversationToken.substring(0, 50) + '...',
         connectionType: 'webrtc',
         dynamicVariables: dynamicVars
       });
 
       const conversation = await Conversation.startSession({
-        agentId,
+        conversationToken: conversationToken,
         connectionType: "webrtc",
         // Pass dynamic variables for personalization
         dynamicVariables: Object.keys(dynamicVars).length > 0 ? dynamicVars : undefined,

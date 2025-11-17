@@ -2982,6 +2982,57 @@ exports.handler = async (event) => {
       }
     }
 
+    // GET /api/elevenlabs/conversation-token - Get conversation token for secure WebRTC connection
+    if (path.endsWith('/elevenlabs/conversation-token') && method === 'GET') {
+      try {
+        console.log('🔐 Fetching conversation token from ElevenLabs...');
+        const elevenLabsSecret = await getSecret('sitelogix/elevenlabs');
+
+        // Fetch conversation token from ElevenLabs API
+        const tokenUrl = `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsSecret.agent_id}`;
+        console.log('📞 Requesting token from:', tokenUrl);
+
+        const elevenLabsResponse = await fetch(tokenUrl, {
+          method: 'GET',
+          headers: {
+            'xi-api-key': elevenLabsSecret.api_key
+          }
+        });
+
+        if (!elevenLabsResponse.ok) {
+          const errorText = await elevenLabsResponse.text();
+          console.error('❌ ElevenLabs token API error:', elevenLabsResponse.status, errorText);
+          return {
+            statusCode: elevenLabsResponse.status,
+            headers,
+            body: JSON.stringify({
+              success: false,
+              error: `Failed to get conversation token: ${elevenLabsResponse.statusText}`
+            })
+          };
+        }
+
+        const tokenData = await elevenLabsResponse.json();
+        console.log('✅ Successfully fetched conversation token');
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            signedUrl: tokenData.signed_url
+          })
+        };
+      } catch (error) {
+        console.error('❌ Error fetching conversation token:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: error.message })
+        };
+      }
+    }
+
     // GET /api/elevenlabs/transcript/:conversationId - Securely fetch conversation transcript
     if (path.match(/\/elevenlabs\/transcript\/[^/]+$/) && method === 'GET') {
       try {
