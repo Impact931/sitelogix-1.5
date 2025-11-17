@@ -28,6 +28,21 @@ export const useElevenLabsConversation = ({
 
   const startConversation = useCallback(async () => {
     try {
+      // CRITICAL: Unlock audio playback FIRST using user interaction
+      // Create and play a silent audio element to unlock browser audio restrictions
+      console.log('🔓 Unlocking browser audio with user interaction...');
+      const silentAudio = new Audio();
+      silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      silentAudio.volume = 0.01; // Very quiet
+      try {
+        await silentAudio.play();
+        console.log('✅ Browser audio unlocked successfully');
+        silentAudio.pause();
+        silentAudio.remove();
+      } catch (unlockError) {
+        console.warn('⚠️ Could not unlock audio with silent clip:', unlockError);
+      }
+
       // Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -153,41 +168,65 @@ export const useElevenLabsConversation = ({
             muted: audioElement.muted,
             volume: audioElement.volume,
             paused: audioElement.paused,
-            src: audioElement.src
+            src: audioElement.src,
+            readyState: audioElement.readyState
           });
 
           // CRITICAL: Unmute and set volume
           audioElement.muted = false;
           audioElement.volume = 1.0;
 
-          // Try to play if paused
-          if (audioElement.paused && audioElement.src) {
-            try {
-              await audioElement.play();
-              console.log('✅ Audio element playing');
-            } catch (playError) {
-              console.warn('⚠️ Could not auto-play:', playError);
-            }
-          }
+          // Add autoplay attribute
+          audioElement.autoplay = true;
 
-          // Set output device
+          // Set output device first
           if (typeof audioElement.setSinkId === 'function') {
             try {
               await audioElement.setSinkId(defaultDeviceId);
               console.log('✅ Audio routed to default device');
-              return true;
             } catch (sinkError) {
               console.warn('⚠️ Could not set sink ID:', sinkError);
-              return false;
             }
           } else {
             console.warn('⚠️ setSinkId not supported in this browser');
           }
-          return false;
+
+          // Add event listeners to auto-play when ready
+          const attemptPlay = async () => {
+            if (audioElement.paused && !audioElement.muted) {
+              try {
+                console.log('🎵 Attempting to play audio element...');
+                await audioElement.play();
+                console.log('✅ Audio element playing successfully!');
+              } catch (playError) {
+                console.warn('⚠️ Could not auto-play:', playError);
+              }
+            }
+          };
+
+          // Try to play immediately if src is ready
+          if (audioElement.src && audioElement.readyState >= 2) {
+            await attemptPlay();
+          }
+
+          // Listen for when audio becomes ready to play
+          audioElement.addEventListener('canplay', attemptPlay, { once: true });
+          audioElement.addEventListener('loadeddata', attemptPlay, { once: true });
+
+          // Also listen for src changes
+          const srcObserver = new MutationObserver(() => {
+            if (audioElement.src) {
+              console.log('🎵 Audio src changed to:', audioElement.src);
+              attemptPlay();
+            }
+          });
+          srcObserver.observe(audioElement, { attributes: true, attributeFilter: ['src'] });
+
+          return true;
         };
 
         // Aggressive audio element detection with multiple retries
-        const findAndSetupAudioElements = async (attempt: number = 1, maxAttempts: number = 10) => {
+        const findAndSetupAudioElements = async (attempt: number = 1, maxAttempts: number = 10): Promise<boolean> => {
           const audioElements = document.querySelectorAll('audio');
           console.log(`🔍 Attempt ${attempt}/${maxAttempts}: Found ${audioElements.length} audio elements`);
 
@@ -200,11 +239,13 @@ export const useElevenLabsConversation = ({
 
           if (attempt < maxAttempts) {
             console.log(`⏳ Waiting 200ms before retry ${attempt + 1}...`);
-            setTimeout(() => findAndSetupAudioElements(attempt + 1, maxAttempts), 200);
+            // Use Promise-based delay instead of setTimeout
+            await new Promise(resolve => setTimeout(resolve, 200));
+            return findAndSetupAudioElements(attempt + 1, maxAttempts);
           } else {
             console.warn('⚠️ No audio elements found after all retries');
+            return false;
           }
-          return false;
         };
 
         // Start aggressive detection
