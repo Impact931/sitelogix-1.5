@@ -165,23 +165,24 @@ async function logPersonnelHoursToSheet(reportData, extractedData) {
     // Prepare rows for each employee
     const rows = personnel.map(person => {
       const reportDate = reportData.report_date || new Date().toISOString().split('T')[0];
-      const projectName = reportData.project_name || '';
+      const employeeNumber = person.employeeNumber || person.employeeId || '';
       const fullName = person.fullName || `${person.firstName || ''} ${person.lastName || ''}`.trim();
+      const projectName = reportData.project_name || '';
+      const position = person.position || person.role || '';
       const regularHours = person.hoursWorked || person.regularHours || 0;
       const overtimeHours = person.overtimeHours || 0;
       const totalHours = regularHours + overtimeHours;
-      const position = person.position || person.role || '';
 
       return [
-        reportDate,        // Date
-        fullName,          // Employee Name
-        projectName,       // Project
-        position,          // Position/Role
-        regularHours,      // Regular Hours
-        overtimeHours,     // Overtime Hours
-        totalHours,        // Total Hours
-        reportData.manager_name || '', // Manager
-        reportData.report_id || ''     // Report ID (for reference)
+        reportDate,        // DATE
+        employeeNumber,    // EMPLOYEE NUMBER
+        fullName,          // EMPLOYEE NAME
+        projectName,       // PROJECT
+        position,          // POSITION
+        regularHours,      // REGULAR HOURS
+        overtimeHours,     // OVERTIME HOURS
+        totalHours,        // TOTAL HOURS
+        reportData.report_id || ''  // REPORT ID
       ];
     });
 
