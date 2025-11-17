@@ -169,7 +169,9 @@ export const useElevenLabsConversation = ({
             volume: audioElement.volume,
             paused: audioElement.paused,
             src: audioElement.src,
-            readyState: audioElement.readyState
+            srcObject: audioElement.srcObject,
+            readyState: audioElement.readyState,
+            networkState: audioElement.networkState
           });
 
           // CRITICAL: Unmute and set volume
@@ -191,36 +193,69 @@ export const useElevenLabsConversation = ({
             console.warn('⚠️ setSinkId not supported in this browser');
           }
 
-          // Add event listeners to auto-play when ready
-          const attemptPlay = async () => {
-            if (audioElement.paused && !audioElement.muted) {
-              try {
-                console.log('🎵 Attempting to play audio element...');
+          // AGGRESSIVE: Attempt to play regardless of state
+          const attemptPlay = async (reason: string) => {
+            try {
+              console.log(`🎵 [${reason}] Attempting to play audio element...`, {
+                paused: audioElement.paused,
+                muted: audioElement.muted,
+                src: audioElement.src,
+                srcObject: audioElement.srcObject,
+                readyState: audioElement.readyState
+              });
+
+              if (audioElement.paused) {
                 await audioElement.play();
                 console.log('✅ Audio element playing successfully!');
-              } catch (playError) {
-                console.warn('⚠️ Could not auto-play:', playError);
+              } else {
+                console.log('ℹ️ Audio already playing');
               }
+            } catch (playError) {
+              console.warn(`⚠️ Could not play (${reason}):`, playError);
             }
           };
 
-          // Try to play immediately if src is ready
-          if (audioElement.src && audioElement.readyState >= 2) {
-            await attemptPlay();
-          }
+          // Try to play immediately
+          await attemptPlay('initial-setup');
 
-          // Listen for when audio becomes ready to play
-          audioElement.addEventListener('canplay', attemptPlay, { once: true });
-          audioElement.addEventListener('loadeddata', attemptPlay, { once: true });
+          // Add ALL possible event listeners
+          const events = ['canplay', 'canplaythrough', 'loadeddata', 'loadedmetadata', 'playing', 'play'];
+          events.forEach(eventName => {
+            audioElement.addEventListener(eventName, () => attemptPlay(eventName));
+          });
 
-          // Also listen for src changes
-          const srcObserver = new MutationObserver(() => {
-            if (audioElement.src) {
-              console.log('🎵 Audio src changed to:', audioElement.src);
-              attemptPlay();
+          // Watch for srcObject changes (MediaStream)
+          let lastSrcObject = audioElement.srcObject;
+          const checkSrcObject = async () => {
+            if (audioElement.srcObject && audioElement.srcObject !== lastSrcObject) {
+              console.log('🎵 Audio srcObject changed (MediaStream detected)');
+              lastSrcObject = audioElement.srcObject;
+              await attemptPlay('srcObject-change');
             }
+          };
+
+          // Watch for src attribute changes
+          const srcObserver = new MutationObserver(async () => {
+            if (audioElement.src) {
+              console.log('🎵 Audio src attribute changed to:', audioElement.src);
+              await attemptPlay('src-change');
+            }
+            await checkSrcObject();
           });
           srcObserver.observe(audioElement, { attributes: true, attributeFilter: ['src'] });
+
+          // ULTRA-AGGRESSIVE: Poll every 500ms to check and force play
+          const pollingInterval = setInterval(async () => {
+            await checkSrcObject();
+
+            // If audio has source but is paused, try to play
+            if ((audioElement.src || audioElement.srcObject) && audioElement.paused && !audioElement.muted) {
+              await attemptPlay('polling-check');
+            }
+          }, 500);
+
+          // Store interval ID for cleanup
+          (audioElement as any)._playPollingInterval = pollingInterval;
 
           return true;
         };
@@ -304,6 +339,16 @@ export const useElevenLabsConversation = ({
           observer.disconnect();
           console.log('🔇 Audio observer disconnected');
         }
+
+        // Clean up all audio element polling intervals
+        const audioElements = document.querySelectorAll('audio');
+        audioElements.forEach((audioEl) => {
+          const interval = (audioEl as any)._playPollingInterval;
+          if (interval) {
+            clearInterval(interval);
+            console.log('🔇 Audio polling interval cleared');
+          }
+        });
 
         await conversationRef.current.endSession();
         conversationRef.current = null;
