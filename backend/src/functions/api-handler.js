@@ -296,79 +296,133 @@ async function getReportHtml(reportId, projectId, reportDate) {
   try {
     console.log(`📄 Fetching HTML for report ${reportId}...`);
 
-    // Use current key schema: PK: REPORT#{reportId}, SK: METADATA
+    // Use current key schema: PK: PROJECT#{projectId}, SK: REPORT#{reportDate}#{reportId}
     const command = new GetItemCommand({
       TableName: 'sitelogix-reports',
-      Key: {
-        PK: { S: `REPORT#${reportId}` },
-        SK: { S: 'METADATA' }
-      }
+      Key: marshall({
+        PK: `PROJECT#${projectId}`,
+        SK: `REPORT#${reportDate}#${reportId}`
+      })
     });
 
     const result = await dynamoClient.send(command);
 
     if (!result.Item) {
-      console.warn(`⚠️ Report ${reportId} not found with key structure`);
-      return { success: false, error: 'Report not found' };
+      console.warn(`⚠️ Report ${reportId} not found with key PK: PROJECT#${projectId}, SK: REPORT#${reportDate}#${reportId}`);
+      // Try to find the report by scanning for report_id (fallback for legacy data or missing params)
+      try {
+        const scanCommand = new ScanCommand({
+          TableName: 'sitelogix-reports',
+          FilterExpression: 'report_id = :reportId',
+          ExpressionAttributeValues: marshall({
+            ':reportId': reportId
+          }),
+          Limit: 1
+        });
+        const scanResult = await dynamoClient.send(scanCommand);
+        if (!scanResult.Items || scanResult.Items.length === 0) {
+          return { success: false, error: 'Report not found' };
+        }
+        // Use the scanned result
+        const report = unmarshall(scanResult.Items[0]);
+        return await generateHtmlFromReport(report);
+      } catch (scanError) {
+        console.error('Failed to scan for report:', scanError);
+        return { success: false, error: 'Report not found' };
+      }
     }
 
     const report = unmarshall(result.Item);
-
-    // If report has S3 URL, fetch from S3
-    if (report.report_html_url) {
-      console.log(`Fetching HTML from S3: ${report.report_html_url}`);
-
-      try {
-        // Parse S3 URL to get bucket and key
-        const url = new URL(report.report_html_url);
-        const bucket = url.hostname.split('.')[0];
-        const key = url.pathname.substring(1); // Remove leading slash
-
-        const s3Command = new GetObjectCommand({
-          Bucket: bucket,
-          Key: key
-        });
-
-        const s3Result = await s3Client.send(s3Command);
-        const html = await s3Result.Body.transformToString();
-
-        console.log(`✅ Retrieved HTML from S3 for report ${reportId}`);
-        return { success: true, html };
-      } catch (s3Error) {
-        console.error('❌ Error fetching from S3:', s3Error.message);
-        // Fall through to check for inline HTML
-      }
-    }
-
-    // Fall back to inline HTML if available
-    if (report.report_html) {
-      console.log(`✅ Retrieved inline HTML for report ${reportId}`);
-      return { success: true, html: report.report_html };
-    }
-
-    // Generate HTML from extracted_data if available
-    if (report.extracted_data) {
-      console.log(`📝 Generating HTML from extracted data for report ${reportId}`);
-
-      let extractedData;
-      try {
-        extractedData = typeof report.extracted_data === 'string'
-          ? JSON.parse(report.extracted_data)
-          : report.extracted_data;
-      } catch (parseError) {
-        console.error('Failed to parse extracted_data:', parseError);
-        return { success: false, error: 'Invalid extracted data format' };
-      }
-
-      const html = generateReportHTML(report, extractedData);
-      return { success: true, html };
-    }
-
-    return { success: false, error: 'Report HTML not found' };
+    return await generateHtmlFromReport(report);
   } catch (error) {
     console.error('❌ Error fetching report HTML:', error.message);
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Helper function to generate HTML from a report object
+ */
+async function generateHtmlFromReport(report) {
+  // If report has S3 URL, fetch from S3
+  if (report.report_html_url) {
+    console.log(`Fetching HTML from S3: ${report.report_html_url}`);
+
+    try {
+      // Parse S3 URL to get bucket and key
+      const url = new URL(report.report_html_url);
+      const bucket = url.hostname.split('.')[0];
+      const key = url.pathname.substring(1); // Remove leading slash
+
+      const s3Command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key
+      });
+
+      const s3Result = await s3Client.send(s3Command);
+      const html = await s3Result.Body.transformToString();
+
+      console.log(`✅ Retrieved HTML from S3 for report ${report.report_id}`);
+      return { success: true, html };
+    } catch (s3Error) {
+      console.error('❌ Error fetching from S3:', s3Error.message);
+      // Fall through to check for inline HTML
+    }
+  }
+
+  // Fall back to inline HTML if available
+  if (report.report_html) {
+    console.log(`✅ Retrieved inline HTML for report ${report.report_id}`);
+    return { success: true, html: report.report_html };
+  }
+
+  // Generate HTML from transcript_data if available (new format)
+  if (report.transcript_data) {
+    console.log(`📝 Generating HTML from transcript data for report ${report.report_id}`);
+
+    // Create extracted data structure from transcript
+    let extractedData = {
+      work_completed: [],
+      work_in_progress: [],
+      issues: [],
+      vendors: [],
+      additional_personnel: [],
+      ambiguities: []
+    };
+
+    // Try to parse transcript_data if it's a string
+    let transcriptData = report.transcript_data;
+    if (typeof transcriptData === 'string') {
+      try {
+        transcriptData = JSON.parse(transcriptData);
+      } catch (e) {
+        console.warn('Could not parse transcript_data as JSON');
+      }
+    }
+
+    const html = generateReportHTML(report, extractedData);
+    return { success: true, html };
+  }
+
+  // Generate HTML from extracted_data if available (legacy format)
+  if (report.extracted_data) {
+    console.log(`📝 Generating HTML from extracted data for report ${report.report_id}`);
+
+    let extractedData;
+    try {
+      extractedData = typeof report.extracted_data === 'string'
+        ? JSON.parse(report.extracted_data)
+        : report.extracted_data;
+    } catch (parseError) {
+      console.error('Failed to parse extracted_data:', parseError);
+      return { success: false, error: 'Invalid extracted data format' };
+    }
+
+    const html = generateReportHTML(report, extractedData);
+    return { success: true, html };
+  }
+
+  return { success: false, error: 'Report HTML not found - no transcript or extracted data available' };
 }
 
 /**
