@@ -301,7 +301,12 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     try {
       // Open HTML report served directly by API
       const reportDate = new Date().toISOString().split('T')[0];
-      const url = `${API_BASE_URL}/reports/${lastReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
+      // CRITICAL: URL-encode report ID to handle special characters like # in IDs
+      const encodedReportId = encodeURIComponent(lastReportId);
+      const url = `${API_BASE_URL}/reports/${encodedReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
+      console.log('🔑 Opening report ID (raw):', lastReportId);
+      console.log('🔑 Opening report ID (encoded):', encodedReportId);
+      console.log('📡 Opening URL:', url);
       window.open(url, '_blank');
     } catch (err) {
       console.error('Error opening report:', err);

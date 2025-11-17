@@ -2454,7 +2454,11 @@ exports.handler = async (event) => {
 
     // GET /api/reports/:reportId/html
     if (path.match(/\/reports\/[^/]+\/html$/) && method === 'GET') {
-      const reportId = path.split('/')[path.split('/').length - 2];
+      // CRITICAL: Decode URL-encoded report ID to handle special characters like # in IDs
+      const encodedReportId = path.split('/')[path.split('/').length - 2];
+      const reportId = decodeURIComponent(encodedReportId);
+      console.log('🔑 Report ID (encoded from URL):', encodedReportId);
+      console.log('🔑 Report ID (decoded):', reportId);
       const queryParams = event.queryStringParameters || {};
       const projectId = queryParams.projectId;
       const reportDate = queryParams.reportDate;

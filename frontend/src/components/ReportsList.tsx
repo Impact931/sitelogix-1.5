@@ -251,8 +251,12 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
       // Add cache-busting timestamp to force fresh fetch
       const cacheBuster = `_cb=${Date.now()}`;
-      const url = `${API_BASE_URL}/reports/${report.report_id}/html?projectId=${report.project_id}&reportDate=${report.report_date}&${cacheBuster}`;
+      // CRITICAL: URL-encode report_id to handle special characters like # in IDs
+      const encodedReportId = encodeURIComponent(report.report_id);
+      const url = `${API_BASE_URL}/reports/${encodedReportId}/html?projectId=${report.project_id}&reportDate=${report.report_date}&${cacheBuster}`;
       console.log('📡 Fetching from URL:', url);
+      console.log('🔑 Report ID (raw):', report.report_id);
+      console.log('🔑 Report ID (encoded):', encodedReportId);
 
       // SIMPLE FETCH - no CORS options to avoid preflight/credentials mismatch
       const response = await fetch(url);
