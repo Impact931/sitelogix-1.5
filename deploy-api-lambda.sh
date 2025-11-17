@@ -110,11 +110,26 @@ rm -f $PACKAGE_FILE
 # Copy service files to functions directory for flat structure
 cp ../services/*.js . 2>/dev/null || true
 
-# Create zip with flat structure
-zip -r $PACKAGE_FILE *.js node_modules/ > /dev/null 2>&1
+# Copy compiled TypeScript services (dist folder) for analytics
+echo "Including compiled TypeScript services..."
+if [ -d "../../dist/services" ]; then
+  mkdir -p dist/services
+  cp ../../dist/services/*.js dist/services/
+  echo "✅ Copied compiled TypeScript services"
+else
+  echo "⚠️  No compiled services found - analytics will be limited"
+fi
+
+# Create zip with flat structure and dist folder
+if [ -d "dist" ]; then
+  zip -r $PACKAGE_FILE *.js node_modules/ dist/ > /dev/null 2>&1
+else
+  zip -r $PACKAGE_FILE *.js node_modules/ > /dev/null 2>&1
+fi
 
 # Clean up copied service files
 rm -f personnelService.js payrollService.js payrollExtractionService.js 2>/dev/null || true
+rm -rf dist/ 2>/dev/null || true
 
 echo "✅ Deployment package created: $(du -h $PACKAGE_FILE | cut -f1)"
 echo ""
