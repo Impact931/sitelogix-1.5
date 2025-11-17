@@ -28,21 +28,6 @@ export const useElevenLabsConversation = ({
 
   const startConversation = useCallback(async () => {
     try {
-      // CRITICAL: Unlock audio playback FIRST using user interaction
-      // Create and play a silent audio element to unlock browser audio restrictions
-      console.log('🔓 Unlocking browser audio with user interaction...');
-      const silentAudio = new Audio();
-      silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      silentAudio.volume = 0.01; // Very quiet
-      try {
-        await silentAudio.play();
-        console.log('✅ Browser audio unlocked successfully');
-        silentAudio.pause();
-        silentAudio.remove();
-      } catch (unlockError) {
-        console.warn('⚠️ Could not unlock audio with silent clip:', unlockError);
-      }
-
       // Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -131,21 +116,6 @@ export const useElevenLabsConversation = ({
       await conversation.setVolume({ volume: 1.0 });
       console.log('✅ Volume set successfully');
 
-      // Unlock audio context for iOS/mobile browsers
-      console.log('🔓 Unlocking audio context for mobile...');
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        try {
-          const audioCtx = new AudioContext();
-          if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-            console.log('✅ Audio context unlocked');
-          }
-        } catch (ctxError) {
-          console.warn('⚠️ Audio context unlock failed:', ctxError);
-        }
-      }
-
       // Set audio output to default device (for phones, computers, any device)
       // We use "default" deviceId to always route to the system's default audio output
       try {
@@ -154,153 +124,55 @@ export const useElevenLabsConversation = ({
 
         console.log('🔊 Available audio output devices:', audioOutputs.map(d => ({
           deviceId: d.deviceId,
-          label: d.label,
-          groupId: d.groupId
+          label: d.label
         })));
 
         // ALWAYS use "default" deviceId - this routes to system default output
         const defaultDeviceId = 'default';
         console.log('🎯 Using audio output: "default" (system default device)');
 
-        // Function to set sink ID and unmute audio elements
-        const setupAudioElement = async (audioElement: HTMLAudioElement) => {
-          console.log('🔧 Setting up audio element:', {
-            muted: audioElement.muted,
-            volume: audioElement.volume,
-            paused: audioElement.paused,
-            src: audioElement.src,
-            srcObject: audioElement.srcObject,
-            readyState: audioElement.readyState,
-            networkState: audioElement.networkState
-          });
-
-          // CRITICAL: Unmute and set volume
-          audioElement.muted = false;
-          audioElement.volume = 1.0;
-
-          // Add autoplay attribute
-          audioElement.autoplay = true;
-
-          // Set output device first
+        // Function to set sink ID on audio elements
+        const setAudioOutputDevice = async (audioElement: HTMLAudioElement) => {
           if (typeof audioElement.setSinkId === 'function') {
             try {
               await audioElement.setSinkId(defaultDeviceId);
-              console.log('✅ Audio routed to default device');
+              console.log('✅ Audio routed to default device:', audioElement);
+              return true;
             } catch (sinkError) {
-              console.warn('⚠️ Could not set sink ID:', sinkError);
+              console.warn('⚠️  Could not set sink ID:', sinkError);
+              return false;
             }
-          } else {
-            console.warn('⚠️ setSinkId not supported in this browser');
           }
-
-          // AGGRESSIVE: Attempt to play regardless of state
-          const attemptPlay = async (reason: string) => {
-            try {
-              console.log(`🎵 [${reason}] Attempting to play audio element...`, {
-                paused: audioElement.paused,
-                muted: audioElement.muted,
-                src: audioElement.src,
-                srcObject: audioElement.srcObject,
-                readyState: audioElement.readyState
-              });
-
-              if (audioElement.paused) {
-                await audioElement.play();
-                console.log('✅ Audio element playing successfully!');
-              } else {
-                console.log('ℹ️ Audio already playing');
-              }
-            } catch (playError) {
-              console.warn(`⚠️ Could not play (${reason}):`, playError);
-            }
-          };
-
-          // Try to play immediately
-          await attemptPlay('initial-setup');
-
-          // Add ALL possible event listeners
-          const events = ['canplay', 'canplaythrough', 'loadeddata', 'loadedmetadata', 'playing', 'play'];
-          events.forEach(eventName => {
-            audioElement.addEventListener(eventName, () => attemptPlay(eventName));
-          });
-
-          // Watch for srcObject changes (MediaStream)
-          let lastSrcObject = audioElement.srcObject;
-          const checkSrcObject = async () => {
-            if (audioElement.srcObject && audioElement.srcObject !== lastSrcObject) {
-              console.log('🎵 Audio srcObject changed (MediaStream detected)');
-              lastSrcObject = audioElement.srcObject;
-              await attemptPlay('srcObject-change');
-            }
-          };
-
-          // Watch for src attribute changes
-          const srcObserver = new MutationObserver(async () => {
-            if (audioElement.src) {
-              console.log('🎵 Audio src attribute changed to:', audioElement.src);
-              await attemptPlay('src-change');
-            }
-            await checkSrcObject();
-          });
-          srcObserver.observe(audioElement, { attributes: true, attributeFilter: ['src'] });
-
-          // ULTRA-AGGRESSIVE: Poll every 500ms to check and force play
-          const pollingInterval = setInterval(async () => {
-            await checkSrcObject();
-
-            // If audio has source but is paused, try to play
-            if ((audioElement.src || audioElement.srcObject) && audioElement.paused && !audioElement.muted) {
-              await attemptPlay('polling-check');
-            }
-          }, 500);
-
-          // Store interval ID for cleanup
-          (audioElement as any)._playPollingInterval = pollingInterval;
-
-          return true;
+          return false;
         };
 
-        // Aggressive audio element detection with multiple retries
-        const findAndSetupAudioElements = async (attempt: number = 1, maxAttempts: number = 10): Promise<boolean> => {
-          const audioElements = document.querySelectorAll('audio');
-          console.log(`🔍 Attempt ${attempt}/${maxAttempts}: Found ${audioElements.length} audio elements`);
+        // Method 1: Try to set on existing audio elements
+        let audioElements = document.querySelectorAll('audio');
+        console.log(`Found ${audioElements.length} audio elements on page initially`);
 
-          if (audioElements.length > 0) {
-            for (const audioEl of audioElements) {
-              await setupAudioElement(audioEl as HTMLAudioElement);
-            }
-            return true;
+        for (const audioEl of audioElements) {
+          await setAudioOutputDevice(audioEl as HTMLAudioElement);
+        }
+
+        // Method 2: Watch for new audio elements (ElevenLabs creates them dynamically)
+        // Check again after a short delay
+        setTimeout(async () => {
+          console.log('🔍 Checking for audio elements again after 500ms...');
+          audioElements = document.querySelectorAll('audio');
+          console.log(`Found ${audioElements.length} audio elements on page now`);
+
+          for (const audioEl of audioElements) {
+            await setAudioOutputDevice(audioEl as HTMLAudioElement);
           }
+        }, 500);
 
-          if (attempt < maxAttempts) {
-            console.log(`⏳ Waiting 200ms before retry ${attempt + 1}...`);
-            // Use Promise-based delay instead of setTimeout
-            await new Promise(resolve => setTimeout(resolve, 200));
-            return findAndSetupAudioElements(attempt + 1, maxAttempts);
-          } else {
-            console.warn('⚠️ No audio elements found after all retries');
-            return false;
-          }
-        };
-
-        // Start aggressive detection
-        await findAndSetupAudioElements();
-
-        // Set up a MutationObserver to catch audio elements as they're added
+        // Method 3: Set up a MutationObserver to catch audio elements as they're added
         const observer = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
             mutation.addedNodes.forEach((node) => {
               if (node.nodeName === 'AUDIO') {
-                console.log('🎤 NEW AUDIO ELEMENT DETECTED!');
-                setupAudioElement(node as HTMLAudioElement);
-              }
-              // Also check children
-              if (node instanceof HTMLElement) {
-                const childAudioElements = node.querySelectorAll('audio');
-                if (childAudioElements.length > 0) {
-                  console.log(`🎤 Found ${childAudioElements.length} audio elements in new node`);
-                  childAudioElements.forEach(audioEl => setupAudioElement(audioEl as HTMLAudioElement));
-                }
+                console.log('🎤 New audio element detected, setting output device...');
+                setAudioOutputDevice(node as HTMLAudioElement);
               }
             });
           });
@@ -312,13 +184,11 @@ export const useElevenLabsConversation = ({
           subtree: true
         });
 
-        console.log('👀 MutationObserver active - watching for audio elements');
-
         // Store observer reference to clean up later
         (conversationRef.current as any)._audioObserver = observer;
 
       } catch (deviceError) {
-        console.error('❌ Could not set audio output device:', deviceError);
+        console.warn('Could not set audio output device:', deviceError);
       }
 
     } catch (error) {
@@ -339,16 +209,6 @@ export const useElevenLabsConversation = ({
           observer.disconnect();
           console.log('🔇 Audio observer disconnected');
         }
-
-        // Clean up all audio element polling intervals
-        const audioElements = document.querySelectorAll('audio');
-        audioElements.forEach((audioEl) => {
-          const interval = (audioEl as any)._playPollingInterval;
-          if (interval) {
-            clearInterval(interval);
-            console.log('🔇 Audio polling interval cleared');
-          }
-        });
 
         await conversationRef.current.endSession();
         conversationRef.current = null;
