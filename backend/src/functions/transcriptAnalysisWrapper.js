@@ -145,7 +145,7 @@ async function processTranscriptAnalytics(transcript, context) {
     console.log('🤖 Analyzing transcript with Claude 3.5 Sonnet...');
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: 8000,
       temperature: 0,
       messages: [
@@ -177,7 +177,14 @@ async function processTranscriptAnalytics(transcript, context) {
     console.log(`   - Constraints: ${extractedData.constraints?.length || 0}`);
     console.log(`   - Vendors: ${extractedData.vendors?.length || 0}`);
 
-    // Update the report in DynamoDB with extracted data
+    // Calculate summary statistics from extracted data
+    const totalPersonnel = extractedData.timeSummary?.totalPersonnelCount || 0;
+    const totalRegularHours = extractedData.timeSummary?.totalRegularHours || 0;
+    const totalOvertimeHours = extractedData.timeSummary?.totalOvertimeHours || 0;
+
+    console.log(`📊 Summary: ${totalPersonnel} personnel, ${totalRegularHours} regular hrs, ${totalOvertimeHours} OT hrs`);
+
+    // Update the report in DynamoDB with extracted data AND summary fields
     const updateCommand = new UpdateItemCommand({
       TableName: 'sitelogix-reports',
       Key: marshall({
@@ -187,12 +194,18 @@ async function processTranscriptAnalytics(transcript, context) {
       UpdateExpression: `
         SET extracted_data = :extractedData,
             analytics_processed_at = :processedAt,
-            analytics_status = :status
+            analytics_status = :status,
+            total_personnel = :totalPersonnel,
+            total_regular_hours = :totalRegularHours,
+            total_overtime_hours = :totalOvertimeHours
       `,
       ExpressionAttributeValues: marshall({
         ':extractedData': extractedData,
         ':processedAt': new Date().toISOString(),
-        ':status': 'completed'
+        ':status': 'completed',
+        ':totalPersonnel': totalPersonnel,
+        ':totalRegularHours': totalRegularHours,
+        ':totalOvertimeHours': totalOvertimeHours
       })
     });
 

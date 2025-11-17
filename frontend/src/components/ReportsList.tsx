@@ -12,12 +12,41 @@ interface Project {
 }
 
 interface ExtractedData {
+  // New format from Claude 4.5 Sonnet extraction
+  personnel?: Array<{
+    fullName: string;
+    goByName?: string;
+    position?: string;
+    hoursWorked?: number;
+    overtimeHours?: number;
+  }>;
+  workLogs?: Array<{
+    teamId: string;
+    taskDescription: string;
+    personnelCount?: number;
+  }>;
+  constraints?: Array<{
+    category: string;
+    severity: string;
+    title: string;
+    description: string;
+    status: string;
+  }>;
+  vendors?: Array<{
+    companyName: string;
+    materialsDelivered?: string;
+    deliveryTime?: string;
+  }>;
+  timeSummary?: {
+    totalPersonnelCount?: number;
+    totalRegularHours?: number;
+    totalOvertimeHours?: number;
+  };
+  // Legacy format (fallback)
   work_completed?: string[];
   work_in_progress?: string[];
   issues?: string[];
-  vendors?: any[];
   additional_personnel?: any[];
-  ambiguities?: string[];
 }
 
 interface Report {
@@ -429,36 +458,36 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
                       {/* Extracted Data Highlights */}
                       {extracted && (
                         <div className="space-y-2 mb-3">
-                          {/* Work Completed */}
-                          {extracted.work_completed && extracted.work_completed.length > 0 && (
+                          {/* Work Completed - use workLogs from new format or work_completed from old */}
+                          {((extracted.workLogs && extracted.workLogs.length > 0) || (extracted.work_completed && extracted.work_completed.length > 0)) && (
                             <div className="bg-green-500/10 rounded-lg p-2 border border-green-500/20">
                               <div className="flex items-center space-x-1 mb-1">
                                 <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                 </svg>
                                 <span className="text-green-400 font-semibold text-xs">
-                                  {extracted.work_completed.length} tasks completed
+                                  {extracted.workLogs ? `${extracted.workLogs.length} tasks completed` : `${extracted.work_completed?.length || 0} tasks completed`}
                                 </span>
                               </div>
                               <p className="text-gray-300 text-xs line-clamp-2">
-                                {extracted.work_completed[0]}
+                                {extracted.workLogs ? extracted.workLogs[0]?.taskDescription : extracted.work_completed?.[0]}
                               </p>
                             </div>
                           )}
 
-                          {/* Issues */}
-                          {extracted.issues && extracted.issues.length > 0 && (
+                          {/* Issues - use constraints from new format or issues from old */}
+                          {((extracted.constraints && extracted.constraints.length > 0) || (extracted.issues && extracted.issues.length > 0)) && (
                             <div className="bg-red-500/10 rounded-lg p-2 border border-red-500/20">
                               <div className="flex items-center space-x-1 mb-1">
                                 <svg className="w-3 h-3 text-red-400" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                                 </svg>
                                 <span className="text-red-400 font-semibold text-xs">
-                                  {extracted.issues.length} issue{extracted.issues.length !== 1 ? 's' : ''}
+                                  {extracted.constraints ? `${extracted.constraints.length} constraint${extracted.constraints.length !== 1 ? 's' : ''}` : `${extracted.issues?.length || 0} issue${extracted.issues?.length !== 1 ? 's' : ''}`}
                                 </span>
                               </div>
                               <p className="text-gray-300 text-xs line-clamp-2">
-                                {extracted.issues[0]}
+                                {extracted.constraints ? extracted.constraints[0]?.description : extracted.issues?.[0]}
                               </p>
                             </div>
                           )}
@@ -474,12 +503,12 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
                             {extracted.vendors && extracted.vendors.length > 0 && (
                               <div className="bg-purple-500/10 rounded px-2 py-1 border border-purple-500/20">
                                 <p className="text-purple-400 text-xs font-semibold">{extracted.vendors.length}</p>
-                                <p className="text-gray-400 text-[10px]">vendors</p>
+                                <p className="text-gray-400 text-[10px]">vendor{extracted.vendors.length !== 1 ? 's' : ''}</p>
                               </div>
                             )}
-                            {extracted.additional_personnel && extracted.additional_personnel.length > 0 && (
+                            {((extracted.personnel && extracted.personnel.length > 0) || (extracted.additional_personnel && extracted.additional_personnel.length > 0)) && (
                               <div className="bg-gold/10 rounded px-2 py-1 border border-gold/20">
-                                <p className="text-gold text-xs font-semibold">{extracted.additional_personnel.length}</p>
+                                <p className="text-gold text-xs font-semibold">{extracted.personnel?.length || extracted.additional_personnel?.length || 0}</p>
                                 <p className="text-gray-400 text-[10px]">personnel</p>
                               </div>
                             )}
