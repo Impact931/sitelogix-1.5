@@ -371,6 +371,7 @@ class PersonnelService {
             'lastName',
             'middleName',
             'preferredName',
+            'employeeNumber',
             'email',
             'phone',
             'hireDate',

@@ -1014,39 +1014,49 @@ async function getPersonnelById(personnelId) {
 }
 
 /**
- * Create new personnel record
+ * Create new personnel record using personnelService
  */
 async function createPersonnel(data) {
   try {
-    console.log('➕ Creating new personnel...');
+    console.log('➕ Creating new personnel via personnelService...');
 
-    const personnelId = uuidv4();
-    const timestamp = new Date().toISOString();
-
-    const item = {
-      PK: `PERSONNEL#${personnelId}`,
-      SK: 'METADATA',
-      personnel_id: personnelId,
-      full_name: data.full_name,
-      project_id: data.project_id || null,
-      role: data.role || '',
-      hourly_rate: data.hourly_rate || 0,
-      phone: data.phone || '',
-      email: data.email || '',
-      status: data.status || 'active',
-      created_at: timestamp,
-      updated_at: timestamp
+    // Map API field names to personnelService field names
+    const employeeData = {
+      firstName: data.firstName || data.first_name,
+      lastName: data.lastName || data.last_name,
+      preferredName: data.preferredName || data.preferred_name,
+      employeeNumber: data.employeeNumber || data.employee_number,
+      email: data.email,
+      phone: data.phone,
+      jobTitle: data.position || data.role,
+      hourlyRate: data.hourlyRate || data.hourly_rate,
+      overtimeRate: data.overtimeRate || data.overtime_rate,
+      hireDate: data.hireDate || data.hire_date || new Date().toISOString().split('T')[0],
+      employmentStatus: 'active'
     };
 
-    const command = new PutItemCommand({
-      TableName: 'sitelogix-personnel',
-      Item: marshall(item)
-    });
+    // Create employee using personnelService (has removeUndefinedValues fix)
+    const employee = await personnelService.createEmployee(employeeData);
 
-    await dynamoClient.send(command);
-
-    console.log(`✅ Created personnel ${personnelId}`);
-    return { success: true, personnel: item };
+    console.log(`✅ Created personnel ${employee.personId} via personnelService`);
+    return {
+      success: true,
+      personnel: {
+        personnel_id: employee.personId,
+        employee_number: employee.employeeNumber,
+        first_name: employee.firstName,
+        last_name: employee.lastName,
+        full_name: employee.fullName,
+        preferred_name: employee.preferredName,
+        email: employee.email,
+        phone: employee.phone,
+        role: employee.jobTitle,
+        hourly_rate: employee.hourlyRate,
+        overtime_rate: employee.overtimeRate,
+        status: employee.employmentStatus,
+        created_at: employee.createdAt
+      }
+    };
   } catch (error) {
     console.error('❌ Error creating personnel:', error);
     return { success: false, error: error.message };
