@@ -1384,73 +1384,75 @@ async function saveReport(reportData) {
     await dynamoClient.send(dynamoCommand);
     console.log('✅ Report entry created in DynamoDB');
 
-    // Trigger payroll extraction and full analytics asynchronously (don't block report save)
-    setImmediate(async () => {
-      try {
-        console.log('💼 Triggering payroll extraction for report:', reportId);
+    // Process payroll extraction and full analytics synchronously (must complete before Lambda terminates)
+    // The report is already saved, so errors here are non-fatal but we need to await completion
+    try {
+      console.log('💼 Starting payroll extraction for report:', reportId);
 
-        // Convert transcript object to text if needed
-        let transcriptText = transcript;
-        if (typeof transcript === 'object') {
-          transcriptText = JSON.stringify(transcript);
-        }
-
-        await processTranscriptForPayroll(transcriptText, {
-          reportId,
-          projectId,
-          projectName,
-          reportDate,
-          managerId
-        });
-      } catch (payrollError) {
-        console.error('⚠️ Payroll extraction failed (non-fatal):', payrollError.message);
-        // Don't fail the report save if payroll extraction fails
+      // Convert transcript object to text if needed
+      let transcriptText = transcript;
+      if (typeof transcript === 'object') {
+        transcriptText = JSON.stringify(transcript);
       }
 
-      // Trigger full transcript analytics extraction
-      try {
-        console.log('📊 Triggering full analytics extraction for report:', reportId);
+      await processTranscriptForPayroll(transcriptText, {
+        reportId,
+        projectId,
+        projectName,
+        reportDate,
+        managerId
+      });
+      console.log('✅ Payroll extraction complete');
+    } catch (payrollError) {
+      console.error('⚠️ Payroll extraction failed (non-fatal):', payrollError.message);
+      // Don't fail the report save if payroll extraction fails
+    }
 
-        const analyticsResult = await processTranscriptAnalytics(transcript, {
-          reportId,
-          projectId,
-          projectName,
-          projectLocation,
-          managerName,
-          reportDate
-        });
+    // Trigger full transcript analytics extraction
+    try {
+      console.log('📊 Starting full analytics extraction for report:', reportId);
 
-        console.log('✅ Full analytics extraction complete');
+      const analyticsResult = await processTranscriptAnalytics(transcript, {
+        reportId,
+        projectId,
+        projectName,
+        projectLocation,
+        managerName,
+        reportDate
+      });
 
-        // Log personnel hours to Google Sheets if extraction was successful
-        if (analyticsResult.success && analyticsResult.extractedData) {
-          try {
-            const sheetsResult = await logPersonnelHoursToSheet(
-              {
-                report_id: reportId,
-                project_id: projectId,
-                project_name: projectName,
-                manager_name: managerName,
-                report_date: reportDate
-              },
-              analyticsResult.extractedData
-            );
+      console.log('✅ Full analytics extraction complete');
 
-            if (sheetsResult.success) {
-              console.log('✅ Personnel hours logged to Google Sheets:', sheetsResult.message);
-            } else {
-              console.warn('⚠️ Failed to log hours to Google Sheets:', sheetsResult.error);
-            }
-          } catch (sheetsError) {
-            console.error('⚠️ Google Sheets logging error (non-fatal):', sheetsError.message);
-            // Don't fail the report if Google Sheets logging fails
+      // Log personnel hours to Google Sheets if extraction was successful
+      if (analyticsResult.success && analyticsResult.extractedData) {
+        try {
+          console.log('📊 [SHEETS] Starting Google Sheets logging...');
+          const sheetsResult = await logPersonnelHoursToSheet(
+            {
+              report_id: reportId,
+              project_id: projectId,
+              project_name: projectName,
+              manager_name: managerName,
+              report_date: reportDate
+            },
+            analyticsResult.extractedData
+          );
+
+          if (sheetsResult.success) {
+            console.log('✅ Personnel hours logged to Google Sheets:', sheetsResult.message);
+          } else {
+            console.warn('⚠️ Failed to log hours to Google Sheets:', sheetsResult.error);
           }
+        } catch (sheetsError) {
+          console.error('⚠️ Google Sheets logging error (non-fatal):', sheetsError.message);
+          // Don't fail the report if Google Sheets logging fails
         }
-      } catch (analyticsError) {
-        console.error('⚠️ Analytics extraction failed (non-fatal):', analyticsError.message);
-        // Don't fail the report save if analytics extraction fails
       }
-    });
+    } catch (analyticsError) {
+      console.error('⚠️ Analytics extraction failed (non-fatal):', analyticsError.message);
+      console.error('⚠️ Analytics error details:', analyticsError.stack);
+      // Don't fail the report save if analytics extraction fails
+    }
 
     return {
       success: true,
@@ -2579,12 +2581,15 @@ exports.handler = async (event) => {
 
         // Extract token and verify user role
         const token = authHeader.replace('Bearer ', '');
-        let userRole;
+        let userRole, userId;
         try {
           // Decode JWT to get user info (simple base64 decode for now)
           const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
           userRole = payload.role;
+          userId = payload.userId;
+          console.log(`🗑️ Delete request from user: ${userId}, role: ${userRole}`);
         } catch (err) {
+          console.error('❌ Invalid token format:', err.message);
           return {
             statusCode: 401,
             headers,
@@ -2593,7 +2598,8 @@ exports.handler = async (event) => {
         }
 
         // Check if user is admin
-        if (userRole !== 'admin') {
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+          console.warn(`⚠️ Forbidden: User ${userId} (role: ${userRole}) attempted to delete report`);
           return {
             statusCode: 403,
             headers,
@@ -2601,34 +2607,68 @@ exports.handler = async (event) => {
           };
         }
 
+        // Validate required parameters
+        console.log(`🗑️ Delete parameters: reportId=${reportId}, projectId=${projectId}, reportDate=${reportDate}`);
+
         if (!projectId || !reportDate) {
+          console.error('❌ Missing required parameters:', { projectId, reportDate });
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ success: false, error: 'Missing projectId or reportDate' })
+            body: JSON.stringify({
+              success: false,
+              error: 'Missing required parameters',
+              details: {
+                projectId: projectId ? 'present' : 'missing',
+                reportDate: reportDate ? 'present' : 'missing'
+              }
+            })
           };
         }
+
+        // Validate date format (basic check)
+        if (!/^\d{4}-\d{2}-\d{2}/.test(reportDate)) {
+          console.error('❌ Invalid reportDate format:', reportDate);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ success: false, error: 'Invalid reportDate format. Expected YYYY-MM-DD' })
+          };
+        }
+
+        // Trim parameters to handle whitespace
+        const trimmedProjectId = projectId.trim();
+        const trimmedReportDate = reportDate.trim();
+        const trimmedReportId = reportId.trim();
+
+        console.log(`🗑️ Attempting to delete report: PK=PROJECT#${trimmedProjectId}, SK=REPORT#${trimmedReportDate}#${trimmedReportId}`);
 
         // Delete from DynamoDB
         const deleteCommand = new DeleteItemCommand({
           TableName: 'sitelogix-reports',
           Key: marshall({
-            PK: `PROJECT#${projectId}`,
-            SK: `REPORT#${reportDate}#${reportId}`
+            PK: `PROJECT#${trimmedProjectId}`,
+            SK: `REPORT#${trimmedReportDate}#${trimmedReportId}`
           })
         });
 
-        await dynamoClient.send(deleteCommand);
+        const deleteResult = await dynamoClient.send(deleteCommand);
+        console.log('🗑️ DynamoDB delete response:', JSON.stringify(deleteResult, null, 2));
 
-        console.log(`🗑️ Deleted report ${reportId} by admin user`);
+        console.log(`✅ Successfully deleted report ${trimmedReportId} by admin user ${userId}`);
 
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ success: true, message: 'Report deleted successfully' })
+          body: JSON.stringify({
+            success: true,
+            message: 'Report deleted successfully',
+            reportId: trimmedReportId
+          })
         };
       } catch (error) {
-        console.error('Error deleting report:', error);
+        console.error('❌ Error deleting report:', error);
+        console.error('❌ Error stack:', error.stack);
         return {
           statusCode: 500,
           headers,

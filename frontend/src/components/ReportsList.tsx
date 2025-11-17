@@ -258,14 +258,40 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       return;
     }
 
+    console.log('🗑️ Deleting report:', {
+      reportId: report.report_id,
+      projectId: report.project_id,
+      reportDate: report.report_date,
+      projectName: report.project_name
+    });
+
     try {
       const accessToken = localStorage.getItem('accessToken');
       if (!accessToken) {
+        console.error('❌ Delete failed: No access token found');
         setError('Not authenticated');
         return;
       }
 
-      const url = `${API_BASE_URL}/reports/${report.report_id}?projectId=${report.project_id}&reportDate=${report.report_date}`;
+      // Validate required fields
+      if (!report.project_id) {
+        console.error('❌ Delete failed: Missing project_id');
+        setError('Cannot delete report: Missing project ID');
+        return;
+      }
+      if (!report.report_date) {
+        console.error('❌ Delete failed: Missing report_date');
+        setError('Cannot delete report: Missing report date');
+        return;
+      }
+
+      // URL encode query parameters to handle special characters
+      const encodedProjectId = encodeURIComponent(report.project_id);
+      const encodedReportDate = encodeURIComponent(report.report_date);
+      const url = `${API_BASE_URL}/reports/${report.report_id}?projectId=${encodedProjectId}&reportDate=${encodedReportDate}`;
+
+      console.log('🗑️ DELETE request URL:', url);
+
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
@@ -273,16 +299,39 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
         },
       });
 
+      console.log('🗑️ DELETE response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete report');
+        let errorMessage = `Failed to delete report (HTTP ${response.status})`;
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          console.error('❌ Delete failed with error:', errorData);
+        } catch (parseError) {
+          console.error('❌ Delete failed and response was not JSON:', parseError);
+          // If response body is not JSON, use status-based error
+          if (response.status === 403) {
+            errorMessage = 'Permission denied: Admin access required';
+          } else if (response.status === 404) {
+            errorMessage = 'Report not found';
+          } else if (response.status === 401) {
+            errorMessage = 'Authentication failed: Please log in again';
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
-      // Remove report from local state
+      // Parse success response
+      const result = await response.json();
+      console.log('✅ Delete successful:', result);
+
+      // Remove report from local state only after successful deletion
       setReports(prevReports => prevReports.filter(r => r.report_id !== report.report_id));
-      console.log('Report deleted successfully');
+      console.log('✅ Report removed from UI');
     } catch (err) {
-      console.error('Error deleting report:', err);
+      console.error('❌ Error deleting report:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete report');
     }
   };
