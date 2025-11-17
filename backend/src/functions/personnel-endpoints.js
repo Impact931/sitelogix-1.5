@@ -57,20 +57,35 @@ async function handleMatchOrCreateEmployee(event) {
 async function handleCreateEmployee(event) {
   try {
     const body = JSON.parse(event.body || '{}');
-    const {
-      firstName,
-      lastName,
-      employeeNumber,
-      email,
-      phone,
-      position,
-      projectId,
-      hourlyRate,
-      overtimeRate,
-      doubleTimeRate
-    } = body;
 
-    if (!firstName || !lastName) {
+    // Map camelCase to snake_case for DynamoDB
+    const fieldMapping = {
+      firstName: 'first_name',
+      lastName: 'last_name',
+      preferredName: 'preferred_name',
+      employeeNumber: 'employee_number',
+      jobTitle: 'position',
+      hourlyRate: 'hourly_rate',
+      overtimeRate: 'overtime_rate',
+      doubleTimeRate: 'double_time_rate',
+      projectId: 'project_id',
+      employmentStatus: 'employment_status',
+      hireDate: 'hire_date',
+      username: 'username',
+      password: 'password',
+      role: 'role'
+    };
+
+    // Convert body fields to snake_case
+    const employeeData = {};
+    Object.keys(body).forEach(key => {
+      const dbKey = fieldMapping[key] || key;
+      if (body[key] !== undefined && body[key] !== null) {
+        employeeData[dbKey] = body[key];
+      }
+    });
+
+    if (!employeeData.first_name || !employeeData.last_name) {
       return {
         statusCode: 400,
         body: {
@@ -81,20 +96,7 @@ async function handleCreateEmployee(event) {
       };
     }
 
-    console.log(`➕ Creating employee: ${firstName} ${lastName}`);
-
-    const employeeData = {
-      first_name: firstName,
-      last_name: lastName,
-      employee_number: employeeNumber,
-      email,
-      phone,
-      position,
-      project_id: projectId,
-      hourly_rate: hourlyRate,
-      overtime_rate: overtimeRate,
-      double_time_rate: doubleTimeRate
-    };
+    console.log(`➕ Creating employee: ${employeeData.first_name} ${employeeData.last_name}`);
 
     const personId = await personnelService.createEmployee(employeeData);
 
@@ -221,7 +223,8 @@ async function handleUpdateEmployee(event, employeeId) {
     const updates = {};
     const allowedFields = [
       'first_name',
-      'lastName',
+      'last_name',
+      'preferred_name',
       'employee_number',
       'email',
       'phone',
@@ -231,20 +234,31 @@ async function handleUpdateEmployee(event, employeeId) {
       'overtime_rate',
       'double_time_rate',
       'employment_status',
-      'needs_profile_completion'
+      'hire_date',
+      'needs_profile_completion',
+      'username',
+      'password',
+      'passwordHash',
+      'role'
     ];
 
     // Map camelCase to snake_case for DynamoDB
     const fieldMapping = {
       firstName: 'first_name',
       lastName: 'last_name',
+      preferredName: 'preferred_name',
       employeeNumber: 'employee_number',
+      jobTitle: 'position',
       hourlyRate: 'hourly_rate',
       overtimeRate: 'overtime_rate',
       doubleTimeRate: 'double_time_rate',
       projectId: 'project_id',
       employmentStatus: 'employment_status',
-      needsProfileCompletion: 'needs_profile_completion'
+      hireDate: 'hire_date',
+      needsProfileCompletion: 'needs_profile_completion',
+      username: 'username',
+      password: 'password',
+      role: 'role'
     };
 
     Object.keys(body).forEach(key => {

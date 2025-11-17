@@ -390,14 +390,14 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       {/* Add/Edit Modal */}
       {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="bg-blue-600 text-white px-6 py-4">
               <h3 className="text-xl font-bold">
                 {showAddModal ? 'Add Team Member' : 'Edit Team Member'}
               </h3>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               {/* Profile Information */}
               <div className="border-b pb-4">
                 <h4 className="font-semibold mb-3">Profile Information</h4>
@@ -569,22 +569,37 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setShowEditModal(false);
-                  }}
-                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={showAddModal ? handleSaveNew : handleSaveEdit}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Save
-                </button>
+              <div className="flex justify-between pt-4">
+                {showEditModal && selectedMember && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to permanently delete ${selectedMember.fullName}? This cannot be undone.`)) {
+                        handleDelete(selectedMember);
+                        setShowEditModal(false);
+                      }
+                    }}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                )}
+                <div className={`flex gap-3 ${showAddModal ? 'ml-auto' : ''}`}>
+                  <button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setShowEditModal(false);
+                    }}
+                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={showAddModal ? handleSaveNew : handleSaveEdit}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
           </div>
