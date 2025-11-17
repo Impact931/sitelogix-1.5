@@ -147,9 +147,12 @@ async function getGoogleSheetsClient() {
  */
 async function logPersonnelHoursToSheet(reportData, extractedData) {
   try {
-    console.log('📊 Logging personnel hours to Google Sheets...');
+    console.log('📊 [SHEETS] Starting Google Sheets logging...');
+    console.log(`📊 [SHEETS] Report ID: ${reportData.report_id}, Date: ${reportData.report_date}`);
 
+    console.log('📊 [SHEETS] Getting Google Sheets client...');
     const { client: sheets } = await getGoogleSheetsClient();
+    console.log('✅ [SHEETS] Google Sheets client obtained');
 
     // Hours log spreadsheet ID (from user's requirement)
     const HOURS_LOG_SPREADSHEET_ID = '1Slqb1pbhnByUo_PCNPUZ8e3lMBG710fHJNVKWl7hOHQ';
@@ -157,13 +160,16 @@ async function logPersonnelHoursToSheet(reportData, extractedData) {
 
     // Extract personnel data
     const personnel = extractedData?.personnel || [];
+    console.log(`📊 [SHEETS] Personnel count: ${personnel.length}`);
+
     if (!personnel || personnel.length === 0) {
-      console.log('⚠️  No personnel data to log');
+      console.log('⚠️  [SHEETS] No personnel data to log');
       return { success: true, message: 'No personnel data to log' };
     }
 
     // Prepare rows for each employee
-    const rows = personnel.map(person => {
+    console.log('📊 [SHEETS] Preparing rows for Google Sheets...');
+    const rows = personnel.map((person, index) => {
       const reportDate = reportData.report_date || new Date().toISOString().split('T')[0];
       const employeeNumber = person.employeeNumber || person.employeeId || '';
       const fullName = person.fullName || `${person.firstName || ''} ${person.lastName || ''}`.trim();
@@ -173,7 +179,7 @@ async function logPersonnelHoursToSheet(reportData, extractedData) {
       const overtimeHours = person.overtimeHours || 0;
       const totalHours = regularHours + overtimeHours;
 
-      return [
+      const row = [
         reportDate,        // DATE
         employeeNumber,    // EMPLOYEE NUMBER
         fullName,          // EMPLOYEE NAME
@@ -184,9 +190,13 @@ async function logPersonnelHoursToSheet(reportData, extractedData) {
         totalHours,        // TOTAL HOURS
         reportData.report_id || ''  // REPORT ID
       ];
+
+      console.log(`📊 [SHEETS] Row ${index + 1}: ${fullName}, ${regularHours}h + ${overtimeHours}h OT = ${totalHours}h`);
+      return row;
     });
 
     // Append rows to the sheet
+    console.log(`📊 [SHEETS] Appending ${rows.length} rows to Google Sheets...`);
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId: HOURS_LOG_SPREADSHEET_ID,
       range: `${SHEET_NAME}!A:I`,
@@ -196,14 +206,22 @@ async function logPersonnelHoursToSheet(reportData, extractedData) {
       }
     });
 
-    console.log(`✅ Logged ${rows.length} personnel hours to Google Sheets`);
+    console.log(`✅ [SHEETS] Successfully logged ${rows.length} personnel hours to Google Sheets`);
+    console.log(`✅ [SHEETS] Updated range: ${response.data.updates.updatedRange}`);
+    console.log(`✅ [SHEETS] Updated ${response.data.updates.updatedRows} rows, ${response.data.updates.updatedCells} cells`);
+
     return {
       success: true,
       message: `Logged ${rows.length} employee hours`,
-      updatedRows: response.data.updates.updatedRows
+      updatedRows: response.data.updates.updatedRows,
+      updatedRange: response.data.updates.updatedRange
     };
   } catch (error) {
-    console.error('❌ Error logging hours to Google Sheets:', error);
+    console.error('❌ [SHEETS] Error logging hours to Google Sheets:', error.message);
+    console.error('❌ [SHEETS] Error stack:', error.stack);
+    if (error.response?.data) {
+      console.error('❌ [SHEETS] API error details:', JSON.stringify(error.response.data, null, 2));
+    }
     return {
       success: false,
       error: error.message

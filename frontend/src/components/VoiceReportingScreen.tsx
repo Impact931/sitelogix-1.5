@@ -41,6 +41,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   const [transcriptData, setTranscriptData] = useState<any>(null);
   const [lastReportId, setLastReportId] = useState<string | null>(null);
   const [reportHtmlUrl, setReportHtmlUrl] = useState<string | null>(null);
+  const [reportGenerationProgress, setReportGenerationProgress] = useState<number>(0);
 
   // Load configurable checklist items
   const [checklistItems, setChecklistItems] = useState(() => getChecklistItems());
@@ -291,14 +292,54 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   const handleViewReport = async () => {
     if (!lastReportId) return;
 
+    setReportGenerationProgress(10);
+    setError(null);
+
     try {
-      // Open HTML report served directly by API
       const reportDate = new Date().toISOString().split('T')[0];
       const url = `${API_BASE_URL}/reports/${lastReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
-      window.open(url, '_blank');
+
+      // Poll for report readiness
+      let attempts = 0;
+      const maxAttempts = 20; // 20 attempts = up to 60 seconds
+
+      while (attempts < maxAttempts) {
+        setReportGenerationProgress(10 + (attempts / maxAttempts) * 80);
+
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok) {
+            setReportGenerationProgress(100);
+
+            // Open in a popup window instead of new tab
+            const popupWidth = 1000;
+            const popupHeight = 800;
+            const left = (window.screen.width - popupWidth) / 2;
+            const top = (window.screen.height - popupHeight) / 2;
+
+            window.open(
+              url,
+              'SiteLogixReport',
+              `width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes,status=yes`
+            );
+
+            return;
+          }
+        } catch (fetchError) {
+          // Report not ready yet, continue polling
+        }
+
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between attempts
+      }
+
+      // If we get here, report generation timed out
+      setError('Report generation is taking longer than expected. Please try again in a moment.');
+      setReportGenerationProgress(0);
     } catch (err) {
       console.error('Error opening report:', err);
       setError('Failed to open report');
+      setReportGenerationProgress(0);
     }
   };
 
@@ -393,8 +434,8 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
                   <p className="text-white font-medium">{manager.name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 mb-1">Manager ID</p>
-                  <p className="text-white font-medium">{manager.id}</p>
+                  <p className="text-gray-400 mb-1">Employee Number</p>
+                  <p className="text-white font-medium">{manager.id.replace(/^PER#/, '')}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Project</p>
@@ -416,12 +457,31 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
                         View Transcript
                       </button>
                       {lastReportId && reportHtmlUrl && (
-                        <button
-                          onClick={handleViewReport}
-                          className="px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-gold/20 transition"
-                        >
-                          📄 View HTML Report
-                        </button>
+                        <div className="flex-1">
+                          {reportGenerationProgress > 0 && reportGenerationProgress < 100 ? (
+                            <div className="relative">
+                              <div className="h-10 bg-dark-bg/50 rounded-lg border border-gold/30 overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-gold-light to-gold-dark transition-all duration-500 flex items-center justify-center"
+                                  style={{ width: `${reportGenerationProgress}%` }}
+                                >
+                                  <span className="text-dark-bg text-sm font-semibold">
+                                    {Math.round(reportGenerationProgress)}%
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1 text-center">Generating report...</p>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={handleViewReport}
+                              disabled={reportGenerationProgress > 0}
+                              className="w-full px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-gold/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              📄 View HTML Report
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
