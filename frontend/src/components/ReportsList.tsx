@@ -57,6 +57,7 @@ interface Report {
   manager_name?: string;
   project_name?: string;
   report_date: string;
+  submission_timestamp?: string;
   total_personnel: number;
   total_regular_hours: number;
   total_overtime_hours: number;
@@ -152,11 +153,12 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
           );
         }
 
-        // Sort by date
+        // Sort by date and time (use submission_timestamp for accurate ordering)
         const sortedReports = filteredReports.sort((a: Report, b: Report) => {
-          const dateA = new Date(a.report_date).getTime();
-          const dateB = new Date(b.report_date).getTime();
-          return sortBy === 'date-desc' ? dateB - dateA : dateA - dateB;
+          // Use submission_timestamp if available, otherwise fall back to created_at or report_date
+          const timeA = new Date(a.submission_timestamp || a.created_at || a.report_date).getTime();
+          const timeB = new Date(b.submission_timestamp || b.created_at || b.report_date).getTime();
+          return sortBy === 'date-desc' ? timeB - timeA : timeA - timeB;
         });
 
         setReports(sortedReports);
