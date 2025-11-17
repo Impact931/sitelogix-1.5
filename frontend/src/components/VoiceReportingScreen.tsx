@@ -133,6 +133,14 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
 
   const handleStartRecording = async () => {
     setError(null);
+
+    // Prevent starting if agent ID hasn't loaded yet
+    if (!agentId) {
+      setError('Loading ElevenLabs configuration... Please try again in a moment.');
+      setStatus('Waiting for agent configuration...');
+      return;
+    }
+
     await startConversation();
   };
 
@@ -363,7 +371,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
             <div className="flex flex-col items-center">
               <button
                 onClick={handleStartRecording}
-                disabled={status === 'Connecting to Roxy...'}
+                disabled={!agentId || status === 'Connecting to Roxy...'}
                 className="group relative w-64 h-64 bg-gradient-to-br from-gold-light to-gold-dark rounded-full flex items-center justify-center hover:scale-105 hover:shadow-2xl hover:shadow-gold/30 focus:outline-none focus:ring-4 focus:ring-gold/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <svg className="w-32 h-32 text-dark-bg" fill="currentColor" viewBox="0 0 24 24">
@@ -372,7 +380,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
                 </svg>
               </button>
               <p className="mt-6 text-xl font-semibold text-white">
-                {status === 'Connecting to Roxy...' ? 'Connecting...' : 'Press to Call Roxy'}
+                {!agentId ? 'Loading Roxy...' : status === 'Connecting to Roxy...' ? 'Connecting...' : 'Press to Call Roxy'}
               </p>
             </div>
 
