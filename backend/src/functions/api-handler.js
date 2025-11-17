@@ -2989,7 +2989,7 @@ exports.handler = async (event) => {
         const elevenLabsSecret = await getSecret('sitelogix/elevenlabs');
 
         // Fetch conversation token from ElevenLabs API
-        const tokenUrl = `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${elevenLabsSecret.agent_id}`;
+        const tokenUrl = `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${elevenLabsSecret.agent_id}`;
         console.log('📞 Requesting token from:', tokenUrl);
 
         const elevenLabsResponse = await fetch(tokenUrl, {
@@ -3013,14 +3013,14 @@ exports.handler = async (event) => {
         }
 
         const tokenData = await elevenLabsResponse.json();
-        console.log('✅ Successfully fetched conversation token');
+        console.log('✅ Successfully fetched conversation token:', tokenData);
 
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({
             success: true,
-            signedUrl: tokenData.signed_url
+            signedUrl: tokenData.signed_url || tokenData.token
           })
         };
       } catch (error) {
