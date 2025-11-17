@@ -167,7 +167,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       setReportHtml(''); // Clear previous HTML
       setError(null); // Clear previous errors
 
-      const url = `${API_BASE_URL}/reports/${report.report_id}/transcript`;
+      const url = `${API_BASE_URL}/reports/${report.report_id}/transcript?projectId=${report.project_id}&reportDate=${report.report_date}`;
       const response = await fetch(url);
 
       if (!response.ok) {

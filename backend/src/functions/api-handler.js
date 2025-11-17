@@ -607,7 +607,7 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
         🎵 Play Audio Report
       </button>
       ` : ''}
-      <button onclick="viewTranscript('${report.report_id}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+      <button onclick="viewTranscript('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
         📄 View Original Transcript
       </button>
     </div>
@@ -626,13 +626,13 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
       });
     });
 
-    function viewTranscript(reportId) {
-      window.open('/api/reports/' + reportId + '/transcript', '_blank', 'width=900,height=700');
+    function viewTranscript(reportId, projectId, reportDate) {
+      window.open('/api/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
     }
 
     async function playAudio(reportId, projectId, reportDate) {
       try {
-        const response = await fetch('/api/reports/' + reportId + '/audio');
+        const response = await fetch('/api/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
         if (!response.ok) throw new Error('Failed to fetch audio');
 
         const result = await response.json();
@@ -815,7 +815,7 @@ function generateReportHTML(report, extractedData) {
         🎵 Play Audio Report
       </button>
       ` : ''}
-      <button onclick="viewTranscript('${report.report_id}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+      <button onclick="viewTranscript('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
         📄 View Original Transcript
       </button>
     </div>
@@ -834,13 +834,13 @@ function generateReportHTML(report, extractedData) {
       });
     });
 
-    function viewTranscript(reportId) {
-      window.open('/api/reports/' + reportId + '/transcript', '_blank', 'width=900,height=700');
+    function viewTranscript(reportId, projectId, reportDate) {
+      window.open('/api/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
     }
 
     async function playAudio(reportId, projectId, reportDate) {
       try {
-        const response = await fetch('/api/reports/' + reportId + '/audio');
+        const response = await fetch('/api/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
         if (!response.ok) throw new Error('Failed to fetch audio');
 
         const result = await response.json();
@@ -2197,25 +2197,45 @@ exports.handler = async (event) => {
     // GET /api/reports/:reportId/transcript - View raw transcript
     if (path.match(/\/reports\/[^/]+\/transcript$/) && method === 'GET') {
       const reportId = path.split('/')[path.split('/').length - 2];
+      const queryParams = event.queryStringParameters || {};
+      const projectId = queryParams.projectId;
+      const reportDate = queryParams.reportDate;
 
       try {
-        // First, we need to query by report_id since we don't have projectId in the path
-        const queryCommand = new QueryCommand({
-          TableName: 'sitelogix-reports',
-          IndexName: 'report_id-index', // We may need to create this GSI
-          KeyConditionExpression: 'report_id = :reportId',
-          ExpressionAttributeValues: marshall({
-            ':reportId': reportId
-          }),
-          Limit: 1
-        });
+        let report;
 
-        let result;
-        try {
-          result = await dynamoClient.send(queryCommand);
-        } catch (queryError) {
-          // Fallback: If GSI doesn't exist, scan the table (less efficient)
-          console.log('GSI not found, falling back to scan');
+        if (projectId && reportDate) {
+          // Use direct GetItem with projectId and reportDate (fastest, most reliable)
+          const command = new GetItemCommand({
+            TableName: 'sitelogix-reports',
+            Key: marshall({
+              PK: `PROJECT#${projectId}`,
+              SK: `REPORT#${reportDate}#${reportId}`
+            })
+          });
+
+          const result = await dynamoClient.send(command);
+
+          if (!result.Item) {
+            // Try scan as fallback
+            const scanCommand = new ScanCommand({
+              TableName: 'sitelogix-reports',
+              FilterExpression: 'report_id = :reportId',
+              ExpressionAttributeValues: marshall({
+                ':reportId': reportId
+              }),
+              Limit: 1
+            });
+            const scanResult = await dynamoClient.send(scanCommand);
+            if (!scanResult.Items || scanResult.Items.length === 0) {
+              return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
+            }
+            report = unmarshall(scanResult.Items[0]);
+          } else {
+            report = unmarshall(result.Item);
+          }
+        } else {
+          // Fallback to scan if query params not provided
           const scanCommand = new ScanCommand({
             TableName: 'sitelogix-reports',
             FilterExpression: 'report_id = :reportId',
@@ -2224,14 +2244,14 @@ exports.handler = async (event) => {
             }),
             Limit: 1
           });
-          result = await dynamoClient.send(scanCommand);
-        }
+          const result = await dynamoClient.send(scanCommand);
 
-        if (!result.Items || result.Items.length === 0) {
-          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
-        }
+          if (!result.Items || result.Items.length === 0) {
+            return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
+          }
 
-        const report = unmarshall(result.Items[0]);
+          report = unmarshall(result.Items[0]);
+        }
 
         // Check if transcript_data is available in DynamoDB (preferred)
         let transcriptData = report.transcript_data;
@@ -2297,25 +2317,45 @@ exports.handler = async (event) => {
     // GET /api/reports/:reportId/audio - Get audio file
     if (path.match(/\/reports\/[^/]+\/audio$/) && method === 'GET') {
       const reportId = path.split('/')[path.split('/').length - 2];
+      const queryParams = event.queryStringParameters || {};
+      const projectId = queryParams.projectId;
+      const reportDate = queryParams.reportDate;
 
       try {
-        // Query for the report
-        const queryCommand = new QueryCommand({
-          TableName: 'sitelogix-reports',
-          IndexName: 'report_id-index',
-          KeyConditionExpression: 'report_id = :reportId',
-          ExpressionAttributeValues: marshall({
-            ':reportId': reportId
-          }),
-          Limit: 1
-        });
+        let report;
 
-        let result;
-        try {
-          result = await dynamoClient.send(queryCommand);
-        } catch (queryError) {
-          // Fallback to scan if GSI doesn't exist
-          console.log('GSI not found, falling back to scan');
+        if (projectId && reportDate) {
+          // Use direct GetItem with projectId and reportDate (fastest, most reliable)
+          const command = new GetItemCommand({
+            TableName: 'sitelogix-reports',
+            Key: marshall({
+              PK: `PROJECT#${projectId}`,
+              SK: `REPORT#${reportDate}#${reportId}`
+            })
+          });
+
+          const result = await dynamoClient.send(command);
+
+          if (!result.Item) {
+            // Try scan as fallback
+            const scanCommand = new ScanCommand({
+              TableName: 'sitelogix-reports',
+              FilterExpression: 'report_id = :reportId',
+              ExpressionAttributeValues: marshall({
+                ':reportId': reportId
+              }),
+              Limit: 1
+            });
+            const scanResult = await dynamoClient.send(scanCommand);
+            if (!scanResult.Items || scanResult.Items.length === 0) {
+              return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
+            }
+            report = unmarshall(scanResult.Items[0]);
+          } else {
+            report = unmarshall(result.Item);
+          }
+        } else {
+          // Fallback to scan if query params not provided
           const scanCommand = new ScanCommand({
             TableName: 'sitelogix-reports',
             FilterExpression: 'report_id = :reportId',
@@ -2324,14 +2364,14 @@ exports.handler = async (event) => {
             }),
             Limit: 1
           });
-          result = await dynamoClient.send(scanCommand);
-        }
+          const result = await dynamoClient.send(scanCommand);
 
-        if (!result.Items || result.Items.length === 0) {
-          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
-        }
+          if (!result.Items || result.Items.length === 0) {
+            return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Report not found' }) };
+          }
 
-        const report = unmarshall(result.Items[0]);
+          report = unmarshall(result.Items[0]);
+        }
 
         if (!report.audio_s3_path) {
           return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Audio not found for this report' }) };
