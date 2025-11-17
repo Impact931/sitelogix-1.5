@@ -483,7 +483,194 @@ async function generateHtmlFromReport(report) {
     return { success: true, html };
   }
 
+  // FALLBACK: Generate basic HTML from transcript if extracted_data is missing
+  if (report.transcript_data) {
+    console.log(`📝 FALLBACK: Generating basic HTML from transcript for report ${report.report_id} (analytics extraction may have failed)`);
+
+    let transcriptText = '';
+    try {
+      // Handle transcript_data which might be a string or object
+      if (typeof report.transcript_data === 'string') {
+        transcriptText = report.transcript_data;
+      } else if (report.transcript_data.text) {
+        transcriptText = report.transcript_data.text;
+      } else if (report.transcript_data.transcript) {
+        transcriptText = report.transcript_data.transcript;
+      } else {
+        transcriptText = JSON.stringify(report.transcript_data, null, 2);
+      }
+    } catch (err) {
+      console.error('Error processing transcript_data:', err);
+      transcriptText = 'Error: Could not process transcript';
+    }
+
+    const html = generateBasicTranscriptHTML(report, transcriptText);
+    return { success: true, html };
+  }
+
+  console.error(`❌ Report ${report.report_id} has no HTML, extracted_data, or transcript_data available`);
   return { success: false, error: 'Report HTML not found - no transcript or extracted data available' };
+}
+
+/**
+ * Generate basic HTML from transcript (fallback when analytics extraction fails)
+ */
+function generateBasicTranscriptHTML(report, transcriptText) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Report - ${report.project_name || 'Unknown Project'}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 28px;
+    }
+    .header .subtitle {
+      opacity: 0.9;
+      font-size: 16px;
+    }
+    .warning-banner {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+    }
+    .warning-banner strong {
+      color: #856404;
+    }
+    .content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .section {
+      margin-bottom: 25px;
+    }
+    .section h2 {
+      color: #667eea;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .info-item {
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+    }
+    .info-item label {
+      font-weight: bold;
+      color: #666;
+      font-size: 12px;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 5px;
+    }
+    .info-item value {
+      color: #333;
+      font-size: 16px;
+    }
+    .transcript-box {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+      padding: 20px;
+      white-space: pre-wrap;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.8;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #dee2e6;
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 Daily Report</h1>
+    <div class="subtitle">${report.project_name || 'Unknown Project'}</div>
+  </div>
+
+  <div class="warning-banner">
+    <strong>⚠️ Note:</strong> Analytics extraction is still processing or failed for this report. Showing raw transcript below. Detailed analytics (personnel hours, tasks, constraints) will appear once processing completes.
+  </div>
+
+  <div class="content">
+    <div class="section">
+      <h2>Report Information</h2>
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Project</label>
+          <value>${report.project_name || 'N/A'}</value>
+        </div>
+        <div class="info-item">
+          <label>Location</label>
+          <value>${report.project_location || 'N/A'}</value>
+        </div>
+        <div class="info-item">
+          <label>Report Date</label>
+          <value>${report.report_date || 'N/A'}</value>
+        </div>
+        <div class="info-item">
+          <label>Submitted By</label>
+          <value>${report.manager_name || 'N/A'}</value>
+        </div>
+        <div class="info-item">
+          <label>Submission Time</label>
+          <value>${report.submission_timestamp ? new Date(report.submission_timestamp).toLocaleString() : 'N/A'}</value>
+        </div>
+        <div class="info-item">
+          <label>Report ID</label>
+          <value>${report.report_id || 'N/A'}</value>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Transcript</h2>
+      <div class="transcript-box">${transcriptText || 'No transcript available'}</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Generated on ${new Date().toLocaleString()} | SiteLogix Daily Reporting System</p>
+    <p><em>Refresh this page later to see full analytics once processing completes.</em></p>
+  </div>
+</body>
+</html>`;
 }
 
 /**
