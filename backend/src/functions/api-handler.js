@@ -142,6 +142,75 @@ async function getGoogleSheetsClient() {
 }
 
 /**
+ * Log personnel hours to Google Sheets
+ * Appends a row for each employee with their hours to the "hours log" sheet
+ */
+async function logPersonnelHoursToSheet(reportData, extractedData) {
+  try {
+    console.log('📊 Logging personnel hours to Google Sheets...');
+
+    const { client: sheets } = await getGoogleSheetsClient();
+
+    // Hours log spreadsheet ID (from user's requirement)
+    const HOURS_LOG_SPREADSHEET_ID = '1Slqb1pbhnByUo_PCNPUZ8e3lMBG710fHJNVKWl7hOHQ';
+    const SHEET_NAME = 'hours log';
+
+    // Extract personnel data
+    const personnel = extractedData?.personnel || [];
+    if (!personnel || personnel.length === 0) {
+      console.log('⚠️  No personnel data to log');
+      return { success: true, message: 'No personnel data to log' };
+    }
+
+    // Prepare rows for each employee
+    const rows = personnel.map(person => {
+      const reportDate = reportData.report_date || new Date().toISOString().split('T')[0];
+      const projectName = reportData.project_name || '';
+      const fullName = person.fullName || `${person.firstName || ''} ${person.lastName || ''}`.trim();
+      const regularHours = person.hoursWorked || person.regularHours || 0;
+      const overtimeHours = person.overtimeHours || 0;
+      const totalHours = regularHours + overtimeHours;
+      const position = person.position || person.role || '';
+
+      return [
+        reportDate,        // Date
+        fullName,          // Employee Name
+        projectName,       // Project
+        position,          // Position/Role
+        regularHours,      // Regular Hours
+        overtimeHours,     // Overtime Hours
+        totalHours,        // Total Hours
+        reportData.manager_name || '', // Manager
+        reportData.report_id || ''     // Report ID (for reference)
+      ];
+    });
+
+    // Append rows to the sheet
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId: HOURS_LOG_SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A:I`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: rows
+      }
+    });
+
+    console.log(`✅ Logged ${rows.length} personnel hours to Google Sheets`);
+    return {
+      success: true,
+      message: `Logged ${rows.length} employee hours`,
+      updatedRows: response.data.updates.updatedRows
+    };
+  } catch (error) {
+    console.error('❌ Error logging hours to Google Sheets:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Fetch managers from Google Sheets
  */
 async function getManagers() {
@@ -1323,7 +1392,7 @@ async function saveReport(reportData) {
       try {
         console.log('📊 Triggering full analytics extraction for report:', reportId);
 
-        await processTranscriptAnalytics(transcript, {
+        const analyticsResult = await processTranscriptAnalytics(transcript, {
           reportId,
           projectId,
           projectName,
@@ -1333,6 +1402,31 @@ async function saveReport(reportData) {
         });
 
         console.log('✅ Full analytics extraction complete');
+
+        // Log personnel hours to Google Sheets if extraction was successful
+        if (analyticsResult.success && analyticsResult.extractedData) {
+          try {
+            const sheetsResult = await logPersonnelHoursToSheet(
+              {
+                report_id: reportId,
+                project_id: projectId,
+                project_name: projectName,
+                manager_name: managerName,
+                report_date: reportDate
+              },
+              analyticsResult.extractedData
+            );
+
+            if (sheetsResult.success) {
+              console.log('✅ Personnel hours logged to Google Sheets:', sheetsResult.message);
+            } else {
+              console.warn('⚠️ Failed to log hours to Google Sheets:', sheetsResult.error);
+            }
+          } catch (sheetsError) {
+            console.error('⚠️ Google Sheets logging error (non-fatal):', sheetsError.message);
+            // Don't fail the report if Google Sheets logging fails
+          }
+        }
       } catch (analyticsError) {
         console.error('⚠️ Analytics extraction failed (non-fatal):', analyticsError.message);
         // Don't fail the report save if analytics extraction fails
