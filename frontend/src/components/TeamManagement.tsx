@@ -154,26 +154,39 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         payload.role = formData.role;
       }
 
+      console.log('Creating new employee:', payload);
+
       const response = await fetch(`${API_BASE_URL}/personnel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
       if (result.success) {
+        console.log('Employee created successfully');
         setShowAddModal(false);
         fetchTeam();
       } else {
+        console.error('Failed to create employee:', result.error);
         alert(result.error || 'Failed to add team member');
       }
     } catch (err) {
-      alert('Failed to add team member');
+      console.error('Error creating employee:', err);
+      alert('Failed to add team member: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedMember) return;
+    if (!selectedMember || !selectedMember.personId) {
+      console.error('No selected member or missing personId');
+      alert('Error: Unable to identify the employee to update');
+      return;
+    }
 
     if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.preferredName?.trim()) {
       alert('First name, last name, and preferred name are required');
@@ -212,6 +225,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         payload.role = null;
       }
 
+      console.log('Updating employee:', selectedMember.personId, payload);
+
       const response = await fetch(`${API_BASE_URL}/personnel/${selectedMember.personId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -221,31 +236,53 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       const result = await response.json();
       if (result.success) {
         setShowEditModal(false);
+        setSelectedMember(null);
         fetchTeam();
       } else {
         alert(result.error || 'Failed to update team member');
       }
     } catch (err) {
-      alert('Failed to update team member');
+      console.error('Error updating employee:', err);
+      alert('Failed to update team member: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
   const handleDelete = async (member: TeamMember) => {
+    if (!member || !member.personId) {
+      console.error('Invalid member data for deletion');
+      alert('Error: Unable to identify the employee to terminate');
+      return;
+    }
+
     if (!confirm(`Are you sure you want to terminate ${member.fullName}?`)) return;
 
     try {
+      console.log('Terminating employee:', member.personId);
+
       const response = await fetch(`${API_BASE_URL}/personnel/${member.personId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          terminationDate: new Date().toISOString().split('T')[0],
+          reason: 'Terminated via Team Management'
+        })
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const result = await response.json();
       if (result.success) {
+        console.log('Employee terminated successfully');
         fetchTeam();
       } else {
+        console.error('Failed to terminate employee:', result.error);
         alert(result.error || 'Failed to terminate team member');
       }
     } catch (err) {
-      alert('Failed to terminate team member');
+      console.error('Error terminating employee:', err);
+      alert('Failed to terminate team member: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 

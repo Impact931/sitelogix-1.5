@@ -27,7 +27,7 @@ interface AdminDashboardProps {
   onNavigateToTeamManagement?: () => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToChangePassword, onNavigateToPayroll, onNavigateToTeamManagement }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToProjectSetup: _onNavigateToProjectSetup, onNavigateToProjectProfile, onNavigateToRoxy, onNavigateToPayroll, onNavigateToTeamManagement }) => {
   // Real employee data from API
   const [employees, setEmployees] = useState<Employee[]>([]);
 
@@ -226,17 +226,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
                   <span>Manage Projects</span>
                 </button>
               )}
-              {onNavigateToChangePassword && (
-                <button
-                  onClick={onNavigateToChangePassword}
-                  className="px-4 py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition text-sm font-semibold flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <span>Change Password</span>
-                </button>
-              )}
               {onNavigateToRoxy && (
                 <button
                   onClick={onNavigateToRoxy}
@@ -248,15 +237,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigateToPro
                   <span>Access Roxy</span>
                 </button>
               )}
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="px-4 py-2 bg-gradient-to-r from-gold-light to-gold-dark text-dark-bg rounded-xl hover:shadow-lg hover:shadow-gold/20 transition text-sm font-semibold flex items-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Add Employee</span>
-              </button>
               <button
                 onClick={onBack}
                 className="px-4 py-2 glass rounded-xl text-white hover:bg-white/10 transition text-sm font-medium"
