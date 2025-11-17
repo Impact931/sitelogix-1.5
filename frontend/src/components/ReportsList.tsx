@@ -503,12 +503,13 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
                       {/* Action Buttons */}
                       <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
-                          {new Date(report.created_at).toLocaleTimeString('en-US', {
+                        <div className="text-xs text-gray-500">
+                          <div>📅 {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div>🕐 {new Date(report.created_at).toLocaleTimeString('en-US', {
                             hour: '2-digit',
                             minute: '2-digit'
-                          })}
-                        </span>
+                          })}</div>
+                        </div>
                         <div className="flex items-center space-x-2">
                           {/* View Transcript Button */}
                           <button

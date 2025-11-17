@@ -89,6 +89,7 @@ const {
   handleGetProjectLaborCosts
 } = require('./payroll-endpoints');
 const { processTranscriptForPayroll } = require('./payrollExtractionService');
+const { processTranscriptAnalytics } = require('./transcriptAnalysisWrapper');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -426,6 +427,272 @@ async function generateHtmlFromReport(report) {
 }
 
 /**
+ * Generate enhanced HTML for new analytics format
+ */
+function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
+  const personnel = analytics.personnel || [];
+  const workLogs = analytics.workLogs || [];
+  const constraints = analytics.constraints || [];
+  const vendors = analytics.vendors || [];
+  const timeSummary = analytics.timeSummary || {};
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Report - ${dateString}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; padding: 30px; border-radius: 12px; margin-bottom: 30px; }
+    .header h1 { margin: 0 0 10px 0; font-size: 2.5em; }
+    .header p { margin: 5px 0; opacity: 0.9; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .summary-card { background: rgba(212,175,55,0.1); padding: 20px; border-radius: 12px; border: 2px solid #d4af37; }
+    .summary-card h3 { margin: 0 0 5px 0; font-size: 0.9em; color: #94a3b8; text-transform: uppercase; }
+    .summary-card p { margin: 0; font-size: 2em; font-weight: bold; color: #d4af37; }
+    .section { background: rgba(255,255,255,0.05); padding: 25px; margin-bottom: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+    .section h2 { color: #d4af37; margin-top: 0; font-size: 1.5em; border-bottom: 2px solid #d4af37; padding-bottom: 10px; }
+    .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .table th { background: rgba(212,175,55,0.2); color: #d4af37; padding: 12px; text-align: left; font-weight: 600; }
+    .table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; }
+    .table tr:hover { background: rgba(255,255,255,0.02); }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 0.85em; font-weight: 600; margin-right: 8px; }
+    .badge-success { background: rgba(34,197,94,0.2); color: #86efac; }
+    .badge-warning { background: rgba(251,191,36,0.2); color: #fde047; }
+    .badge-danger { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    .badge-info { background: rgba(59,130,246,0.2); color: #93c5fd; }
+    .severity-low { color: #86efac; }
+    .severity-medium { color: #fde047; }
+    .severity-high { color: #fca5a5; }
+    .severity-critical { color: #ef4444; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 Daily Construction Report - Analytics</h1>
+    <p><strong>Date:</strong> ${dateString}</p>
+    <p><strong>Project:</strong> ${report.project_name || 'Unknown'}</p>
+    <p><strong>Reporter:</strong> ${report.reporter_name || report.manager_name || 'Unknown'}</p>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>Total Personnel</h3>
+      <p>${timeSummary.totalPersonnelCount || personnel.length || 0}</p>
+    </div>
+    <div class="summary-card">
+      <h3>Regular Hours</h3>
+      <p>${timeSummary.totalRegularHours || 0}</p>
+    </div>
+    <div class="summary-card">
+      <h3>Overtime Hours</h3>
+      <p>${timeSummary.totalOvertimeHours || 0}</p>
+    </div>
+    <div class="summary-card">
+      <h3>Vendors</h3>
+      <p>${vendors.length}</p>
+    </div>
+  </div>
+
+  ${personnel.length > 0 ? `
+  <div class="section">
+    <h2>👷 Personnel</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Team</th>
+          <th>Hours</th>
+          <th>Overtime</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${personnel.map(p => `
+          <tr>
+            <td><strong>${p.fullName || p.goByName || 'Unknown'}</strong></td>
+            <td>${p.position || 'N/A'}</td>
+            <td>${p.teamAssignment || 'N/A'}</td>
+            <td>${p.hoursWorked || 0}</td>
+            <td>${p.overtimeHours || 0}</td>
+            <td><span class="badge ${p.healthStatus === 'Healthy' ? 'badge-success' : 'badge-warning'}">${p.healthStatus || 'N/A'}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
+  ${workLogs.length > 0 ? `
+  <div class="section">
+    <h2>🔨 Work Activities</h2>
+    ${workLogs.map(w => `
+      <div style="background: rgba(255,255,255,0.03); padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 3px solid #d4af37;">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+          <div>
+            <strong style="color: #d4af37; font-size: 1.1em;">${w.teamId || 'Unknown Team'}</strong>
+            <span style="color: #94a3b8; margin-left: 10px;">${w.level || ''}</span>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #d4af37;"><strong>${w.hoursWorked || 0}</strong> hrs</div>
+            ${w.overtimeHours ? `<div style="color: #fde047; font-size: 0.9em;">+${w.overtimeHours} OT</div>` : ''}
+          </div>
+        </div>
+        <p style="margin: 10px 0; color: #cbd5e1;">${w.taskDescription || 'No description'}</p>
+        ${w.personnelAssigned && w.personnelAssigned.length > 0 ? `
+          <p style="margin: 5px 0; color: #94a3b8; font-size: 0.9em;">
+            <strong>Personnel:</strong> ${w.personnelAssigned.join(', ')}
+          </p>
+        ` : ''}
+        ${w.materialsUsed && w.materialsUsed.length > 0 ? `
+          <p style="margin: 5px 0; color: #94a3b8; font-size: 0.9em;">
+            <strong>Materials:</strong> ${w.materialsUsed.join(', ')}
+          </p>
+        ` : ''}
+      </div>
+    `).join('')}
+  </div>
+  ` : ''}
+
+  ${constraints.length > 0 ? `
+  <div class="section">
+    <h2>⚠️ Issues & Constraints</h2>
+    ${constraints.map(c => `
+      <div style="background: rgba(239,68,68,0.1); padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 3px solid ${
+        c.severity === 'critical' ? '#ef4444' :
+        c.severity === 'high' ? '#fca5a5' :
+        c.severity === 'medium' ? '#fde047' : '#86efac'
+      };">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+          <strong style="color: #fca5a5; font-size: 1.1em;">${c.title || 'Issue'}</strong>
+          <div>
+            <span class="badge badge-${c.severity === 'critical' || c.severity === 'high' ? 'danger' : c.severity === 'medium' ? 'warning' : 'info'}">${c.severity?.toUpperCase() || 'N/A'}</span>
+            <span class="badge badge-info">${c.category || 'other'}</span>
+          </div>
+        </div>
+        <p style="margin: 8px 0; color: #cbd5e1;">${c.description || 'No description'}</p>
+        <p style="margin: 5px 0; color: #94a3b8; font-size: 0.9em;">
+          <strong>Level:</strong> ${c.level || 'General'} |
+          <strong>Status:</strong> ${c.status || 'open'}
+        </p>
+      </div>
+    `).join('')}
+  </div>
+  ` : ''}
+
+  ${vendors.length > 0 ? `
+  <div class="section">
+    <h2>📦 Vendor Deliveries</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Type</th>
+          <th>Materials Delivered</th>
+          <th>Time</th>
+          <th>Received By</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${vendors.map(v => `
+          <tr>
+            <td><strong>${v.companyName || 'Unknown'}</strong></td>
+            <td><span class="badge badge-info">${v.vendorType || 'supplier'}</span></td>
+            <td>${v.materialsDelivered || 'N/A'}</td>
+            <td>${v.deliveryTime || 'N/A'}</td>
+            <td>${v.receivedBy || 'N/A'}</td>
+          </tr>
+          ${v.deliveryNotes ? `
+            <tr>
+              <td colspan="5" style="padding-left: 30px; color: #94a3b8; font-size: 0.9em;">
+                📝 ${v.deliveryNotes}
+              </td>
+            </tr>
+          ` : ''}
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+  ` : ''}
+
+  <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); color: #94a3b8; font-size: 0.9em;">
+    <p>🤖 Generated by Roxy AI with Claude 3.5 Sonnet | ${new Date(report.created_at).toLocaleString()}</p>
+    ${analytics.timeSummary?.arrivalTime || analytics.timeSummary?.departureTime ? `
+      <p>Site Hours: ${analytics.timeSummary.arrivalTime || 'N/A'} - ${analytics.timeSummary.departureTime || 'N/A'}</p>
+    ` : ''}
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;">
+    <button onclick="window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+      ← Back to Reports
+    </button>
+    <div style="display: flex; gap: 10px;">
+      ${report.audio_s3_path ? `
+      <button onclick="playAudio('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        🎵 Play Audio Report
+      </button>
+      ` : ''}
+      <button onclick="viewTranscript('${report.report_id}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        📄 View Original Transcript
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function viewTranscript(reportId) {
+      window.open('/api/reports/' + reportId + '/transcript', '_blank', 'width=900,height=700');
+    }
+
+    async function playAudio(reportId, projectId, reportDate) {
+      try {
+        const response = await fetch('/api/reports/' + reportId + '/audio');
+        if (!response.ok) throw new Error('Failed to fetch audio');
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        const audioBase64 = result.data;
+        const binaryString = atob(audioBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], { type: result.contentType || 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+
+        const audio = new Audio(audioUrl);
+        audio.controls = true;
+        audio.play();
+
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 10000; border: 2px solid #d4af37;';
+        modal.innerHTML = '<h3 style="color: #d4af37; margin-top: 0;">🎵 Audio Report</h3><p style="color: #e2e8f0;">Report: ' + reportId + '</p>';
+        modal.appendChild(audio);
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.style.cssText = 'margin-top: 15px; padding: 8px 20px; background: #d4af37; color: #0f172a; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
+        closeBtn.onclick = () => { audio.pause(); document.body.removeChild(modal); document.body.removeChild(overlay); };
+        modal.appendChild(closeBtn);
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999;';
+        overlay.onclick = closeBtn.onclick;
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
+      } catch (error) {
+        alert('Failed to play audio: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>`;
+}
+
+/**
  * Generate HTML report from extracted data
  */
 function generateReportHTML(report, extractedData) {
@@ -433,6 +700,19 @@ function generateReportHTML(report, extractedData) {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
+  // Check if this is the new analytics format (from TranscriptAnalysisService)
+  const isNewFormat = extractedData && (
+    extractedData.personnel ||
+    extractedData.workLogs ||
+    extractedData.constraints ||
+    extractedData.timeSummary
+  );
+
+  if (isNewFormat) {
+    return generateEnhancedAnalyticsHTML(report, extractedData, date);
+  }
+
+  // Original format for legacy reports
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -465,7 +745,7 @@ function generateReportHTML(report, extractedData) {
     <h1>📋 Daily Construction Report</h1>
     <p><strong>Date:</strong> ${date}</p>
     <p><strong>Project:</strong> ${report.project_name || 'Unknown'}</p>
-    <p><strong>Reporter:</strong> ${report.reporter_name || 'Unknown'}</p>
+    <p><strong>Reporter:</strong> ${report.reporter_name || report.manager_name || 'Unknown'}</p>
   </div>
 
   ${extractedData.work_completed && extractedData.work_completed.length > 0 ? `
@@ -541,16 +821,72 @@ function generateReportHTML(report, extractedData) {
   </div>
 
   <!-- Navigation Buttons -->
-  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: space-between;">
-    <button onclick="window.close(); window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;">
+    <button onclick="window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
       ← Back to Reports
     </button>
-    <a href="${report.transcript_s3_key ? '#' : '#'}"
-       onclick="if('${report.transcript_s3_key}') { window.open('/api/reports/${report.report_id}/transcript', '_blank'); return false; }"
-       style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block;">
-      📄 View Original Transcript
-    </a>
+    <div style="display: flex; gap: 10px;">
+      ${report.audio_s3_path ? `
+      <button onclick="playAudio('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        🎵 Play Audio Report
+      </button>
+      ` : ''}
+      <button onclick="viewTranscript('${report.report_id}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        📄 View Original Transcript
+      </button>
+    </div>
   </div>
+
+  <script>
+    function viewTranscript(reportId) {
+      window.open('/api/reports/' + reportId + '/transcript', '_blank', 'width=900,height=700');
+    }
+
+    async function playAudio(reportId, projectId, reportDate) {
+      try {
+        const response = await fetch('/api/reports/' + reportId + '/audio');
+        if (!response.ok) throw new Error('Failed to fetch audio');
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        // Convert base64 to blob
+        const audioBase64 = result.data;
+        const binaryString = atob(audioBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], { type: result.contentType || 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+
+        // Create and play audio element
+        const audio = new Audio(audioUrl);
+        audio.controls = true;
+        audio.play();
+
+        // Create a simple modal to show audio player
+        const modal = document.createElement('div');
+        modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 10000; border: 2px solid #d4af37;';
+        modal.innerHTML = '<h3 style="color: #d4af37; margin-top: 0;">🎵 Audio Report</h3><p style="color: #e2e8f0;">Report: ' + reportId + '</p>';
+        modal.appendChild(audio);
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Close';
+        closeBtn.style.cssText = 'margin-top: 15px; padding: 8px 20px; background: #d4af37; color: #0f172a; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;';
+        closeBtn.onclick = () => { audio.pause(); document.body.removeChild(modal); document.body.removeChild(overlay); };
+        modal.appendChild(closeBtn);
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999;';
+        overlay.onclick = closeBtn.onclick;
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(modal);
+      } catch (error) {
+        alert('Failed to play audio: ' + error.message);
+      }
+    }
+  </script>
 </body>
 </html>`;
 }
@@ -946,6 +1282,7 @@ async function saveReport(reportData) {
         project_location: projectLocation,
         manager_id: managerId,
         manager_name: managerName,
+        reporter_name: managerName, // Reporter is the same as manager (person submitting the report)
         report_date: reportDate,
         submission_timestamp: submissionTimestamp,
         conversation_id: conversationId,
@@ -963,7 +1300,7 @@ async function saveReport(reportData) {
     await dynamoClient.send(dynamoCommand);
     console.log('✅ Report entry created in DynamoDB');
 
-    // Trigger payroll extraction asynchronously (don't block report save)
+    // Trigger payroll extraction and full analytics asynchronously (don't block report save)
     setImmediate(async () => {
       try {
         console.log('💼 Triggering payroll extraction for report:', reportId);
@@ -984,6 +1321,25 @@ async function saveReport(reportData) {
       } catch (payrollError) {
         console.error('⚠️ Payroll extraction failed (non-fatal):', payrollError.message);
         // Don't fail the report save if payroll extraction fails
+      }
+
+      // Trigger full transcript analytics extraction
+      try {
+        console.log('📊 Triggering full analytics extraction for report:', reportId);
+
+        await processTranscriptAnalytics(transcript, {
+          reportId,
+          projectId,
+          projectName,
+          projectLocation,
+          managerName,
+          reportDate
+        });
+
+        console.log('✅ Full analytics extraction complete');
+      } catch (analyticsError) {
+        console.error('⚠️ Analytics extraction failed (non-fatal):', analyticsError.message);
+        // Don't fail the report save if analytics extraction fails
       }
     });
 
