@@ -37,6 +37,13 @@ function AppContent() {
   const [manager, setManager] = useState<Manager | null>(null);
   const [project, setProject] = useState<Project | null>(null);
 
+  // VERSION IDENTIFIER - helps diagnose browser cache issues
+  useEffect(() => {
+    console.log('🚀 SiteLogix Frontend Version: BUILD-151-AUDIO-DEBUG');
+    console.log('📅 Build Date: 2025-11-17 15:52 CST');
+    console.log('🔧 Audio Debug: Enhanced WebRTC monitoring enabled');
+  }, []);
+
   // Check for existing session
   useEffect(() => {
     // Wait for auth to finish loading before making decisions
