@@ -917,12 +917,14 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
     });
 
     function viewTranscript(reportId, projectId, reportDate) {
-      window.open('/api/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
+      const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+      window.open(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
     }
 
     async function playAudio(reportId, projectId, reportDate) {
       try {
-        const response = await fetch('/api/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
         if (!response.ok) throw new Error('Failed to fetch audio');
 
         const result = await response.json();
@@ -1125,12 +1127,14 @@ function generateReportHTML(report, extractedData) {
     });
 
     function viewTranscript(reportId, projectId, reportDate) {
-      window.open('/api/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
+      const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+      window.open(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
     }
 
     async function playAudio(reportId, projectId, reportDate) {
       try {
-        const response = await fetch('/api/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
         if (!response.ok) throw new Error('Failed to fetch audio');
 
         const result = await response.json();
