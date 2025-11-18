@@ -308,7 +308,7 @@ async function handleLogin(body) {
       statusCode: 200,
       body: {
         success: true,
-        token,
+        accessToken: token,  // Changed from 'token' to 'accessToken' to match frontend
         refreshToken,
         expiresIn: 3600,
         user: {
