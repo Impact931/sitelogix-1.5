@@ -3226,36 +3226,8 @@ exports.handler = async (event) => {
       };
     }
 
-    // PUT /api/personnel/:id
-    if (path.match(/\/personnel\/[^/]+$/) && method === 'PUT') {
-      try {
-        const personnelId = path.split('/').pop();
-        const body = JSON.parse(event.body || '{}');
-        const result = await updatePersonnel(personnelId, body);
-        return {
-          statusCode: result.success ? 200 : 400,
-          headers,
-          body: JSON.stringify(result)
-        };
-      } catch (error) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: error.message })
-        };
-      }
-    }
-
-    // DELETE /api/personnel/:id
-    if (path.match(/\/personnel\/[^/]+$/) && method === 'DELETE') {
-      const personnelId = path.split('/').pop();
-      const result = await deletePersonnel(personnelId);
-      return {
-        statusCode: result.success ? 200 : 400,
-        headers,
-        body: JSON.stringify(result)
-      };
-    }
+    // PUT /api/personnel/:id - REMOVED (duplicate, using personnel-endpoints handler below)
+    // DELETE /api/personnel/:id - REMOVED (duplicate, using personnel-endpoints handler below)
 
     // =====================================================================
     // VENDOR CRUD Routes
