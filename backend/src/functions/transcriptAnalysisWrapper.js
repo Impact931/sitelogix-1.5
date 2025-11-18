@@ -3,7 +3,7 @@
  * Extracts: personnel, hours/overtime, vendors, deliveries, constraints, delays, injuries
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 const { DynamoDBClient, UpdateItemCommand } = require('@aws-sdk/client-dynamodb');
 const { marshall } = require('@aws-sdk/util-dynamodb');
 
@@ -134,35 +134,39 @@ async function processTranscriptAnalytics(transcript, context) {
       reportDate
     });
 
-    // Analyze with Claude
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicApiKey) {
-      throw new Error('ANTHROPIC_API_KEY not configured');
+    // Analyze with OpenAI GPT-4
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY not configured');
     }
 
-    const anthropic = new Anthropic({ apiKey: anthropicApiKey });
+    const openai = new OpenAI({ apiKey: openaiApiKey });
 
-    console.log('🤖 Analyzing transcript with Claude 3.5 Sonnet...');
+    console.log('🤖 Analyzing transcript with GPT-4...');
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 8000,
-      temperature: 0,
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
       messages: [
+        {
+          role: 'system',
+          content: 'You are an AI assistant specialized in extracting structured construction data from daily report conversations. Always respond with valid JSON only.'
+        },
         {
           role: 'user',
           content: prompt
         }
-      ]
+      ],
+      temperature: 0,
+      response_format: { type: 'json_object' }
     });
 
-    const content = message.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from Claude');
+    const responseText = completion.choices[0].message.content;
+    if (!responseText) {
+      throw new Error('No response from GPT-4');
     }
 
     // Extract JSON from response
-    let jsonText = content.text.trim();
+    let jsonText = responseText.trim();
     if (jsonText.startsWith('```json')) {
       jsonText = jsonText.replace(/```json\n/, '').replace(/\n```$/, '');
     } else if (jsonText.startsWith('```')) {
