@@ -72,7 +72,8 @@ export const useElevenLabsConversation = ({
       console.log('🔧 Starting ElevenLabs session with config:', {
         conversationToken: conversationToken.substring(0, 50) + '...',
         connectionType: 'webrtc',
-        dynamicVariables: dynamicVars
+        dynamicVariables: dynamicVars,
+        managerName: customContext?.managerName
       });
 
       const conversation = await Conversation.startSession({
@@ -80,6 +81,13 @@ export const useElevenLabsConversation = ({
         connectionType: "webrtc",
         // Pass dynamic variables for personalization
         dynamicVariables: Object.keys(dynamicVars).length > 0 ? dynamicVars : undefined,
+        // Override agent settings to include first message
+        overrides: {
+          agent: {
+            firstMessage: `Hi ${customContext?.managerName || 'there'}! This is Roxy, your AI assistant for daily construction reports. I'm ready to help you record today's report for ${customContext?.projectName || 'your project'}. Let's start with the time - what time did you arrive on site today?`,
+            language: 'en'
+          }
+        },
         onConnect: (data) => {
           console.log('✅ Connected to ElevenLabs agent', data);
           console.log('Conversation object:', conversationRef.current);
