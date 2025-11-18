@@ -494,8 +494,23 @@ async function generateHtmlFromReport(report) {
         transcriptText = report.transcript_data;
       } else if (report.transcript_data.text) {
         transcriptText = report.transcript_data.text;
+      } else if (report.transcript_data.transcript && Array.isArray(report.transcript_data.transcript)) {
+        // ElevenLabs transcript is an array of {role, message} objects
+        transcriptText = report.transcript_data.transcript
+          .map(msg => {
+            const role = msg.role === 'user' ? 'Manager' : 'Roxy';
+            const message = msg.message || '';
+            return `${role}: ${message}`;
+          })
+          .filter(line => line.trim() !== 'Manager: ' && line.trim() !== 'Roxy: ') // Skip empty messages
+          .join('\n\n');
+
+        if (!transcriptText.trim()) {
+          transcriptText = 'No conversation transcript available (conversation may have ended early)';
+        }
       } else if (report.transcript_data.transcript) {
-        transcriptText = report.transcript_data.transcript;
+        // Fallback for non-array transcript
+        transcriptText = JSON.stringify(report.transcript_data.transcript, null, 2);
       } else {
         transcriptText = JSON.stringify(report.transcript_data, null, 2);
       }
@@ -2559,6 +2574,20 @@ exports.handler = async (event) => {
           // If transcript is stored in DynamoDB, use it
           if (typeof transcriptData === 'string') {
             transcriptText = transcriptData;
+          } else if (transcriptData.transcript && Array.isArray(transcriptData.transcript)) {
+            // ElevenLabs transcript is an array of {role, message} objects
+            transcriptText = transcriptData.transcript
+              .map(msg => {
+                const role = msg.role === 'user' ? 'Manager' : 'Roxy';
+                const message = msg.message || '';
+                return `${role}: ${message}`;
+              })
+              .filter(line => line.trim() !== 'Manager: ' && line.trim() !== 'Roxy: ') // Skip empty messages
+              .join('\n\n');
+
+            if (!transcriptText.trim()) {
+              transcriptText = 'No conversation transcript available (conversation may have ended early)';
+            }
           } else {
             transcriptText = JSON.stringify(transcriptData, null, 2);
           }
