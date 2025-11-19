@@ -220,51 +220,34 @@ async function handleUpdateEmployee(event, employeeId) {
 
     console.log(`✏️ Updating employee: ${employeeId}`);
 
+    // PersonnelService expects camelCase fields, not snake_case
     const updates = {};
     const allowedFields = [
-      'first_name',
-      'last_name',
-      'preferred_name',
-      'employee_number',
+      'firstName',
+      'lastName',
+      'middleName',
+      'preferredName',
+      'employeeNumber',
       'email',
       'phone',
-      'position',
-      'project_id',
-      'hourly_rate',
-      'overtime_rate',
-      'double_time_rate',
-      'employment_status',
-      'hire_date',
-      'needs_profile_completion',
+      'jobTitle',
+      'projectId',
+      'hourlyRate',
+      'overtimeRate',
+      'doubleTimeRate',
+      'employmentStatus',
+      'hireDate',
+      'needsProfileCompletion',
       'username',
       'password',
       'passwordHash',
       'role'
     ];
 
-    // Map camelCase to snake_case for DynamoDB
-    const fieldMapping = {
-      firstName: 'first_name',
-      lastName: 'last_name',
-      preferredName: 'preferred_name',
-      employeeNumber: 'employee_number',
-      jobTitle: 'position',
-      hourlyRate: 'hourly_rate',
-      overtimeRate: 'overtime_rate',
-      doubleTimeRate: 'double_time_rate',
-      projectId: 'project_id',
-      employmentStatus: 'employment_status',
-      hireDate: 'hire_date',
-      needsProfileCompletion: 'needs_profile_completion',
-      username: 'username',
-      password: 'password',
-      role: 'role'
-    };
-
+    // Keep fields in camelCase for PersonnelService
     Object.keys(body).forEach(key => {
-      const dbKey = fieldMapping[key] || key;
-      if (allowedFields.includes(dbKey)) {
-        updates[dbKey] = body[key];
+      if (allowedFields.includes(key)) {
+        updates[key] = body[key];
       }
     });
 
