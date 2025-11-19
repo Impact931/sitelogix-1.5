@@ -54,7 +54,13 @@ function AppContent() {
     // If user is authenticated via new auth system, show appropriate screen
     if (isAuthenticated && user) {
       if (user.role === 'admin' || user.role === 'superadmin') {
-        setCurrentScreen('admin');
+        // Show home dashboard with module tiles for admins
+        setCurrentScreen('home');
+        // Set dummy project/manager for admin home view
+        if (!manager && !project) {
+          setManager({ id: user.userId, name: `${user.firstName} ${user.lastName}`, goByName: user.firstName });
+          setProject({ id: 'admin', name: 'Admin Dashboard', location: 'System' });
+        }
       } else if (user.role === 'manager') {
         setCurrentScreen('project-setup');
       }
@@ -237,7 +243,8 @@ function AppContent() {
         onNavigateToRoxy={handleNavigateToRoxy}
         onNavigateToReports={handleViewReports}
         onNavigateToAnalytics={handleViewAnalytics}
-        onNavigateToAdmin={() => setCurrentScreen('admin')}
+        onNavigateToTeamManagement={handleNavigateToTeamManagement}
+        onNavigateToPayroll={handleNavigateToPayroll}
         onLogout={handleLogout}
       />
     );
