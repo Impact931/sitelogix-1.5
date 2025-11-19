@@ -39,9 +39,9 @@ function AppContent() {
 
   // VERSION IDENTIFIER - helps diagnose browser cache issues
   useEffect(() => {
-    console.log('🚀 SiteLogix Frontend Version: BUILD-166-ROLE-PERMISSIONS');
-    console.log('📅 Build Date: 2025-11-19 12:15 CST');
-    console.log('🔧 Fixes: Employee number updates + Role-based permissions UI');
+    console.log('🚀 SiteLogix Frontend Version: BUILD-167-LOGOUT-BUTTON');
+    console.log('📅 Build Date: 2025-11-19 12:35 CST');
+    console.log('🔧 Added logout button to Roxy screen');
   }, []);
 
   // Check for existing session
@@ -308,6 +308,7 @@ function AppContent() {
       onChangeProject={handleChangeProject}
       onViewReports={handleViewReports}
       onViewAnalytics={handleViewAnalytics}
+      onLogout={handleLogout}
     />
   );
 }
