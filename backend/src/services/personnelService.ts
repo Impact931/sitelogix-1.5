@@ -16,6 +16,7 @@ import {
   UpdateCommand,
   ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
+import * as bcrypt from 'bcryptjs';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -46,6 +47,10 @@ interface Employee {
   lastSeenProjectId?: string;
   needsProfileCompletion: boolean;
   createdByUserId?: string;
+  // Authentication fields
+  username?: string;
+  passwordHash?: string;
+  role?: 'admin' | 'manager' | 'foreman' | 'employee';
   createdAt: string;
   updatedAt: string;
 }
@@ -67,6 +72,10 @@ interface CreateEmployeeInput {
   overtimeRate?: number;
   jobTitle?: string;
   createdByUserId?: string;
+  // Authentication fields
+  username?: string;
+  password?: string; // Plain text password (will be hashed)
+  role?: 'admin' | 'manager' | 'foreman' | 'employee';
 }
 
 /**
@@ -301,6 +310,13 @@ class PersonnelService {
 
     const fullName = normalizeName(`${data.firstName} ${data.lastName}`);
 
+    // Hash password if provided
+    let passwordHash: string | undefined;
+    if (data.password) {
+      console.log(`🔐 Hashing password for ${fullName}`);
+      passwordHash = await bcrypt.hash(data.password, 10);
+    }
+
     const employee: Employee = {
       personId,
       employeeNumber, // Use exactly what the user provided or generated
@@ -319,6 +335,10 @@ class PersonnelService {
       knownAliases: [fullName],
       needsProfileCompletion: !data.email || !data.phone || !data.hireDate,
       createdByUserId: data.createdByUserId,
+      // Authentication fields
+      username: data.username,
+      passwordHash,
+      role: data.role,
       createdAt: now,
       updatedAt: now,
     };
@@ -509,10 +529,10 @@ class PersonnelService {
    * Update employee record
    *
    * @param personId - Person ID
-   * @param data - Partial employee data to update
+   * @param data - Partial employee data to update (password will be hashed if provided)
    * @returns Updated employee
    */
-  async updateEmployee(personId: string, data: Partial<Employee>): Promise<Employee> {
+  async updateEmployee(personId: string, data: Partial<Employee> & { password?: string }): Promise<Employee> {
     console.log(`📝 Updating employee: ${personId}`);
 
     const now = new Date().toISOString();
@@ -521,6 +541,14 @@ class PersonnelService {
     const current = await this.getEmployeeById(personId);
     if (!current) {
       throw new Error(`Employee ${personId} not found`);
+    }
+
+    // Hash password if provided
+    if (data.password) {
+      console.log(`🔐 Hashing new password for ${personId}`);
+      data.passwordHash = await bcrypt.hash(data.password, 10);
+      // Remove plain password from data
+      delete data.password;
     }
 
     // Build update expression
@@ -545,6 +573,10 @@ class PersonnelService {
       'lastSeenDate',
       'lastSeenProjectId',
       'needsProfileCompletion',
+      // Authentication fields
+      'username',
+      'passwordHash',
+      'role',
     ] as const;
 
     for (const field of scalarFields) {
@@ -667,13 +699,36 @@ class PersonnelService {
    * Terminate employee (soft delete - changes status to 'terminated')
    *
    * @param personId - Person ID
+   * @param terminationDate - Optional termination date
+   * @param reason - Optional termination reason
    */
-  async terminateEmployee(personId: string): Promise<void> {
+  async terminateEmployee(personId: string, terminationDate?: string, reason?: string): Promise<void> {
     console.log(`🚫 Terminating employee: ${personId}`);
 
     const employee = await this.getEmployeeById(personId);
     if (!employee) {
       throw new Error(`Employee ${personId} not found`);
+    }
+
+    const updateExpression = [
+      'employmentStatus = :status',
+      'employment_status = :status',
+      'updatedAt = :updatedAt',
+    ];
+
+    const values: Record<string, any> = {
+      ':status': 'terminated',
+      ':updatedAt': new Date().toISOString(),
+    };
+
+    if (terminationDate) {
+      updateExpression.push('terminationDate = :terminationDate');
+      values[':terminationDate'] = terminationDate;
+    }
+
+    if (reason) {
+      updateExpression.push('terminationReason = :reason');
+      values[':reason'] = reason;
     }
 
     await this.docClient.send(
@@ -683,16 +738,12 @@ class PersonnelService {
           PK: personId,
           SK: 'PROFILE',
         },
-        UpdateExpression:
-          'SET employmentStatus = :status, employment_status = :status, updatedAt = :updatedAt',
-        ExpressionAttributeValues: {
-          ':status': 'terminated',
-          ':updatedAt': new Date().toISOString(),
-        },
+        UpdateExpression: `SET ${updateExpression.join(', ')}`,
+        ExpressionAttributeValues: values,
       })
     );
 
-    console.log(`✅ Employee terminated: ${personId}`);
+    console.log(`✅ Employee terminated: ${personId}`, terminationDate ? `on ${terminationDate}` : '');
   }
 
   // ==========================================================================
