@@ -39,8 +39,8 @@ function AppContent() {
 
   // VERSION IDENTIFIER - helps diagnose browser cache issues
   useEffect(() => {
-    console.log('🚀 SiteLogix Frontend Version: BUILD-161-ROLE-PERMISSIONS');
-    console.log('📅 Build Date: 2025-11-19 12:10 CST');
+    console.log('🚀 SiteLogix Frontend Version: BUILD-166-ROLE-PERMISSIONS');
+    console.log('📅 Build Date: 2025-11-19 12:15 CST');
     console.log('🔧 Fixes: Employee number updates + Role-based permissions UI');
   }, []);
 
