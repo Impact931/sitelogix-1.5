@@ -20,7 +20,6 @@ interface TeamMember {
   // Login/Access fields
   username?: string;
   role?: string;
-  hasLoginAccess: boolean;
 }
 
 interface TeamManagementProps {
@@ -87,8 +86,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
               employmentStatus: emp.employmentStatus || emp.employment_status,
               hireDate: emp.hireDate || emp.hire_date,
               username: emp.username,
-              role: emp.role,
-              hasLoginAccess: !!(emp.username && emp.passwordHash)
+              role: emp.role || 'employee'  // Default to employee if no role set
             };
           })
           .filter((member: TeamMember) => member.fullName !== 'undefined undefined');  // Filter out incomplete records
@@ -124,7 +122,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
   const handleAdd = () => {
     setFormData({
       employmentStatus: 'active',
-      hasLoginAccess: false
+      role: 'employee'  // Default to employee
     });
     setNewPassword('');
     setShowAddModal(true);
@@ -132,10 +130,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
 
   const handleEdit = (member: TeamMember) => {
     setSelectedMember(member);
-    setFormData({
-      ...member,
-      hasLoginAccess: member.hasLoginAccess
-    });
+    setFormData({ ...member });
     setNewPassword('');
     setShowEditModal(true);
   };
@@ -146,9 +141,16 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       return;
     }
 
-    if (formData.hasLoginAccess && (!formData.email?.trim() || !formData.role || !newPassword)) {
-      alert('Email, role, and password are required for login access');
-      return;
+    // Validate login credentials for non-employee roles
+    if (formData.role && formData.role !== 'employee') {
+      if (!formData.email?.trim()) {
+        alert('Email is required for users with app login access');
+        return;
+      }
+      if (!newPassword) {
+        alert('Password is required for new users with app login access');
+        return;
+      }
     }
 
     try {
@@ -162,14 +164,14 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         jobTitle: formData.jobTitle,
         hourlyRate: formData.hourlyRate ? parseFloat(formData.hourlyRate.toString()) : undefined,
         employmentStatus: formData.employmentStatus || 'active',
-        hireDate: formData.hireDate
+        hireDate: formData.hireDate,
+        role: formData.role || 'employee'
       };
 
-      // Add login credentials if enabled
-      if (formData.hasLoginAccess) {
+      // Add login credentials for non-employee roles (foreman, manager, admin)
+      if (formData.role && formData.role !== 'employee') {
         payload.username = formData.email; // Use email as username
         payload.password = newPassword;
-        payload.role = formData.role;
       }
 
       console.log('Creating new employee:', payload);
@@ -188,6 +190,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       if (result.success) {
         console.log('Employee created successfully');
         setShowAddModal(false);
+        setNewPassword('');
         fetchTeam();
       } else {
         console.error('Failed to create employee:', result.error);
@@ -211,9 +214,12 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       return;
     }
 
-    if (formData.hasLoginAccess && (!formData.email?.trim() || !formData.role)) {
-      alert('Email and role are required for login access');
-      return;
+    // Validate login credentials for non-employee roles
+    if (formData.role && formData.role !== 'employee') {
+      if (!formData.email?.trim()) {
+        alert('Email is required for users with app login access');
+        return;
+      }
     }
 
     try {
@@ -227,20 +233,20 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         jobTitle: formData.jobTitle,
         hourlyRate: formData.hourlyRate ? parseFloat(formData.hourlyRate.toString()) : undefined,
         employmentStatus: formData.employmentStatus,
-        hireDate: formData.hireDate
+        hireDate: formData.hireDate,
+        role: formData.role
       };
 
-      // Add/update login credentials if enabled
-      if (formData.hasLoginAccess) {
+      // Set username to email for non-employee roles (foreman, manager, admin)
+      if (formData.role && formData.role !== 'employee') {
         payload.username = formData.email;
-        payload.role = formData.role;
         if (newPassword) {
           payload.password = newPassword;
         }
       } else {
-        // Remove login access
+        // Employee role - no login access
         payload.username = null;
-        payload.role = null;
+        payload.role = 'employee';
       }
 
       console.log('Updating employee:', selectedMember.personId, payload);
@@ -257,6 +263,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       if (result.success) {
         setShowEditModal(false);
         setSelectedMember(null);
+        setNewPassword('');
         fetchTeam();
       } else {
         alert(result.error || 'Failed to update team member');
@@ -443,10 +450,10 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                           ${member.hourlyRate?.toFixed(2) || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {member.hasLoginAccess ? (
+                          {member.role && member.role !== 'employee' ? (
                             <div>
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/30">
-                                {member.role || 'User'}
+                                {member.role}
                               </span>
                             </div>
                           ) : (
@@ -572,7 +579,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                       <option value="terminated" className="bg-dark-card text-white">Terminated</option>
                     </select>
                   </div>
-                  <div>
+                  <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Role <span className="text-xs text-gold">(Controls permissions & app access)</span>
                     </label>
@@ -588,7 +595,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                       <option value="superadmin" className="bg-dark-card text-white">Super Admin - All Permissions</option>
                     </select>
                     <p className="mt-1 text-xs text-gray-400">
-                      Foremen can only use Roxy and view their reports. Admins have full dashboard access.
+                      {formData.role === 'employee'
+                        ? 'Employees do not have app login access - they appear in reports only.'
+                        : 'This user will have app login access with the permissions shown above.'}
                     </p>
                   </div>
                   <div>
@@ -639,50 +648,47 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              {/* Login Access */}
-              <div className="border-b border-white/10 pb-4">
-                <div className="flex items-center mb-3">
-                  <input
-                    type="checkbox"
-                    checked={formData.hasLoginAccess || false}
-                    onChange={(e) => setFormData({ ...formData, hasLoginAccess: e.target.checked })}
-                    className="mr-2"
-                  />
-                  <label className="font-semibold">Enable Login Access</label>
-                </div>
-
-                {formData.hasLoginAccess && (
-                  <div className="grid grid-cols-2 gap-4 ml-6">
+              {/* Login Credentials - shown for non-employee roles */}
+              {formData.role && formData.role !== 'employee' && (
+                <div className="border-t border-white/10 pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    App Login Credentials
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Role *
+                        Username
                       </label>
-                      <select
-                        value={formData.role || ''}
-                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
-                      >
-                        <option value="" className="bg-dark-card text-white">Select role...</option>
-                        <option value="admin" className="bg-dark-card text-white">Admin</option>
-                        <option value="manager" className="bg-dark-card text-white">Manager</option>
-                        <option value="employee" className="bg-dark-card text-white">Employee</option>
-                      </select>
+                      <input
+                        type="text"
+                        value={formData.email || ''}
+                        disabled
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 cursor-not-allowed"
+                        placeholder="Email will be used as username"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Email address is used as username</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        {showAddModal ? 'Password *' : 'New Password (leave blank to keep current)'}
+                        {showAddModal ? 'Password *' : 'New Password'}
                       </label>
                       <input
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
-                        placeholder={showEditModal ? 'Leave blank to keep current' : ''}
+                        placeholder={showEditModal ? 'Leave blank to keep current' : 'Set login password'}
                       />
+                      {showEditModal && (
+                        <p className="mt-1 text-xs text-gray-500">Leave blank to keep current password</p>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="flex justify-between pt-4 border-t border-white/10 mt-4">
                 {showEditModal && selectedMember && (
