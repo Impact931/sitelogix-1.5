@@ -113,7 +113,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         member.lastName?.toLowerCase().includes(term) ||
         member.employeeNumber?.toLowerCase().includes(term) ||
         member.email?.toLowerCase().includes(term) ||
-        member.jobTitle?.toLowerCase().includes(term) ||
+        member.role?.toLowerCase().includes(term) ||
         member.preferredName?.toLowerCase().includes(term)
       );
     }
@@ -395,10 +395,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Employee #</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Nickname</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Contact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Job Title</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Rate</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Login Access</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
@@ -418,8 +417,15 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                           <div className="text-gray-300">{member.email || '-'}</div>
                           <div className="text-gray-400">{member.phone || '-'}</div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {member.jobTitle || '-'}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            member.role === 'admin' || member.role === 'superadmin' ? 'bg-gold/20 text-gold' :
+                            member.role === 'foreman' ? 'bg-blue-500/20 text-blue-400' :
+                            member.role === 'manager' ? 'bg-purple-500/20 text-purple-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {member.role ? member.role.charAt(0).toUpperCase() + member.role.slice(1) : 'Employee'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -548,17 +554,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                       placeholder="e.g., Bob, Mike, Sarah"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Job Title
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.jobTitle || ''}
-                      onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
-                    />
-                  </div>
+                  {/* Job Title field removed - use Role dropdown below instead */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">
                       Employment Status
@@ -577,20 +573,23 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      System Role <span className="text-xs text-gray-400">(Determines app access)</span>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Role <span className="text-xs text-gold">(Controls permissions & app access)</span>
                     </label>
                     <select
                       value={formData.role || 'employee'}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
                     >
-                      <option value="employee" className="bg-dark-card text-white">Employee (Basic Access)</option>
-                      <option value="foreman" className="bg-dark-card text-white">Foreman (Roxy + Reports)</option>
-                      <option value="manager" className="bg-dark-card text-white">Manager (Project Management)</option>
-                      <option value="admin" className="bg-dark-card text-white">Admin (Full Access)</option>
-                      <option value="superadmin" className="bg-dark-card text-white">Super Admin (System Admin)</option>
+                      <option value="employee" className="bg-dark-card text-white">Employee - No System Access</option>
+                      <option value="foreman" className="bg-dark-card text-white">Foreman - Roxy + Reports Only</option>
+                      <option value="manager" className="bg-dark-card text-white">Manager - Project Management Access</option>
+                      <option value="admin" className="bg-dark-card text-white">Admin - Full System Access</option>
+                      <option value="superadmin" className="bg-dark-card text-white">Super Admin - All Permissions</option>
                     </select>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Foremen can only use Roxy and view their reports. Admins have full dashboard access.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">

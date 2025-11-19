@@ -39,9 +39,9 @@ function AppContent() {
 
   // VERSION IDENTIFIER - helps diagnose browser cache issues
   useEffect(() => {
-    console.log('🚀 SiteLogix Frontend Version: BUILD-160-SESSION-FIX');
-    console.log('📅 Build Date: 2025-11-19 11:55 CST');
-    console.log('🔧 Fixes: URL encoding for # in personId + Session persistence on refresh');
+    console.log('🚀 SiteLogix Frontend Version: BUILD-161-ROLE-PERMISSIONS');
+    console.log('📅 Build Date: 2025-11-19 12:10 CST');
+    console.log('🔧 Fixes: Employee number updates + Role-based permissions UI');
   }, []);
 
   // Check for existing session
