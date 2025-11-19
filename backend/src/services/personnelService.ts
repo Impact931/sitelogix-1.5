@@ -58,6 +58,7 @@ interface CreateEmployeeInput {
   lastName: string;
   middleName?: string;
   preferredName?: string;
+  employeeNumber?: string; // User-provided employee number (e.g., "NO4", "PKW01")
   email?: string;
   phone?: string;
   hireDate?: string;
@@ -293,14 +294,16 @@ class PersonnelService {
   async createEmployee(data: CreateEmployeeInput): Promise<Employee> {
     console.log(`📝 Creating new employee: ${data.firstName} ${data.lastName}`);
 
-    const personId = `PER#${generateEmployeeNumber()}`;
+    // Use user-provided employeeNumber if given, otherwise generate one
+    const employeeNumber = data.employeeNumber || generateEmployeeNumber();
+    const personId = `PER#${employeeNumber}`;
     const now = new Date().toISOString();
 
     const fullName = normalizeName(`${data.firstName} ${data.lastName}`);
 
     const employee: Employee = {
       personId,
-      employeeNumber: personId.replace('PER#', ''),
+      employeeNumber, // Use exactly what the user provided or generated
       firstName: normalizeName(data.firstName),
       lastName: normalizeName(data.lastName),
       middleName: data.middleName ? normalizeName(data.middleName) : undefined,

@@ -245,7 +245,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
 
       console.log('Updating employee:', selectedMember.personId, payload);
 
-      const response = await fetch(`${API_BASE_URL}/personnel/${selectedMember.personId}`, {
+      // URL-encode the personId to handle special characters like #
+      const encodedPersonId = encodeURIComponent(selectedMember.personId);
+      const response = await fetch(`${API_BASE_URL}/personnel/${encodedPersonId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -277,7 +279,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
     try {
       console.log('Terminating employee:', member.personId);
 
-      const response = await fetch(`${API_BASE_URL}/personnel/${member.personId}`, {
+      // URL-encode the personId to handle special characters like #
+      const encodedPersonId = encodeURIComponent(member.personId);
+      const response = await fetch(`${API_BASE_URL}/personnel/${encodedPersonId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
