@@ -32,16 +32,16 @@ interface Project {
 type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics' | 'payroll' | 'employee-management' | 'team-management';
 
 function AppContent() {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>('auth-login');
   const [manager, setManager] = useState<Manager | null>(null);
   const [project, setProject] = useState<Project | null>(null);
 
   // VERSION IDENTIFIER - helps diagnose browser cache issues
   useEffect(() => {
-    console.log('🚀 SiteLogix Frontend Version: BUILD-151-AUDIO-DEBUG');
-    console.log('📅 Build Date: 2025-11-17 15:52 CST');
-    console.log('🔧 Audio Debug: Enhanced WebRTC monitoring enabled');
+    console.log('🚀 SiteLogix Frontend Version: BUILD-160-SESSION-FIX');
+    console.log('📅 Build Date: 2025-11-19 11:55 CST');
+    console.log('🔧 Fixes: URL encoding for # in personId + Session persistence on refresh');
   }, []);
 
   // Check for existing session
@@ -99,12 +99,22 @@ function AppContent() {
     setCurrentScreen('home');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Clear legacy localStorage items
     localStorage.removeItem('sitelogix_manager');
     localStorage.removeItem('sitelogix_project');
+
+    // Clear authentication tokens via AuthContext
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+
+    // Clear local state
     setManager(null);
     setProject(null);
-    setCurrentScreen('login');
+    setCurrentScreen('auth-login');
   };
 
   const handleChangeProject = () => {
