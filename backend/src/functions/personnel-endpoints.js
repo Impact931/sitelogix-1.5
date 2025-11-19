@@ -3,7 +3,7 @@
  * Handles employee management operations using PersonnelService
  */
 
-const personnelService = require('./personnelService');
+const { personnelService } = require('./personnelService');
 
 /**
  * POST /api/personnel/match

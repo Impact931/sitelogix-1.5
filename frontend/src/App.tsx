@@ -63,6 +63,13 @@ function AppContent() {
         }
       } else if (user.role === 'manager') {
         setCurrentScreen('project-setup');
+      } else if (user.role === 'foreman' || user.role === 'employee') {
+        // Foremen and employees go directly to Roxy (limited access)
+        setCurrentScreen('home');
+        if (!manager && !project) {
+          setManager({ id: user.userId, name: `${user.firstName} ${user.lastName}`, goByName: user.firstName });
+          setProject({ id: 'foreman', name: 'Daily Reports', location: 'Field' });
+        }
       }
       return;
     }
@@ -240,6 +247,7 @@ function AppContent() {
       <HomePage
         manager={manager!}
         project={project!}
+        user={user || undefined}
         onNavigateToRoxy={handleNavigateToRoxy}
         onNavigateToReports={handleViewReports}
         onNavigateToAnalytics={handleViewAnalytics}

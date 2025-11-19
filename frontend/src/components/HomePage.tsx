@@ -13,9 +13,17 @@ interface Project {
   location: string;
 }
 
+interface User {
+  userId: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+}
+
 interface HomePageProps {
   manager: Manager;
   project: Project;
+  user?: User;
   onNavigateToRoxy: () => void;
   onNavigateToReports: () => void;
   onNavigateToAnalytics: () => void;
@@ -27,6 +35,7 @@ interface HomePageProps {
 const HomePage: React.FC<HomePageProps> = ({
   manager,
   project,
+  user,
   onNavigateToRoxy,
   onNavigateToReports,
   onNavigateToAnalytics,
@@ -34,36 +43,53 @@ const HomePage: React.FC<HomePageProps> = ({
   onNavigateToPayroll,
   onLogout,
 }) => {
-  const navigationCards = [
-    {
-      id: 'roxy',
-      title: 'Roxy',
-      subtitle: 'Voice Reporting',
-      description: 'Create daily construction reports using voice',
-      icon: (
-        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-      ),
-      onClick: onNavigateToRoxy,
-      available: true,
-      gradient: 'from-gold-light to-gold-dark',
-    },
-    {
-      id: 'reports',
-      title: 'Reports',
-      subtitle: 'View & Manage',
-      description: 'Access all daily construction reports',
-      icon: (
-        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      onClick: onNavigateToReports,
-      available: true,
-      gradient: 'from-blue-400 to-blue-600',
-    },
-    {
+  // Determine user role and permissions
+  const userRole = user?.role || 'employee';
+  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+  const isForeman = userRole === 'foreman';
+  const isEmployee = userRole === 'employee';
+
+  // Foremen and employees only see Roxy and Reports
+  const hasLimitedAccess = isForeman || isEmployee;
+
+  // Build navigation cards based on user role
+  const navigationCards = [];
+
+  // Roxy - available to everyone
+  navigationCards.push({
+    id: 'roxy',
+    title: 'Roxy',
+    subtitle: 'Voice Reporting',
+    description: 'Create daily construction reports using voice',
+    icon: (
+      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+      </svg>
+    ),
+    onClick: onNavigateToRoxy,
+    available: true,
+    gradient: 'from-gold-light to-gold-dark',
+  });
+
+  // Reports - available to everyone
+  navigationCards.push({
+    id: 'reports',
+    title: 'Reports',
+    subtitle: 'View & Manage',
+    description: 'Access all daily construction reports',
+    icon: (
+      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    onClick: onNavigateToReports,
+    available: true,
+    gradient: 'from-blue-400 to-blue-600',
+  });
+
+  // Analytics - only for managers and admins
+  if (!hasLimitedAccess) {
+    navigationCards.push({
       id: 'analytics',
       title: 'Analytics',
       subtitle: 'Insights & Data',
@@ -76,8 +102,12 @@ const HomePage: React.FC<HomePageProps> = ({
       onClick: onNavigateToAnalytics,
       available: true,
       gradient: 'from-green-400 to-green-600',
-    },
-    {
+    });
+  }
+
+  // Future modules - only show to managers and admins
+  if (!hasLimitedAccess) {
+    navigationCards.push({
       id: 'reba',
       title: 'Reba',
       subtitle: 'Resource Allocation',
@@ -90,25 +120,26 @@ const HomePage: React.FC<HomePageProps> = ({
       onClick: () => {},
       available: false,
       gradient: 'from-purple-400 to-purple-600',
-    },
-    {
+    });
+
+    navigationCards.push({
       id: 'ranger',
       title: 'Ranger',
       subtitle: 'Safety & Compliance',
       description: 'Track safety incidents and compliance',
       icon: (
         <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.40A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
       ),
       onClick: () => {},
       available: false,
       gradient: 'from-red-400 to-red-600',
-    },
-  ];
+    });
+  }
 
-  // Add admin-only tiles if handlers are provided
-  if (onNavigateToTeamManagement) {
+  // Add admin-only tiles if handlers are provided (only for admins)
+  if (onNavigateToTeamManagement && isAdmin) {
     navigationCards.push({
       id: 'team-management',
       title: 'Team Management',
@@ -125,7 +156,7 @@ const HomePage: React.FC<HomePageProps> = ({
     });
   }
 
-  if (onNavigateToPayroll) {
+  if (onNavigateToPayroll && isAdmin) {
     navigationCards.push({
       id: 'payroll',
       title: 'Payroll',

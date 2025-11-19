@@ -6,7 +6,7 @@ interface User {
   userId: string;
   username: string;
   email: string;
-  role: 'user' | 'manager' | 'admin' | 'superadmin';
+  role: 'employee' | 'foreman' | 'manager' | 'admin' | 'superadmin';
   firstName: string;
   lastName: string;
   permissions: string[];

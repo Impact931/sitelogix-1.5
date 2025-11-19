@@ -574,6 +574,22 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">
+                      System Role <span className="text-xs text-gray-400">(Determines app access)</span>
+                    </label>
+                    <select
+                      value={formData.role || 'employee'}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
+                    >
+                      <option value="employee" className="bg-dark-card text-white">Employee (Basic Access)</option>
+                      <option value="foreman" className="bg-dark-card text-white">Foreman (Roxy + Reports)</option>
+                      <option value="manager" className="bg-dark-card text-white">Manager (Project Management)</option>
+                      <option value="admin" className="bg-dark-card text-white">Admin (Full Access)</option>
+                      <option value="superadmin" className="bg-dark-card text-white">Super Admin (System Admin)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Email
                     </label>
                     <input

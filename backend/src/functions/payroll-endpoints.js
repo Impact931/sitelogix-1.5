@@ -3,7 +3,7 @@
  * Handles payroll entry management and reporting using PayrollService
  */
 
-const payrollService = require('./payrollService');
+const { payrollService } = require('./payrollService');
 
 /**
  * POST /api/payroll
