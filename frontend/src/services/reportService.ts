@@ -54,10 +54,12 @@ export const saveReport = async (params: SaveReportParams) => {
     }
 
     // Send to API endpoint
+    const accessToken = localStorage.getItem('accessToken');
     const response = await fetch(`${API_BASE_URL}/reports`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         audioBase64,

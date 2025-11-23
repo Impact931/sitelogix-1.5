@@ -45,7 +45,12 @@ export const useElevenLabsConversation = ({
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
       console.log('🔐 Requesting conversation token from backend...');
 
-      const tokenResponse = await fetch(`${API_BASE_URL}/elevenlabs/conversation-token`);
+      const accessToken = localStorage.getItem('accessToken');
+      const tokenResponse = await fetch(`${API_BASE_URL}/elevenlabs/conversation-token`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
       if (!tokenResponse.ok) {
         throw new Error(`Failed to fetch conversation token: ${tokenResponse.statusText}`);
       }

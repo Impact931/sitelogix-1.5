@@ -54,7 +54,12 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   useEffect(() => {
     const fetchAgentConfig = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/elevenlabs/agent-config`);
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(`${API_BASE_URL}/elevenlabs/agent-config`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
         const data = await response.json();
         if (data.success && data.agentId) {
           setAgentId(data.agentId);
