@@ -136,10 +136,12 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       });
 
       const url = `${API_BASE_URL}/reports${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
         },
         credentials: 'omit', // Don't send credentials to avoid CORS preflight
         cache: 'no-store' // Prevent caching issues
@@ -208,8 +210,13 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       const url = `${API_BASE_URL}/reports/${report.report_id}/transcript?projectId=${report.project_id}&reportDate=${report.report_date}&${cacheBuster}`;
       console.log('📡 Fetching transcript from URL:', url);
 
-      // SIMPLE FETCH - no CORS options
-      const response = await fetch(url);
+      // SIMPLE FETCH with authentication
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
       console.log('📥 Transcript response:', {
         status: response.status,
@@ -258,8 +265,13 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
       console.log('🔑 Report ID (raw):', report.report_id);
       console.log('🔑 Report ID (encoded):', encodedReportId);
 
-      // SIMPLE FETCH - no CORS options to avoid preflight/credentials mismatch
-      const response = await fetch(url);
+      // SIMPLE FETCH with authentication
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
       console.log('📥 Response received:', {
         status: response.status,

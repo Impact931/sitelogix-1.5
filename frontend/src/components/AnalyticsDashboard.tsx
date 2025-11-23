@@ -93,7 +93,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
       setError(null);
       console.log('Fetching executive dashboard from:', `${BI_API}/executive`);
 
-      const response = await fetch(`${BI_API}/executive`);
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(`${BI_API}/executive`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`BI API returned ${response.status}`);
@@ -126,9 +131,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
       setChatLoading(true);
       setChatResponse('');
 
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(`${BI_API}/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ query })
       });
 
@@ -167,7 +176,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const openReport = async (reportType: string) => {
     try {
       console.log('Opening report:', reportType);
-      const response = await fetch(`${BI_API}/reports/${reportType}`);
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(`${BI_API}/reports/${reportType}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
@@ -193,9 +207,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const saveResolution = async (constraintId: string, resolution: string) => {
     try {
       setSavingResolution(constraintId);
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(`${BI_API}/constraints/${constraintId}/resolution`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           resolution,
           updatedBy: manager.name
@@ -231,9 +249,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
   const updateConstraintStatus = async (constraintId: string, newStatus: string) => {
     try {
       setUpdatingStatus(constraintId);
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(`${BI_API}/constraints/${constraintId}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           status: newStatus,
           updatedBy: manager.name

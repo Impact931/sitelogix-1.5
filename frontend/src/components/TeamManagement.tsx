@@ -50,7 +50,12 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
   const fetchTeam = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/personnel?status=${statusFilter}&limit=1000`);
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_BASE_URL}/personnel?status=${statusFilter}&limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -176,9 +181,13 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
 
       console.log('Creating new employee:', payload);
 
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(`${API_BASE_URL}/personnel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify(payload)
       });
 
@@ -253,9 +262,13 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
 
       // URL-encode the personId to handle special characters like #
       const encodedPersonId = encodeURIComponent(selectedMember.personId);
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(`${API_BASE_URL}/personnel/${encodedPersonId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify(payload)
       });
 
@@ -288,9 +301,13 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
 
       // URL-encode the personId to handle special characters like #
       const encodedPersonId = encodeURIComponent(member.personId);
+      const accessToken = localStorage.getItem('accessToken');
       const response = await fetch(`${API_BASE_URL}/personnel/${encodedPersonId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           terminationDate: new Date().toISOString().split('T')[0],
           reason: 'Terminated via Team Management'
