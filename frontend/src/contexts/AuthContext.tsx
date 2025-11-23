@@ -107,6 +107,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         fetchAuthSession(),
       ]);
 
+      // Store tokens in localStorage for API calls
+      if (session.tokens?.accessToken && session.tokens?.idToken) {
+        localStorage.setItem('accessToken', session.tokens.accessToken.toString());
+        localStorage.setItem('idToken', session.tokens.idToken.toString());
+        console.log('✅ Stored tokens in localStorage');
+      }
+
       // Extract groups from ID token
       const idToken = session.tokens?.idToken;
       const groups = idToken?.payload['cognito:groups'] as string[] | undefined;
@@ -204,6 +211,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setRequirePasswordChange(false);
       setTempUsername(undefined);
       setTempPassword(undefined);
+
+      // Clear tokens from localStorage
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('idToken');
+      localStorage.removeItem('refreshToken');
+      console.log('🔓 Cleared tokens from localStorage');
     }
   };
 
