@@ -6,7 +6,14 @@ Quick reference for SiteLogix Cognito authentication.
 
 ```javascript
 User Pool ID: us-east-1_tPkj4vb3A
-Client ID: 7rsb6cnpp86cdgtv3h9j6c8t75
+
+// Backend App Client (with secret - for Lambda functions)
+Backend Client ID: 7rsb6cnpp86cdgtv3h9j6c8t75
+Client Secret: vofaujel798h2iu5decko25cqa0ndubp3hnvdbvdtcjinge2v8i
+
+// Frontend App Client (public - for web app)
+Frontend Client ID: 527pll5ph0ghsojmehpd82fnrr
+
 Region: us-east-1
 ```
 

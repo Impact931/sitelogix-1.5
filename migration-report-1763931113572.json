@@ -1,0 +1,51 @@
+{
+  "timestamp": "2025-11-23T20:51:53.572Z",
+  "dryRun": false,
+  "summary": {
+    "total": 5,
+    "successful": 5,
+    "failed": 0
+  },
+  "results": [
+    {
+      "success": true,
+      "email": "rtrask@parkwaycs.com",
+      "displayName": "Robert Trask",
+      "personId": "PER#PKW01",
+      "employeeNumber": "PKW01",
+      "cognitoUserId": "9478e408-30d1-7010-21fe-5ad8cf24bccb"
+    },
+    {
+      "success": true,
+      "email": "jayson@impactconsulting931.com",
+      "displayName": "Jayson Rivas",
+      "personId": "PER#IC101",
+      "employeeNumber": "IC101",
+      "cognitoUserId": "b4d8c4e8-1051-7020-8de4-da45045603ee"
+    },
+    {
+      "success": true,
+      "email": "corey.birchfield@parkwaycs.com",
+      "displayName": "Corey Birchfield",
+      "personId": "PER#N02",
+      "employeeNumber": "N02",
+      "cognitoUserId": "24685418-50a1-70e8-bece-65e19436d256"
+    },
+    {
+      "success": true,
+      "email": "atrask@parkwaycs.com",
+      "displayName": "Aaron Trask",
+      "personId": "PER#N01",
+      "employeeNumber": "N01",
+      "cognitoUserId": "14381498-f031-7007-4383-3b1924fa404c"
+    },
+    {
+      "success": true,
+      "email": "dguthrie@parkwaycs.com",
+      "displayName": "Don Guthrie",
+      "personId": "PER#EMP-20251118720",
+      "employeeNumber": "N04",
+      "cognitoUserId": "f468b418-7051-7060-5c96-979d18ef5972"
+    }
+  ]
+}

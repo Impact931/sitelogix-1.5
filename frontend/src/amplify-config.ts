@@ -5,7 +5,10 @@ const amplifyConfig = {
   Auth: {
     Cognito: {
       userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || 'us-east-1_tPkj4vb3A',
-      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '7rsb6cnpp86cdgtv3h9j6c8t75',
+      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '527pll5ph0ghsojmehpd82fnrr',
+      loginWith: {
+        email: true,
+      },
     },
   },
 };

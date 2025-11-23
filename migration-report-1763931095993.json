@@ -1,0 +1,51 @@
+{
+  "timestamp": "2025-11-23T20:51:35.993Z",
+  "dryRun": true,
+  "summary": {
+    "total": 5,
+    "successful": 5,
+    "failed": 0
+  },
+  "results": [
+    {
+      "success": true,
+      "email": "rtrask@parkwaycs.com",
+      "displayName": "Robert Trask",
+      "personId": "PER#PKW01",
+      "employeeNumber": "PKW01",
+      "cognitoUserId": "DRYRUN-PER#PKW01"
+    },
+    {
+      "success": true,
+      "email": "jayson@impactconsulting931.com",
+      "displayName": "Jayson Rivas",
+      "personId": "PER#IC101",
+      "employeeNumber": "IC101",
+      "cognitoUserId": "DRYRUN-PER#IC101"
+    },
+    {
+      "success": true,
+      "email": "corey.birchfield@parkwaycs.com",
+      "displayName": "Corey Birchfield",
+      "personId": "PER#N02",
+      "employeeNumber": "N02",
+      "cognitoUserId": "DRYRUN-PER#N02"
+    },
+    {
+      "success": true,
+      "email": "atrask@parkwaycs.com",
+      "displayName": "Aaron Trask",
+      "personId": "PER#N01",
+      "employeeNumber": "N01",
+      "cognitoUserId": "DRYRUN-PER#N01"
+    },
+    {
+      "success": true,
+      "email": "dguthrie@parkwaycs.com",
+      "displayName": "Don Guthrie",
+      "personId": "PER#EMP-20251118720",
+      "employeeNumber": "N04",
+      "cognitoUserId": "DRYRUN-PER#EMP-20251118720"
+    }
+  ]
+}
