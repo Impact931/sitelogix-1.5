@@ -175,7 +175,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
 
       // Add login credentials for non-employee roles (foreman, manager, admin)
       if (formData.role && formData.role !== 'employee') {
-        payload.username = formData.email; // Use email as username
+        payload.username = formData.username || formData.email; // Use custom username or fallback to email
         payload.password = newPassword;
       }
 
@@ -246,9 +246,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         role: formData.role
       };
 
-      // Set username to email for non-employee roles (foreman, manager, admin)
+      // Set username for non-employee roles (foreman, manager, admin)
       if (formData.role && formData.role !== 'employee') {
-        payload.username = formData.email;
+        payload.username = formData.username || formData.email; // Use custom username or fallback to email
         if (newPassword) {
           payload.password = newPassword;
         }
@@ -679,14 +679,29 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                       <label className="block text-sm font-medium text-gray-300 mb-1">
                         Username
                       </label>
-                      <input
-                        type="text"
-                        value={formData.email || ''}
-                        disabled
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 cursor-not-allowed"
-                        placeholder="Email will be used as username"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">Email address is used as username</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={formData.username || ''}
+                          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                          className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
+                          placeholder="e.g., JRivas"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (formData.firstName && formData.lastName) {
+                              const autoUsername = `${formData.firstName.charAt(0)}${formData.lastName}`;
+                              setFormData({ ...formData, username: autoUsername });
+                            }
+                          }}
+                          className="px-3 py-2 bg-gold/20 border border-gold/30 rounded-lg text-gold hover:bg-gold/30 transition text-sm whitespace-nowrap"
+                          title="Generate username from first initial + last name"
+                        >
+                          Auto
+                        </button>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">Custom username for login (e.g., JRivas)</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
