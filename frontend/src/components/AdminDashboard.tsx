@@ -23,7 +23,6 @@ interface AdminDashboardProps {
   onNavigateToUserManagement?: () => void;
   onNavigateToChangePassword?: () => void;
   onNavigateToPayroll?: () => void;
-  onNavigateToEmployeeManagement?: () => void;
   onNavigateToTeamManagement?: () => void;
 }
 

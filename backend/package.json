@@ -20,6 +20,7 @@
   "license": "PROPRIETARY",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.9",
+    "@aws-sdk/client-cognito-identity-provider": "^3.936.0",
     "@aws-sdk/client-dynamodb": "^3.600.0",
     "@aws-sdk/client-s3": "^3.600.0",
     "@aws-sdk/client-secrets-manager": "^3.922.0",
@@ -27,6 +28,7 @@
     "@aws-sdk/lib-dynamodb": "^3.600.0",
     "@aws-sdk/s3-request-presigner": "^3.600.0",
     "@types/bcryptjs": "^2.4.6",
+    "aws-jwt-verify": "^5.1.1",
     "axios": "^1.6.2",
     "bcryptjs": "^3.0.3",
     "fuzzball": "^2.1.2",

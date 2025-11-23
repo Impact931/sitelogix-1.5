@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { changePassword } from '../services/userService';
+import { updatePassword } from 'aws-amplify/auth';
 
 interface ChangePasswordProps {
   onBack: () => void;
@@ -40,7 +40,10 @@ export default function ChangePassword({ onBack }: ChangePasswordProps) {
 
     try {
       setLoading(true);
-      await changePassword(currentPassword, newPassword);
+      await updatePassword({
+        oldPassword: currentPassword,
+        newPassword: newPassword,
+      });
       setSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
@@ -51,7 +54,15 @@ export default function ChangePassword({ onBack }: ChangePasswordProps) {
         onBack();
       }, 3000);
     } catch (err: any) {
-      setError(err.message || 'Failed to change password');
+      if (err.name === 'NotAuthorizedException') {
+        setError('Current password is incorrect');
+      } else if (err.name === 'InvalidPasswordException') {
+        setError('Password does not meet requirements (must include uppercase, lowercase, number, and special character)');
+      } else if (err.name === 'LimitExceededException') {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError(err.message || 'Failed to change password');
+      }
     } finally {
       setLoading(false);
     }
@@ -128,7 +139,7 @@ export default function ChangePassword({ onBack }: ChangePasswordProps) {
                 placeholder="Enter new password (min 8 characters)"
                 disabled={loading}
               />
-              <p className="text-white/40 text-sm mt-1">Password must be at least 8 characters long</p>
+              <p className="text-white/40 text-sm mt-1">Must include uppercase, lowercase, number, and special character</p>
             </div>
 
             <div>
@@ -156,7 +167,19 @@ export default function ChangePassword({ onBack }: ChangePasswordProps) {
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  <span>Different from your current password</span>
+                  <span>Contains uppercase and lowercase letters</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Contains at least one number</span>
+                </li>
+                <li className="flex items-center space-x-2">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Contains at least one special character</span>
                 </li>
               </ul>
             </div>

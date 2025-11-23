@@ -13,7 +13,6 @@ import VoiceReportingScreen from './components/VoiceReportingScreen';
 import ReportsList from './components/ReportsList';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import PayrollDashboard from './components/PayrollDashboard';
-import EmployeeManagement from './components/EmployeeManagement';
 import TeamManagement from './components/TeamManagement';
 
 interface Manager {
@@ -29,7 +28,7 @@ interface Project {
   location: string;
 }
 
-type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics' | 'payroll' | 'employee-management' | 'team-management';
+type Screen = 'auth-login' | 'admin' | 'project-setup' | 'project-profile' | 'project-selector' | 'user-management' | 'change-password' | 'login' | 'home' | 'recording' | 'reports' | 'analytics' | 'payroll' | 'team-management';
 
 function AppContent() {
   const { isAuthenticated, user, isLoading, logout } = useAuth();
@@ -175,10 +174,6 @@ function AppContent() {
     setCurrentScreen('payroll');
   };
 
-  const handleNavigateToEmployeeManagement = () => {
-    setCurrentScreen('employee-management');
-  };
-
   const handleNavigateToTeamManagement = () => {
     setCurrentScreen('team-management');
   };
@@ -216,7 +211,6 @@ function AppContent() {
         onNavigateToUserManagement={handleNavigateToUserManagement}
         onNavigateToChangePassword={handleNavigateToChangePassword}
         onNavigateToPayroll={handleNavigateToPayroll}
-        onNavigateToEmployeeManagement={handleNavigateToEmployeeManagement}
         onNavigateToTeamManagement={handleNavigateToTeamManagement}
       />
     );
@@ -293,12 +287,8 @@ function AppContent() {
     return <PayrollDashboard onClose={handleBackToAdmin} />;
   }
 
-  if (currentScreen === 'employee-management') {
-    return <EmployeeManagement onClose={handleBackToAdmin} />;
-  }
-
   if (currentScreen === 'team-management') {
-    return <TeamManagement onClose={handleBackToAdmin} />;
+    return <TeamManagement onClose={handleBackToHome} />;
   }
 
   return (

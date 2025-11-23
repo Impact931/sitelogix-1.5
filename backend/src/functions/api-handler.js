@@ -25,20 +25,30 @@ const {
   getCostAnalysisReport,
   getDeliveryPerformanceReport
 } = require('./bi-endpoints');
+// Cognito Authentication
 const {
-  handleLogin,
-  handleLogout,
-  handleRefreshToken,
-  handleGetCurrentUser,
-  handleRegister,
-  handleChangePassword,
-  handleResetPassword,
+  handleCognitoLogin,
+  handleCognitoRefresh,
+  handleCognitoLogout,
+  verifyCognitoToken,
+  getCurrentUser
+} = require('./cognito-auth');
+
+const {
+  createCognitoUser,
+  updateCognitoUser,
+  addUserToGroup,
+  resetPassword,
+  changePassword
+} = require('./cognito-user-management');
+
+// Keep legacy admin endpoints for employee management (non-auth)
+const {
   handleListEmployees,
   handleGetEmployee,
   handleCreateEmployee,
   handleUpdateEmployee,
   handleDeleteEmployee,
-  verifyToken,
   checkRateLimit,
   hasPermission
 } = require('./admin-endpoints');
@@ -117,6 +127,38 @@ async function getSecret(secretName) {
   } catch (error) {
     console.error(`Error retrieving secret ${secretName}:`, error);
     throw error;
+  }
+}
+
+/**
+ * Middleware to verify Cognito JWT token from request headers
+ * Extracts and validates the Bearer token, returns user info if valid
+ */
+async function verifyCognitoTokenMiddleware(event) {
+  try {
+    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    if (!authHeader) {
+      return { success: false, error: 'No authorization header', code: 'UNAUTHORIZED' };
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) {
+      return { success: false, error: 'No token provided', code: 'UNAUTHORIZED' };
+    }
+
+    // Verify token using Cognito
+    const verification = await verifyCognitoToken(token);
+    if (!verification.success) {
+      return verification;
+    }
+
+    return {
+      success: true,
+      user: verification.user
+    };
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return { success: false, error: 'Invalid token', code: 'UNAUTHORIZED' };
   }
 }
 
@@ -3500,16 +3542,26 @@ exports.handler = async (event) => {
     }
 
     // =====================================================================
-    // AUTHENTICATION ENDPOINTS
+    // AUTHENTICATION ENDPOINTS (AWS Cognito)
     // =====================================================================
 
-    // POST /api/auth/login
+    // POST /api/auth/login - Sign in with email and password
     if (path.endsWith('/auth/login') && method === 'POST') {
-      const result = await handleLogin(body);
-      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      const { email, password, username, passcode } = body;
+      // Support both email/password and username/passcode for backwards compatibility
+      const loginEmail = email || username;
+      const loginPassword = password || passcode;
+
+      const result = await handleCognitoLogin(loginEmail, loginPassword);
+
+      return {
+        statusCode: result.success ? 200 : (result.code === 'AUTH_FAILED' ? 401 : 400),
+        headers,
+        body: JSON.stringify(result)
+      };
     }
 
-    // POST /api/auth/logout
+    // POST /api/auth/logout - Sign out user
     if (path.endsWith('/auth/logout') && method === 'POST') {
       try {
         const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
@@ -3520,25 +3572,36 @@ exports.handler = async (event) => {
             body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
           };
         }
-        const user = await verifyToken(token);
-        const result = await handleLogout(body, user);
-        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
-      } catch (error) {
+
+        const result = await handleCognitoLogout(token);
         return {
-          statusCode: 401,
+          statusCode: result.success ? 200 : 401,
           headers,
-          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        console.error('Logout error:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Logout failed', code: 'INTERNAL_ERROR' })
         };
       }
     }
 
-    // POST /api/auth/refresh
+    // POST /api/auth/refresh - Refresh access token
     if (path.endsWith('/auth/refresh') && method === 'POST') {
-      const result = await handleRefreshToken(body);
-      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+      const { refreshToken } = body;
+      const result = await handleCognitoRefresh(refreshToken);
+
+      return {
+        statusCode: result.success ? 200 : (result.code === 'TOKEN_EXPIRED' ? 401 : 400),
+        headers,
+        body: JSON.stringify(result)
+      };
     }
 
-    // GET /api/auth/me
+    // GET /api/auth/me - Get current user info
     if (path.endsWith('/auth/me') && method === 'GET') {
       try {
         const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
@@ -3549,10 +3612,15 @@ exports.handler = async (event) => {
             body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
           };
         }
-        const user = await verifyToken(token);
-        const result = await handleGetCurrentUser(user);
-        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
+
+        const result = await getCurrentUser(token);
+        return {
+          statusCode: result.success ? 200 : 401,
+          headers,
+          body: JSON.stringify(result)
+        };
       } catch (error) {
+        console.error('Get current user error:', error);
         return {
           statusCode: 401,
           headers,
@@ -3561,13 +3629,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // POST /api/auth/register
-    if (path.endsWith('/auth/register') && method === 'POST') {
-      const result = await handleRegister(body);
-      return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
-    }
-
-    // POST /api/auth/change-password
+    // POST /api/auth/change-password - Change user's password
     if (path.endsWith('/auth/change-password') && method === 'POST') {
       try {
         const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
@@ -3578,37 +3640,67 @@ exports.handler = async (event) => {
             body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
           };
         }
-        const user = await verifyToken(token);
-        const result = await handleChangePassword(body, user);
-        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
-      } catch (error) {
+
+        const { currentPassword, newPassword, oldPassword } = body;
+        // Support both field naming conventions
+        const oldPass = currentPassword || oldPassword;
+        const result = await changePassword(token, oldPass, newPassword);
+
         return {
-          statusCode: 401,
+          statusCode: result.success ? 200 : (result.code === 'INVALID_PASSWORD' ? 401 : 400),
           headers,
-          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        console.error('Change password error:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Password change failed', code: 'INTERNAL_ERROR' })
         };
       }
     }
 
-    // POST /api/auth/reset-password
+    // POST /api/auth/reset-password - Trigger password reset (admin or self-service)
     if (path.endsWith('/auth/reset-password') && method === 'POST') {
+      const { email } = body;
+      const result = await resetPassword(email);
+
+      return {
+        statusCode: result.success ? 200 : (result.code === 'USER_NOT_FOUND' ? 404 : 400),
+        headers,
+        body: JSON.stringify(result)
+      };
+    }
+
+    // POST /api/auth/register - Create new user (admin operation)
+    if (path.endsWith('/auth/register') && method === 'POST') {
       try {
+        // Verify admin access
         const token = event.headers?.authorization?.replace('Bearer ', '') || event.headers?.Authorization?.replace('Bearer ', '');
-        if (!token) {
-          return {
-            statusCode: 401,
-            headers,
-            body: JSON.stringify({ success: false, error: 'No token provided', code: 'UNAUTHORIZED' })
-          };
+        if (token) {
+          const verification = await verifyCognitoToken(token);
+          if (!verification.success || !['admin', 'superadmin'].includes(verification.user?.role)) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({ success: false, error: 'Admin access required', code: 'FORBIDDEN' })
+            };
+          }
         }
-        const user = await verifyToken(token);
-        const result = await handleResetPassword(body, user);
-        return { statusCode: result.statusCode, headers, body: JSON.stringify(result.body) };
-      } catch (error) {
+
+        const result = await createCognitoUser(body);
         return {
-          statusCode: 401,
+          statusCode: result.success ? 201 : (result.code === 'USER_EXISTS' ? 409 : 400),
           headers,
-          body: JSON.stringify({ success: false, error: 'Invalid token', code: 'UNAUTHORIZED' })
+          body: JSON.stringify(result)
+        };
+      } catch (error) {
+        console.error('Register error:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Registration failed', code: 'INTERNAL_ERROR' })
         };
       }
     }

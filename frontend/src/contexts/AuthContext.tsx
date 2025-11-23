@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+import { signIn, signOut, getCurrentUser, fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
+import '../amplify-config';
 
 interface User {
   userId: string;
@@ -10,6 +10,7 @@ interface User {
   firstName: string;
   lastName: string;
   permissions: string[];
+  personId?: string; // Link to personnel data
 }
 
 interface AuthContextType {
@@ -19,6 +20,9 @@ interface AuthContextType {
   login: (username: string, passcode: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  requirePasswordChange?: boolean;
+  tempUsername?: string;
+  tempPassword?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,9 +39,45 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper function to map Cognito groups to roles
+function mapCognitoGroupToRole(groups?: string[]): 'employee' | 'foreman' | 'manager' | 'admin' | 'superadmin' {
+  if (!groups || groups.length === 0) {
+    return 'employee'; // Default role
+  }
+
+  // Priority order: superadmin > admin > manager > foreman > employee
+  if (groups.includes('superadmin')) return 'superadmin';
+  if (groups.includes('admin')) return 'admin';
+  if (groups.includes('manager')) return 'manager';
+  if (groups.includes('foreman')) return 'foreman';
+  return 'employee';
+}
+
+// Helper function to extract permissions from Cognito groups
+function extractPermissions(groups?: string[]): string[] {
+  if (!groups || groups.length === 0) {
+    return [];
+  }
+
+  // Define permissions based on groups
+  const permissionMap: Record<string, string[]> = {
+    superadmin: ['all'],
+    admin: ['manage_users', 'manage_projects', 'view_reports', 'edit_reports', 'manage_payroll', 'manage_team'],
+    manager: ['manage_projects', 'view_reports', 'edit_reports', 'manage_team'],
+    foreman: ['create_reports', 'view_reports', 'manage_team'],
+    employee: ['create_reports', 'view_reports'],
+  };
+
+  const role = mapCognitoGroupToRole(groups);
+  return permissionMap[role] || [];
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [requirePasswordChange, setRequirePasswordChange] = useState(false);
+  const [tempUsername, setTempUsername] = useState<string>();
+  const [tempPassword, setTempPassword] = useState<string>();
 
   // Check if user is authenticated on mount
   useEffect(() => {
@@ -47,62 +87,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Refresh authentication state
   const refreshAuth = async () => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
+      setIsLoading(true);
 
-      if (!accessToken && !refreshToken) {
+      // Check if user is authenticated
+      const currentUser = await getCurrentUser();
+
+      if (!currentUser) {
+        setUser(null);
         setIsLoading(false);
         return;
       }
 
-      // Try to get current user with access token
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      // Get user attributes and session
+      const [attributes, session] = await Promise.all([
+        fetchUserAttributes(),
+        fetchAuthSession(),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        setIsLoading(false);
-        return;
-      }
+      // Extract groups from ID token
+      const idToken = session.tokens?.idToken;
+      const groups = idToken?.payload['cognito:groups'] as string[] | undefined;
 
-      // If access token expired, try to refresh
-      if (response.status === 401 && refreshToken) {
-        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refreshToken }),
-        });
+      // Map Cognito user to our User interface
+      const userData: User = {
+        userId: currentUser.userId,
+        username: currentUser.username,
+        email: attributes.email || '',
+        firstName: attributes.given_name || attributes.name?.split(' ')[0] || '',
+        lastName: attributes.family_name || attributes.name?.split(' ')[1] || '',
+        role: mapCognitoGroupToRole(groups),
+        permissions: extractPermissions(groups),
+        personId: attributes['custom:personId'], // Extract custom attribute
+      };
 
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          localStorage.setItem('accessToken', refreshData.accessToken);
-
-          // Try again with new token
-          const retryResponse = await fetch(`${API_BASE_URL}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${refreshData.accessToken}`,
-            },
-          });
-
-          if (retryResponse.ok) {
-            const userData = await retryResponse.json();
-            setUser(userData.user);
-            setIsLoading(false);
-            return;
-          }
-        }
-      }
-
-      // If all fails, clear tokens and set loading to false
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      setUser(null);
+      setUser(userData);
       setIsLoading(false);
     } catch (error) {
       console.error('Error refreshing auth:', error);
@@ -114,53 +132,75 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Login function
   const login = async (username: string, passcode: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, passcode }),
+      setIsLoading(true);
+
+      const signInResult = await signIn({
+        username,
+        password: passcode,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
+      console.log('Sign in result:', signInResult);
+
+      // Check if user needs to change password (first login)
+      if (signInResult.isSignedIn === false && signInResult.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        setRequirePasswordChange(true);
+        setTempUsername(username);
+        setTempPassword(passcode);
+        setIsLoading(false);
+        throw new Error('NEW_PASSWORD_REQUIRED');
       }
 
-      const data = await response.json();
+      // If sign in successful, get user data
+      if (signInResult.isSignedIn) {
+        await refreshAuth();
+      }
 
-      // Store tokens (always store refresh token for session persistence)
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-
-      // Set user
-      setUser(data.user);
-    } catch (error) {
+      setIsLoading(false);
+    } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
+      setIsLoading(false);
+
+      // Map Cognito errors to user-friendly messages
+      if (error.message === 'NEW_PASSWORD_REQUIRED') {
+        throw error;
+      }
+
+      if (error.name === 'NotAuthorizedException') {
+        throw new Error('Incorrect username or password');
+      }
+
+      if (error.name === 'UserNotFoundException') {
+        throw new Error('User not found');
+      }
+
+      if (error.name === 'UserNotConfirmedException') {
+        throw new Error('User account not confirmed');
+      }
+
+      if (error.name === 'PasswordResetRequiredException') {
+        throw new Error('Password reset required. Please contact your administrator.');
+      }
+
+      if (error.name === 'TooManyRequestsException') {
+        throw new Error('Too many login attempts. Please try again later.');
+      }
+
+      throw new Error(error.message || 'Login failed');
     }
   };
 
   // Logout function
   const logout = async () => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-
-      if (accessToken) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-      }
+      await signOut();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear tokens and user regardless of API call success
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      // Clear user state regardless of API call success
       setUser(null);
+      setRequirePasswordChange(false);
+      setTempUsername(undefined);
+      setTempPassword(undefined);
     }
   };
 
@@ -171,6 +211,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     refreshAuth,
+    requirePasswordChange,
+    tempUsername,
+    tempPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

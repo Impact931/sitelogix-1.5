@@ -8,7 +8,7 @@ interface TeamMember {
   firstName: string;
   lastName: string;
   fullName: string;
-  preferredName: string;
+  nickName: string;
   email?: string;
   phone?: string;
   jobTitle?: string;
@@ -58,14 +58,14 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
           .map((emp: any) => {
             const firstName = emp.firstName || emp.first_name || '';
             const lastName = emp.lastName || emp.last_name || '';
-            const preferredName = emp.preferredName || emp.preferred_name || '';
+            const nickName = emp.nickName || emp.nick_name || emp.preferredName || emp.preferred_name || '';
 
             // Build fullName with fallbacks
             let fullName = emp.fullName || emp.full_name;
             if (!fullName && firstName && lastName) {
               fullName = `${firstName} ${lastName}`.trim();
-            } else if (!fullName && preferredName) {
-              fullName = preferredName;
+            } else if (!fullName && nickName) {
+              fullName = nickName;
             } else if (!fullName) {
               fullName = 'undefined undefined';  // Mark for filtering
             }
@@ -76,7 +76,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
               firstName,
               lastName,
               fullName,
-              preferredName,
+              nickName,
               email: emp.email,
               phone: emp.phone,
               jobTitle: emp.jobTitle || emp.position,
@@ -112,7 +112,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
         member.employeeNumber?.toLowerCase().includes(term) ||
         member.email?.toLowerCase().includes(term) ||
         member.role?.toLowerCase().includes(term) ||
-        member.preferredName?.toLowerCase().includes(term)
+        member.nickName?.toLowerCase().includes(term)
       );
     }
 
@@ -136,8 +136,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
   };
 
   const handleSaveNew = async () => {
-    if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.preferredName?.trim()) {
-      alert('First name, last name, and preferred name (nickname for Roxy) are required');
+    if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.nickName?.trim()) {
+      alert('First name, last name, and nickname (for Roxy voice recognition) are required');
       return;
     }
 
@@ -157,7 +157,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       const payload: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        preferredName: formData.preferredName,
+        nickName: formData.nickName,
         employeeNumber: formData.employeeNumber,
         email: formData.email,
         phone: formData.phone,
@@ -209,8 +209,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       return;
     }
 
-    if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.preferredName?.trim()) {
-      alert('First name, last name, and preferred name are required');
+    if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.nickName?.trim()) {
+      alert('First name, last name, and nickname (for Roxy voice recognition) are required');
       return;
     }
 
@@ -226,7 +226,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
       const payload: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        preferredName: formData.preferredName,
+        nickName: formData.nickName,
         employeeNumber: formData.employeeNumber,
         email: formData.email,
         phone: formData.phone,
@@ -418,7 +418,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                           {member.employeeNumber || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {member.preferredName}
+                          {member.nickName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <div className="text-gray-300">{member.email || '-'}</div>
@@ -555,8 +555,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({ onClose }) => {
                     </label>
                     <input
                       type="text"
-                      value={formData.preferredName || ''}
-                      onChange={(e) => setFormData({ ...formData, preferredName: e.target.value })}
+                      value={formData.nickName || ''}
+                      onChange={(e) => setFormData({ ...formData, nickName: e.target.value })}
                       className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-gold/50 focus:border-gold/50 transition"
                       placeholder="e.g., Bob, Mike, Sarah"
                     />
