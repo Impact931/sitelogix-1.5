@@ -45,11 +45,14 @@ function mapCognitoGroupToRole(groups?: string[]): 'employee' | 'foreman' | 'man
     return 'employee'; // Default role
   }
 
+  // Convert groups to lowercase for case-insensitive matching
+  const lowerGroups = groups.map(g => g.toLowerCase());
+
   // Priority order: superadmin > admin > manager > foreman > employee
-  if (groups.includes('superadmin')) return 'superadmin';
-  if (groups.includes('admin')) return 'admin';
-  if (groups.includes('manager')) return 'manager';
-  if (groups.includes('foreman')) return 'foreman';
+  if (lowerGroups.includes('superadmin')) return 'superadmin';
+  if (lowerGroups.includes('admin')) return 'admin';
+  if (lowerGroups.includes('manager')) return 'manager';
+  if (lowerGroups.includes('foreman')) return 'foreman';
   return 'employee';
 }
 
