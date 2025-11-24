@@ -930,8 +930,8 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
 
   <!-- Navigation Buttons -->
   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;">
-    <button onclick="window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
-      ← Back to Reports
+    <button onclick="window.close();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+      ← Close Window
     </button>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       ${report.audio_s3_path ? `
@@ -1228,8 +1228,8 @@ function generateReportHTML(report, extractedData) {
 
   <!-- Navigation Buttons -->
   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap;">
-    <button onclick="window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
-      ← Back to Reports
+    <button onclick="window.close();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+      ← Close Window
     </button>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       ${report.audio_s3_path ? `
@@ -2852,7 +2852,7 @@ exports.handler = async (event) => {
   </div>
   <div class="transcript">${transcriptText}</div>
   <div class="nav">
-    <button onclick="window.close(); window.history.back();" class="btn">← Back to Report</button>
+    <button onclick="window.close(); window.history.back();" class="btn">← Close Window</button>
   </div>
 </body>
 </html>`;

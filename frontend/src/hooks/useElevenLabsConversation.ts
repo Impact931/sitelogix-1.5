@@ -11,6 +11,9 @@ interface UseElevenLabsConversationProps {
     managerId?: string;
     projectName?: string;
     projectLocation?: string;
+    currentDate?: string;
+    currentTime?: string;
+    timeOfDay?: string;
   };
 }
 

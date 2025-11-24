@@ -103,9 +103,9 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
         console.log('Personnel API response:', data);
 
         if (data.success && data.data && data.data.employees) {
-          // Find personnel record matching the manager's userId
+          // Find personnel record matching the manager's userId (check cognitoUserId, userId, or personId)
           const personnel = data.data.employees.find((p: any) =>
-            p.userId === manager.id || p.personId === manager.id
+            p.cognitoUserId === manager.id || p.userId === manager.id || p.personId === manager.id
           );
           console.log('Found personnel record:', personnel);
 
@@ -151,6 +151,14 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
       managerId: manager.id,
       projectName: project.name,
       projectLocation: project.location,
+      currentDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      currentTime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }),
+      timeOfDay: (() => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'morning';
+        if (hour < 17) return 'afternoon';
+        return 'evening';
+      })(),
     },
     onStatusChange: (newStatus) => {
       setStatus(newStatus);
