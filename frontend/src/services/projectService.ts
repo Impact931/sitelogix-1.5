@@ -153,7 +153,7 @@ export const deleteProject = async (projectId: string): Promise<void> => {
 export const fetchPersonnel = async (): Promise<Personnel[]> => {
   try {
     const accessToken = localStorage.getItem('accessToken');
-    const response = await fetch(`${API_BASE_URL}/admin/employees`, {
+    const response = await fetch(`${API_BASE_URL}/employees`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
