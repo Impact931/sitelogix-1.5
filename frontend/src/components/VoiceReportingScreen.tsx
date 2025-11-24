@@ -43,6 +43,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   const [transcriptData, setTranscriptData] = useState<any>(null);
   const [lastReportId, setLastReportId] = useState<string | null>(null);
   const [reportHtmlUrl, setReportHtmlUrl] = useState<string | null>(null);
+  const [employeeNumber, setEmployeeNumber] = useState<string>(manager.id.replace(/^PER#/, ''));
 
   // Load configurable checklist items
   const [checklistItems, setChecklistItems] = useState(() => getChecklistItems());
@@ -81,6 +82,35 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     };
     fetchAgentConfig();
   }, []);
+
+  // Fetch employee number from personnel database
+  useEffect(() => {
+    const fetchEmployeeNumber = async () => {
+      try {
+        const accessToken = localStorage.getItem('accessToken');
+        // Fetch all personnel and find the current user
+        const response = await fetch(`${API_BASE_URL}/personnel?limit=1000`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+        const data = await response.json();
+        if (data.success && data.personnel) {
+          // Find personnel record matching the manager's userId
+          const personnel = data.personnel.find((p: any) =>
+            p.userId === manager.id || p.personId === manager.id
+          );
+          if (personnel && personnel.employeeNumber) {
+            setEmployeeNumber(personnel.employeeNumber);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch employee number:', error);
+        // Keep using manager.id as fallback
+      }
+    };
+    fetchEmployeeNumber();
+  }, [manager.id]);
 
   // Reload checklist if it changes (e.g., admin updates it)
   useEffect(() => {
@@ -470,7 +500,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Employee Number</p>
-                  <p className="text-white font-medium">{manager.id.replace(/^PER#/, '')}</p>
+                  <p className="text-white font-medium">{employeeNumber}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 mb-1">Project</p>
