@@ -933,14 +933,20 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
     <button onclick="window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
       ← Back to Reports
     </button>
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       ${report.audio_s3_path ? `
       <button onclick="playAudio('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
-        🎵 Play Audio Report
+        🎵 Play Audio
+      </button>
+      <button onclick="downloadAudio('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        💾 Download Audio
       </button>
       ` : ''}
       <button onclick="viewTranscript('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
-        📄 View Original Transcript
+        📄 View Transcript
+      </button>
+      <button onclick="downloadTranscript('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        💾 Download Transcript
       </button>
     </div>
   </div>
@@ -958,15 +964,35 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
       });
     });
 
-    function viewTranscript(reportId, projectId, reportDate) {
-      const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
-      window.open(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
+    async function viewTranscript(reportId, projectId, reportDate) {
+      try {
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch transcript');
+
+        const html = await response.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'width=900,height=700');
+      } catch (error) {
+        alert('Failed to view transcript: ' + error.message);
+      }
     }
 
     async function playAudio(reportId, projectId, reportDate) {
       try {
         const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
-        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
         if (!response.ok) throw new Error('Failed to fetch audio');
 
         const result = await response.json();
@@ -1003,6 +1029,68 @@ function generateEnhancedAnalyticsHTML(report, analytics, dateString) {
         document.body.appendChild(modal);
       } catch (error) {
         alert('Failed to play audio: ' + error.message);
+      }
+    }
+
+    async function downloadAudio(reportId, projectId, reportDate) {
+      try {
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch audio');
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        const audioBase64 = result.data;
+        const binaryString = atob(audioBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], { type: result.contentType || 'audio/webm' });
+        const url = URL.createObjectURL(audioBlob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_' + reportId + '_audio.webm';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert('Failed to download audio: ' + error.message);
+      }
+    }
+
+    async function downloadTranscript(reportId, projectId, reportDate) {
+      try {
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch transcript');
+
+        const html = await response.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_' + reportId + '_transcript.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert('Failed to download transcript: ' + error.message);
       }
     }
   </script>
@@ -1143,14 +1231,20 @@ function generateReportHTML(report, extractedData) {
     <button onclick="window.history.back();" style="padding: 12px 24px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
       ← Back to Reports
     </button>
-    <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
       ${report.audio_s3_path ? `
       <button onclick="playAudio('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
-        🎵 Play Audio Report
+        🎵 Play Audio
+      </button>
+      <button onclick="downloadAudio('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        💾 Download Audio
       </button>
       ` : ''}
       <button onclick="viewTranscript('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #d4af37 0%, #c4941f 100%); color: #0f172a; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
-        📄 View Original Transcript
+        📄 View Transcript
+      </button>
+      <button onclick="downloadTranscript('${report.report_id}', '${report.project_id}', '${report.report_date}')" style="padding: 12px 24px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        💾 Download Transcript
       </button>
     </div>
   </div>
@@ -1168,15 +1262,35 @@ function generateReportHTML(report, extractedData) {
       });
     });
 
-    function viewTranscript(reportId, projectId, reportDate) {
-      const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
-      window.open(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, '_blank', 'width=900,height=700');
+    async function viewTranscript(reportId, projectId, reportDate) {
+      try {
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch transcript');
+
+        const html = await response.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'width=900,height=700');
+      } catch (error) {
+        alert('Failed to view transcript: ' + error.message);
+      }
     }
 
     async function playAudio(reportId, projectId, reportDate) {
       try {
         const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
-        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate);
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
         if (!response.ok) throw new Error('Failed to fetch audio');
 
         const result = await response.json();
@@ -1216,6 +1330,68 @@ function generateReportHTML(report, extractedData) {
         document.body.appendChild(modal);
       } catch (error) {
         alert('Failed to play audio: ' + error.message);
+      }
+    }
+
+    async function downloadAudio(reportId, projectId, reportDate) {
+      try {
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/audio?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch audio');
+
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        const audioBase64 = result.data;
+        const binaryString = atob(audioBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], { type: result.contentType || 'audio/webm' });
+        const url = URL.createObjectURL(audioBlob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_' + reportId + '_audio.webm';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert('Failed to download audio: ' + error.message);
+      }
+    }
+
+    async function downloadTranscript(reportId, projectId, reportDate) {
+      try {
+        const apiBaseUrl = 'https://6f10uv7ne0.execute-api.us-east-1.amazonaws.com/api';
+        const accessToken = localStorage.getItem('accessToken');
+        const response = await fetch(apiBaseUrl + '/reports/' + reportId + '/transcript?projectId=' + projectId + '&reportDate=' + reportDate, {
+          headers: {
+            'Authorization': 'Bearer ' + accessToken
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch transcript');
+
+        const html = await response.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_' + reportId + '_transcript.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert('Failed to download transcript: ' + error.message);
       }
     }
   </script>
