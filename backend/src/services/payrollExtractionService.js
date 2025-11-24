@@ -4,7 +4,7 @@
  */
 
 const fetch = require('node-fetch');
-const { handleMatchOrCreateEmployee } = require('../functions/personnel-endpoints');
+const { personnelService } = require('./personnelService');
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -130,26 +130,21 @@ Extract payroll data as JSON:`;
  */
 async function matchEmployee(name, projectId) {
   try {
-    // Call the personnel handler directly (internal Lambda call, not HTTP)
-    const result = await handleMatchOrCreateEmployee({
-      body: JSON.stringify({ name, projectId })
-    });
+    // Call personnelService directly (no HTTP calls)
+    const result = await personnelService.matchOrCreateEmployee(name, { projectId });
 
-    // handleMatchOrCreateEmployee returns {statusCode, body: {success, data}}
-    const data = result.body;
-
-    if (data.success) {
+    if (result.success) {
       return {
         success: true,
-        employeeId: data.data.employeeId,
-        employeeNumber: data.data.employeeNumber,
-        fullName: data.data.fullName,
-        confidence: data.data.confidence,
-        needsReview: data.data.needsReview || false
+        employeeId: result.employeeId,
+        employeeNumber: result.employeeNumber,
+        fullName: result.fullName,
+        confidence: result.confidence,
+        needsReview: result.needsReview || false
       };
     } else {
-      console.warn(`Failed to match employee "${name}":`, data.error);
-      return { success: false, error: data.error };
+      console.warn(`Failed to match employee "${name}":`, result.error);
+      return { success: false, error: result.error };
     }
   } catch (error) {
     console.error(`Error matching employee "${name}":`, error);
