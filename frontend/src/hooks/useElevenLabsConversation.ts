@@ -313,7 +313,12 @@ export const useElevenLabsConversation = ({
 
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${API_BASE_URL}/elevenlabs/transcript/${conversationId}`);
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_BASE_URL}/elevenlabs/transcript/${conversationId}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch conversation: ${response.statusText}`);
@@ -341,11 +346,17 @@ export const useElevenLabsConversation = ({
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
+    const accessToken = localStorage.getItem('accessToken');
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         console.log(`Attempting to fetch conversation audio (attempt ${attempt}/${retries})...`);
 
-        const response = await fetch(`${API_BASE_URL}/elevenlabs/audio/${conversationId}`);
+        const response = await fetch(`${API_BASE_URL}/elevenlabs/audio/${conversationId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
 
         console.log(`Response status: ${response.status} ${response.statusText}`);
 
