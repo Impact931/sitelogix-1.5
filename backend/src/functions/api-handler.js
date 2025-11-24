@@ -1548,12 +1548,13 @@ async function saveReport(reportData) {
     const BUCKET_NAME = 'sitelogix-prod';
 
     // Helper function to build S3 paths
+    // Structure: projects/{projectId}/reports/{year}/{month}/{reportId}/{file}
+    // Monthly folders for easier analysis - all metadata in reportId and DynamoDB
     const buildS3Path = (type) => {
       const date = new Date(reportDate);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `SITELOGIX/projects/${projectId}/reports/${year}/${month}/${day}/${reportId}/${type}`;
+      return `SITELOGIX/projects/${projectId}/reports/${year}/${month}/${reportId}/${type}`;
     };
 
     // 1. Upload audio to S3 (if available)
