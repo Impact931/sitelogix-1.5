@@ -50,7 +50,7 @@ export interface Personnel {
 export const fetchProjects = async (): Promise<Project[]> => {
   try {
     const accessToken = localStorage.getItem('accessToken');
-    const response = await fetch(`${API_BASE_URL}/projects`, {
+    const response = await fetch(`${API_BASE_URL}/projects/admin`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ export const fetchProjects = async (): Promise<Project[]> => {
 export const createProject = async (project: Project): Promise<Project> => {
   try {
     const accessToken = localStorage.getItem('accessToken');
-    const response = await fetch(`${API_BASE_URL}/projects`, {
+    const response = await fetch(`${API_BASE_URL}/projects/admin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ export const createProject = async (project: Project): Promise<Project> => {
 export const updateProject = async (projectId: string, project: Project): Promise<Project> => {
   try {
     const accessToken = localStorage.getItem('accessToken');
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/projects/admin/${projectId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ export const updateProject = async (projectId: string, project: Project): Promis
 export const deleteProject = async (projectId: string): Promise<void> => {
   try {
     const accessToken = localStorage.getItem('accessToken');
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    const response = await fetch(`${API_BASE_URL}/projects/admin/${projectId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

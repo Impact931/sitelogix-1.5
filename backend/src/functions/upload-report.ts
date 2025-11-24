@@ -78,6 +78,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       project_id: projectId,
       manager_id: managerId,
       report_date: date,
+      submission_timestamp: timestamp, // Timestamp when report was submitted
       status: 'uploaded',
       audio_file_url: audioFileUrl,
       audio_format: audioFormat || 'webm',

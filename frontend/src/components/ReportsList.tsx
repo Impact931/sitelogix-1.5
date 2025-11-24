@@ -709,8 +709,8 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
                       {/* Action Buttons */}
                       <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
                         <div className="text-xs text-gray-500">
-                          <div>📅 {new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                          <div>🕐 {new Date(report.created_at).toLocaleTimeString('en-US', {
+                          <div>📅 {new Date(report.submission_timestamp || report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                          <div>🕐 {new Date(report.submission_timestamp || report.created_at).toLocaleTimeString('en-US', {
                             hour: '2-digit',
                             minute: '2-digit'
                           })}</div>
