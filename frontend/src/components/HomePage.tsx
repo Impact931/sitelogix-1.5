@@ -22,7 +22,7 @@ interface User {
 
 interface HomePageProps {
   manager: Manager;
-  project: Project;
+  project: Project | null;
   user?: User;
   onNavigateToRoxy: () => void;
   onNavigateToReports: () => void;
@@ -196,7 +196,7 @@ const HomePage: React.FC<HomePageProps> = ({
             <div className="flex items-center space-x-4">
               <div className="text-right">
                 <p className="text-sm font-semibold text-white">{manager.goByName || manager.name}</p>
-                <p className="text-xs text-gray-400">{project.name}</p>
+                <p className="text-xs text-gray-400">{project?.name || 'No project selected'}</p>
               </div>
               <button
                 onClick={onLogout}
@@ -288,8 +288,14 @@ const HomePage: React.FC<HomePageProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Current Project</p>
-                <p className="text-lg font-bold text-white">{project.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{project.location}</p>
+                {project ? (
+                  <>
+                    <p className="text-lg font-bold text-white">{project.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{project.location}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">Select a project to get started</p>
+                )}
               </div>
               <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center">
                 <svg className="w-6 h-6 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
