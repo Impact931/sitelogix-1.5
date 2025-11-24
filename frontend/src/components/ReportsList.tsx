@@ -71,7 +71,7 @@ interface Report {
 
 interface ReportsListProps {
   manager: Manager;
-  project: Project;
+  project: Project | null;
   onBack: () => void;
   onNavigateToAnalytics?: () => void;
 }
@@ -115,7 +115,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
     }, 3000);
 
     return () => clearTimeout(refreshTimeout);
-  }, [filter, selectedProject, sortBy, project.id]);
+  }, [filter, selectedProject, sortBy, project?.id]);
 
   const fetchReports = async () => {
     try {
@@ -124,14 +124,16 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
 
       // Pass projectId to optimize backend query (uses Query instead of Scan)
       const queryParams = new URLSearchParams();
-      if (filter === 'project' || selectedProject !== 'all') {
-        queryParams.append('projectId', selectedProject !== 'all' ? selectedProject : project.id);
+      if (filter === 'project' && project) {
+        queryParams.append('projectId', project.id);
+      } else if (selectedProject !== 'all') {
+        queryParams.append('projectId', selectedProject);
       }
 
       console.log('🔍 ReportsList - Fetching reports with:', {
         filter,
         selectedProject,
-        projectId: selectedProject !== 'all' ? selectedProject : project.id,
+        projectId: project?.id || 'all',
         projectObject: project
       });
 
@@ -156,7 +158,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
           filteredReports = filteredReports.filter((r: Report) =>
             r.reporter_name === manager.name || r.manager_name === manager.name
           );
-        } else if (filter === 'project') {
+        } else if (filter === 'project' && project) {
           filteredReports = filteredReports.filter((r: Report) =>
             r.project_id === project.id
           );
@@ -443,7 +445,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
             <div>
               <h1 className="text-2xl font-display font-bold text-white">Daily Reports</h1>
               <p className="text-gray-400 text-sm mt-1 font-medium">
-                {manager.name} • {project.name}
+                {manager.name} • {project?.name || 'All Projects'}
               </p>
             </div>
             <div className="flex items-center space-x-3">
@@ -571,7 +573,7 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
             <h3 className="text-xl font-semibold text-white mb-2">No Reports Found</h3>
             <p className="text-gray-400">
               {filter === 'all' && 'No daily reports have been created yet.'}
-              {filter === 'project' && `No reports found for ${project.name}.`}
+              {filter === 'project' && `No reports found for ${project?.name || 'this project'}.`}
               {filter === 'myreports' && 'You haven\'t created any reports yet.'}
             </p>
           </div>

@@ -267,6 +267,7 @@ function AppContent() {
         onNavigateToAnalytics={handleViewAnalytics}
         onNavigateToTeamManagement={handleNavigateToTeamManagement}
         onNavigateToPayroll={handleNavigateToPayroll}
+        onNavigateToProjectProfile={handleNavigateToProjectProfile}
         onLogout={handleLogout}
       />
     );
@@ -276,7 +277,7 @@ function AppContent() {
     return (
       <ReportsList
         manager={manager!}
-        project={project!}
+        project={project}
         onBack={handleBackToHome}
         onNavigateToAnalytics={handleViewAnalytics}
       />
@@ -287,7 +288,7 @@ function AppContent() {
     return (
       <AnalyticsDashboard
         manager={manager!}
-        project={project!}
+        project={project}
         onBack={handleBackToHome}
       />
     );

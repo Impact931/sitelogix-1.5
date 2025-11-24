@@ -62,7 +62,7 @@ interface Insights {
 
 interface AnalyticsDashboardProps {
   manager: Manager;
-  project: Project;
+  project: Project | null;
   onBack: () => void;
 }
 
@@ -379,7 +379,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ manager, projec
             <div>
               <h1 className="text-2xl font-display font-bold text-white">Analytics Dashboard</h1>
               <p className="text-gray-400 text-sm mt-1 font-medium">
-                {manager.name} • {project.name}
+                {manager.name} • {project?.name || 'All Projects'}
               </p>
             </div>
             <button

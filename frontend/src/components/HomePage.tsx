@@ -29,6 +29,7 @@ interface HomePageProps {
   onNavigateToAnalytics: () => void;
   onNavigateToTeamManagement?: () => void;
   onNavigateToPayroll?: () => void;
+  onNavigateToProjectProfile?: () => void;
   onLogout: () => void;
 }
 
@@ -41,6 +42,7 @@ const HomePage: React.FC<HomePageProps> = ({
   onNavigateToAnalytics,
   onNavigateToTeamManagement,
   onNavigateToPayroll,
+  onNavigateToProjectProfile,
   onLogout,
 }) => {
   // Determine user role and permissions
@@ -170,6 +172,24 @@ const HomePage: React.FC<HomePageProps> = ({
       onClick: onNavigateToPayroll,
       available: true,
       gradient: 'from-emerald-400 to-emerald-600',
+    });
+  }
+
+  // Add Project Profile for admins and managers
+  if (onNavigateToProjectProfile && !hasLimitedAccess) {
+    navigationCards.push({
+      id: 'project-profile',
+      title: 'Projects',
+      subtitle: 'Setup & Management',
+      description: 'Create and manage project profiles',
+      icon: (
+        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      onClick: onNavigateToProjectProfile,
+      available: true,
+      gradient: 'from-amber-400 to-amber-600',
     });
   }
 
