@@ -44,6 +44,9 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
   const [lastReportId, setLastReportId] = useState<string | null>(null);
   const [reportHtmlUrl, setReportHtmlUrl] = useState<string | null>(null);
   const [employeeNumber, setEmployeeNumber] = useState<string>(manager.id.replace(/^PER#/, ''));
+  const [showReportHtml, setShowReportHtml] = useState(false);
+  const [reportHtmlContent, setReportHtmlContent] = useState<string>('');
+  const [loadingReport, setLoadingReport] = useState(false);
 
   // Load configurable checklist items
   const [checklistItems, setChecklistItems] = useState(() => getChecklistItems());
@@ -390,18 +393,49 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     if (!lastReportId) return;
 
     try {
-      // Open HTML report served directly by API
+      setLoadingReport(true);
+      setShowReportHtml(true);
+      setReportHtmlContent(''); // Clear previous HTML
+      setError(null); // Clear previous errors
+
+      // Fetch HTML report with authentication
       const reportDate = getLocalDateString();
-      // CRITICAL: URL-encode report ID to handle special characters like # in IDs
       const encodedReportId = encodeURIComponent(lastReportId);
-      const url = `${API_BASE_URL}/reports/${encodedReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
-      console.log('🔑 Opening report ID (raw):', lastReportId);
-      console.log('🔑 Opening report ID (encoded):', encodedReportId);
-      console.log('📡 Opening URL:', url);
-      window.open(url, '_blank');
+      const cacheBuster = `_cb=${Date.now()}`;
+      const url = `${API_BASE_URL}/reports/${encodedReportId}/html?projectId=${project.id}&reportDate=${reportDate}&${cacheBuster}`;
+      console.log('🔑 Fetching report ID (raw):', lastReportId);
+      console.log('🔑 Fetching report ID (encoded):', encodedReportId);
+      console.log('📡 Fetching from URL:', url);
+
+      const accessToken = localStorage.getItem('accessToken');
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      console.log('📥 Response received:', {
+        status: response.status,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Response not OK:', response.status, errorText);
+        throw new Error(`Failed to fetch report: ${response.status} - ${errorText}`);
+      }
+
+      const html = await response.text();
+      console.log('✅ HTML received, length:', html.length);
+      setReportHtmlContent(html);
+      console.log('✅ Report loaded successfully');
     } catch (err) {
-      console.error('Error opening report:', err);
-      setError('Failed to open report');
+      console.error('❌ Error loading report:', err);
+      setError(`Failed to load report. Error: ${err instanceof Error ? err.message : String(err)}`);
+      setShowReportHtml(false);
+      setReportHtmlContent('');
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -598,6 +632,47 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
           projectName={project.name}
           reportDate={getLocalDateString()}
         />
+      )}
+
+      {/* HTML Report Modal */}
+      {showReportHtml && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8">
+          <div className="relative w-full max-w-5xl mx-4">
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setShowReportHtml(false);
+                setReportHtmlContent('');
+                setLoadingReport(false);
+              }}
+              className="fixed top-4 right-4 z-60 p-3 bg-dark-surface/90 hover:bg-dark-surface border border-white/20 rounded-xl text-white hover:text-gold transition shadow-xl group"
+              title="Close Report"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span className="absolute top-full right-0 mt-2 px-3 py-1 bg-dark-surface border border-white/20 rounded-lg text-xs text-white whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Close Report
+              </span>
+            </button>
+
+            {/* Loading State */}
+            {loadingReport && (
+              <div className="glass rounded-2xl p-12 text-center">
+                <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-gold border-r-transparent mb-4"></div>
+                <p className="text-gray-400">Loading report...</p>
+              </div>
+            )}
+
+            {/* Report Content */}
+            {!loadingReport && reportHtmlContent && (
+              <div
+                className="glass rounded-2xl overflow-hidden shadow-2xl"
+                dangerouslySetInnerHTML={{ __html: reportHtmlContent }}
+              />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
