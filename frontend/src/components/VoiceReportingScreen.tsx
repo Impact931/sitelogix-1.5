@@ -46,6 +46,15 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
 
   // Load configurable checklist items
   const [checklistItems, setChecklistItems] = useState(() => getChecklistItems());
+
+  // Helper to get local date in YYYY-MM-DD format (not UTC)
+  const getLocalDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   const [checklistKeywords, setChecklistKeywords] = useState(() => getChecklistKeywords(checklistItems));
 
   const [agentId, setAgentId] = useState<string>('');
@@ -164,8 +173,8 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
         // Get transcript with retry logic - ElevenLabs needs time to process
         let transcript = null;
         let attempts = 0;
-        const maxAttempts = 6; // Try for up to 30 seconds
-        const retryDelay = 5000; // 5 seconds between attempts
+        const maxAttempts = 12; // Try for up to 2 minutes
+        const retryDelay = 10000; // 10 seconds between attempts
 
         while (attempts < maxAttempts && !transcript) {
           attempts++;
@@ -249,7 +258,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
               projectId: project.id,
               projectName: project.name,
               projectLocation: project.location,
-              reportDate: new Date().toISOString().split('T')[0],
+              reportDate: getLocalDateString(),
               conversationId,
             });
 
@@ -275,7 +284,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
               projectId: project.id,
               projectName: project.name,
               projectLocation: project.location,
-              reportDate: new Date().toISOString().split('T')[0],
+              reportDate: getLocalDateString(),
               timestamp: new Date().toISOString(),
               transcript,
               hasAudio: !!audioBlob && audioBlob.size > 0,
@@ -298,14 +307,14 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
 
             // Fallback to localStorage only
             const reportData = {
-              reportId: `rpt_${new Date().toISOString().split('T')[0].replace(/-/g, '')}_${manager.id}_${Date.now()}`,
+              reportId: `rpt_${getLocalDateString().replace(/-/g, '')}_${manager.id}_${Date.now()}`,
               conversationId,
               managerId: manager.id,
               managerName: manager.name,
               projectId: project.id,
               projectName: project.name,
               projectLocation: project.location,
-              reportDate: new Date().toISOString().split('T')[0],
+              reportDate: getLocalDateString(),
               timestamp: new Date().toISOString(),
               transcript,
               hasAudio: !!audioBlob && audioBlob.size > 0,
@@ -343,7 +352,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
 
     try {
       // Open HTML report served directly by API
-      const reportDate = new Date().toISOString().split('T')[0];
+      const reportDate = getLocalDateString();
       // CRITICAL: URL-encode report ID to handle special characters like # in IDs
       const encodedReportId = encodeURIComponent(lastReportId);
       const url = `${API_BASE_URL}/reports/${encodedReportId}/html?projectId=${project.id}&reportDate=${reportDate}`;
@@ -548,7 +557,7 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
           conversationId={conversationId || ''}
           managerName={manager.name}
           projectName={project.name}
-          reportDate={new Date().toISOString().split('T')[0]}
+          reportDate={getLocalDateString()}
         />
       )}
     </div>
