@@ -55,10 +55,9 @@ function AppContent() {
       if (user.role === 'admin' || user.role === 'superadmin') {
         // Show home dashboard with module tiles for admins
         setCurrentScreen('home');
-        // Set dummy project/manager for admin home view
-        if (!manager && !project) {
+        // Set manager info (but NOT project - they must select it)
+        if (!manager) {
           setManager({ id: user.userId, name: `${user.firstName} ${user.lastName}`, goByName: user.firstName });
-          setProject({ id: 'admin', name: 'Admin Dashboard', location: 'System' });
         }
       } else if (user.role === 'manager') {
         setCurrentScreen('project-setup');
@@ -117,12 +116,23 @@ function AppContent() {
   };
 
   const handleChangeProject = () => {
-    // Don't clear session - just navigate back to home
-    setCurrentScreen('home');
+    // Clear project and go back to project selector for admins
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
+      setProject(null);
+      setCurrentScreen('project-selector');
+    } else {
+      // For other users, go back to home
+      setCurrentScreen('home');
+    }
   };
 
   const handleNavigateToRoxy = () => {
-    setCurrentScreen('recording');
+    // For admins/superadmins, require project selection first
+    if ((user?.role === 'admin' || user?.role === 'superadmin') && !project) {
+      setCurrentScreen('project-selector');
+    } else {
+      setCurrentScreen('recording');
+    }
   };
 
   const handleViewReports = () => {
