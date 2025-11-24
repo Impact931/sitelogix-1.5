@@ -11,16 +11,50 @@ const dynamoClient = new DynamoDBClient({});
 
 /**
  * Convert transcript to plain text
+ * Handles ElevenLabs Conversational AI API format
  */
 function transcriptToText(transcript) {
-  if (!transcript || !transcript.transcript) return '';
+  // Handle null or undefined
+  if (!transcript) {
+    console.warn('transcriptToText: transcript is null or undefined');
+    return '';
+  }
 
-  return transcript.transcript
-    .map(msg => {
-      const role = msg.role === 'user' ? 'Manager' : 'Roxy';
-      return `${role}: ${msg.message}`;
-    })
-    .join('\n\n');
+  // Handle pending/incomplete transcripts
+  if (transcript.status === 'pending' || transcript.status === 'processing') {
+    console.warn(`transcriptToText: transcript status is ${transcript.status}, not ready for processing`);
+    return '';
+  }
+
+  // Handle ElevenLabs conversation object format
+  if (transcript.transcript && Array.isArray(transcript.transcript)) {
+    if (transcript.transcript.length === 0) {
+      console.warn('transcriptToText: transcript array is empty');
+      return '';
+    }
+
+    return transcript.transcript
+      .map(msg => {
+        const role = msg.role === 'user' ? 'Manager' : 'Roxy';
+        // Handle both 'message' (standard) and 'multivoice_message' (advanced) formats
+        const messageText = msg.message || (msg.multivoice_message?.parts?.map(p => p.text).join(' ')) || '';
+        return `${role}: ${messageText}`;
+      })
+      .filter(line => line.trim().length > 0) // Remove empty messages
+      .join('\n\n');
+  }
+
+  // If transcript is already a string, return it
+  if (typeof transcript === 'string') {
+    console.warn('transcriptToText: transcript is already a string, using as-is');
+    return transcript;
+  }
+
+  // Fallback: try to extract any useful text from the object
+  console.warn('transcriptToText: unexpected transcript format:', typeof transcript);
+  console.warn('Transcript keys:', Object.keys(transcript));
+
+  return '';
 }
 
 /**

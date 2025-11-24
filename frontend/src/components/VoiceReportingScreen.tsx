@@ -161,22 +161,58 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     setTimeout(async () => {
       setStatus('Downloading conversation data...');
       try {
-        // Get transcript first (but don't fail if unavailable)
+        // Get transcript with retry logic - ElevenLabs needs time to process
         let transcript = null;
-        try {
-          transcript = await getConversationTranscript();
-          if (transcript) {
-            console.log('Full conversation transcript:', transcript);
-          } else {
-            console.warn('Transcript not available yet - will retry in background');
+        let attempts = 0;
+        const maxAttempts = 6; // Try for up to 30 seconds
+        const retryDelay = 5000; // 5 seconds between attempts
+
+        while (attempts < maxAttempts && !transcript) {
+          attempts++;
+          setStatus(`Fetching transcript (attempt ${attempts}/${maxAttempts})...`);
+
+          try {
+            const result = await getConversationTranscript();
+
+            if (result) {
+              // Check if conversation is fully processed
+              if (result.status === 'done' && result.transcript && result.transcript.length > 0) {
+                console.log('✅ Full conversation transcript received:', result);
+                console.log(`   - Status: ${result.status}`);
+                console.log(`   - Messages: ${result.transcript.length}`);
+                transcript = result;
+                break;
+              } else if (result.status === 'processing' || result.status === 'in-progress') {
+                console.log(`⏳ Conversation still processing (status: ${result.status}), waiting...`);
+              } else if (result.status === 'failed') {
+                console.error('❌ Conversation processing failed on ElevenLabs');
+                break;
+              } else {
+                console.warn(`⚠️ Unexpected status: ${result.status}`);
+              }
+            }
+
+            // Wait before next attempt (unless this was the last attempt)
+            if (attempts < maxAttempts && !transcript) {
+              console.log(`   Waiting ${retryDelay / 1000}s before retry...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
+          } catch (fetchError) {
+            console.warn(`Attempt ${attempts} failed:`, fetchError);
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
           }
-        } catch (transcriptError) {
-          console.warn('Could not fetch transcript immediately, report will be saved with conversationId for later retrieval:', transcriptError);
-          // Create a minimal transcript object with conversation ID for reference
+        }
+
+        // If still no transcript after all attempts, save with conversation ID for later retrieval
+        if (!transcript || !transcript.transcript || transcript.transcript.length === 0) {
+          console.warn('⚠️ Could not fetch complete transcript after retries');
+          console.warn('   Report will be saved with conversationId for later retrieval');
           transcript = {
             conversation_id: conversationId,
             status: 'pending',
-            note: 'Transcript fetch failed - may be available later from ElevenLabs'
+            note: 'Transcript not yet available from ElevenLabs - conversation may still be processing'
           };
         }
 
