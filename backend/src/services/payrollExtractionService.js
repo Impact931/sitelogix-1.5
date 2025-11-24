@@ -4,8 +4,8 @@
  */
 
 const fetch = require('node-fetch');
+const { handleMatchOrCreateEmployee } = require('../functions/personnel-endpoints');
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001/api';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 /**
@@ -130,13 +130,13 @@ Extract payroll data as JSON:`;
  */
 async function matchEmployee(name, projectId) {
   try {
-    const response = await fetch(`${API_BASE_URL}/personnel/match`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    // Call the personnel handler directly (internal Lambda call, not HTTP)
+    const result = await handleMatchOrCreateEmployee({
       body: JSON.stringify({ name, projectId })
     });
 
-    const data = await response.json();
+    // handleMatchOrCreateEmployee returns {statusCode, body: {success, data}}
+    const data = result.body;
 
     if (data.success) {
       return {
