@@ -172,7 +172,7 @@ async function handleListEmployees(event) {
   try {
     const queryParams = event.queryStringParameters || {};
     const {
-      status = 'active',
+      status = 'all',
       projectId,
       limit = '100'
     } = queryParams;
@@ -180,10 +180,14 @@ async function handleListEmployees(event) {
     console.log(`📋 Listing employees with filters:`, { status, projectId, limit });
 
     const filters = {
-      status,
       projectId,
       limit: parseInt(limit, 10)
     };
+
+    // Only add status filter if it's not 'all'
+    if (status && status !== 'all') {
+      filters.status = status;
+    }
 
     const employees = await personnelService.listEmployees(filters);
 
