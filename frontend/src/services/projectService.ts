@@ -49,10 +49,12 @@ export interface Personnel {
  */
 export const fetchProjects = async (): Promise<Project[]> => {
   try {
+    const accessToken = localStorage.getItem('accessToken');
     const response = await fetch(`${API_BASE_URL}/projects`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
     });
 
@@ -73,10 +75,12 @@ export const fetchProjects = async (): Promise<Project[]> => {
  */
 export const createProject = async (project: Project): Promise<Project> => {
   try {
+    const accessToken = localStorage.getItem('accessToken');
     const response = await fetch(`${API_BASE_URL}/projects`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify(project),
     });
@@ -98,10 +102,12 @@ export const createProject = async (project: Project): Promise<Project> => {
  */
 export const updateProject = async (projectId: string, project: Project): Promise<Project> => {
   try {
+    const accessToken = localStorage.getItem('accessToken');
     const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify(project),
     });
@@ -123,10 +129,12 @@ export const updateProject = async (projectId: string, project: Project): Promis
  */
 export const deleteProject = async (projectId: string): Promise<void> => {
   try {
+    const accessToken = localStorage.getItem('accessToken');
     const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
     });
 
@@ -144,10 +152,12 @@ export const deleteProject = async (projectId: string): Promise<void> => {
  */
 export const fetchPersonnel = async (): Promise<Personnel[]> => {
   try {
+    const accessToken = localStorage.getItem('accessToken');
     const response = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
     });
 
