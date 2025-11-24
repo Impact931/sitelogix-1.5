@@ -228,7 +228,7 @@ function AppContent() {
 
   // Show project profile management
   if (currentScreen === 'project-profile') {
-    return <ProjectProfile onBack={handleBackToAdmin} />;
+    return <ProjectProfile onBack={handleBackToHome} />;
   }
 
   // Show project selector for admin Roxy access
