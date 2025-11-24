@@ -24,7 +24,19 @@ async function handleListProjects(event) {
     const command = new ScanCommand(params);
     const result = await dynamoClient.send(command);
 
-    const projects = result.Items ? result.Items.map(item => unmarshall(item)) : [];
+    const projects = result.Items ? result.Items.map(item => {
+      const project = unmarshall(item);
+      // Normalize project data: ensure 'id' field exists for frontend compatibility
+      return {
+        ...project,
+        id: project.projectId || project.id  // Add id field if missing
+      };
+    }) : [];
+
+    console.log(`✅ Found ${projects.length} projects`);
+    if (projects.length > 0) {
+      console.log('First project:', JSON.stringify(projects[0], null, 2));
+    }
 
     return {
       statusCode: 200,

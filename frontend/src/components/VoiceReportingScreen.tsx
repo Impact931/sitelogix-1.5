@@ -88,20 +88,29 @@ const VoiceReportingScreen: React.FC<VoiceReportingScreenProps> = ({
     const fetchEmployeeNumber = async () => {
       try {
         const accessToken = localStorage.getItem('accessToken');
+        console.log('🔍 Fetching employee number for manager:', manager.id);
+
         // Fetch all personnel and find the current user
-        const response = await fetch(`${API_BASE_URL}/personnel?limit=1000`, {
+        const response = await fetch(`${API_BASE_URL}/personnel`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
           },
         });
         const data = await response.json();
-        if (data.success && data.personnel) {
+        console.log('Personnel API response:', data);
+
+        if (data.success && data.data && data.data.employees) {
           // Find personnel record matching the manager's userId
-          const personnel = data.personnel.find((p: any) =>
+          const personnel = data.data.employees.find((p: any) =>
             p.userId === manager.id || p.personId === manager.id
           );
+          console.log('Found personnel record:', personnel);
+
           if (personnel && personnel.employeeNumber) {
+            console.log('✅ Setting employee number:', personnel.employeeNumber);
             setEmployeeNumber(personnel.employeeNumber);
+          } else {
+            console.warn('⚠️ No employeeNumber found in personnel record');
           }
         }
       } catch (error) {
