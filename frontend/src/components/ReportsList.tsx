@@ -602,11 +602,11 @@ const ReportsList: React.FC<ReportsListProps> = ({ manager, project, onBack, onN
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-2">
                           <div className="w-10 h-10 bg-gradient-to-br from-gold-light to-gold-dark rounded-lg flex items-center justify-center text-dark-bg font-bold text-sm">
-                            {new Date(report.report_date).getDate()}
+                            {new Date(report.submission_timestamp || report.created_at || report.report_date).getDate()}
                           </div>
                           <div>
                             <p className="text-white font-semibold text-sm">
-                              {formatDate(report.report_date)}
+                              {formatDate(report.submission_timestamp || report.created_at || report.report_date)}
                             </p>
                           </div>
                         </div>

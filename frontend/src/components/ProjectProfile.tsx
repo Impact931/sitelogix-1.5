@@ -291,7 +291,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
               </button>
             )}
             <div>
-              <h1 className="text-3xl font-display font-bold text-white mb-2">Project Profiles</h1>
+              <h1 className="text-3xl font-display font-bold text-white mb-2">Project Admin</h1>
               <p className="text-sm text-white/60">Manage project details and KPI targets for analytics tracking</p>
             </div>
           </div>
