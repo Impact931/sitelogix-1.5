@@ -26,10 +26,42 @@ async function handleListProjects(event) {
 
     const projects = result.Items ? result.Items.map(item => {
       const project = unmarshall(item);
-      // Normalize project data: ensure 'id' field exists for frontend compatibility
+
+      // Normalize project schema: ensure all required nested objects exist with defaults
       return {
-        ...project,
-        id: project.projectId || project.id  // Add id field if missing
+        projectId: project.projectId,
+        projectName: project.projectName || '',
+        projectCode: project.projectCode || '',
+        description: project.description || '',
+        location: project.location || {
+          address: '',
+          city: '',
+          state: '',
+          zip: ''
+        },
+        projectType: project.projectType || 'construction',
+        status: project.status || 'active',
+        startDate: project.startDate || '',
+        estimatedEndDate: project.estimatedEndDate || '',
+        targetCompletionPercentage: project.targetCompletionPercentage || 0,
+        budget: project.budget || {
+          total: 0,
+          labor: 0,
+          materials: 0,
+          equipment: 0
+        },
+        kpiTargets: project.kpiTargets || {
+          healthScore: 85,
+          qualityScore: 90,
+          scheduleScore: 85,
+          maxOvertimePercent: 15,
+          vendorOnTimeRate: 90
+        },
+        assignedManagers: project.assignedManagers || [],
+        milestones: project.milestones || [],
+        createdAt: project.createdAt || new Date().toISOString(),
+        updatedAt: project.updatedAt || new Date().toISOString(),
+        id: project.projectId || project.id  // Add id field for frontend compatibility
       };
     }) : [];
 
@@ -81,7 +113,44 @@ async function handleGetProject(event, projectId) {
       };
     }
 
-    const project = unmarshall(result.Item);
+    const rawProject = unmarshall(result.Item);
+
+    // Normalize project schema: ensure all required nested objects exist with defaults
+    const project = {
+      projectId: rawProject.projectId,
+      projectName: rawProject.projectName || '',
+      projectCode: rawProject.projectCode || '',
+      description: rawProject.description || '',
+      location: rawProject.location || {
+        address: '',
+        city: '',
+        state: '',
+        zip: ''
+      },
+      projectType: rawProject.projectType || 'construction',
+      status: rawProject.status || 'active',
+      startDate: rawProject.startDate || '',
+      estimatedEndDate: rawProject.estimatedEndDate || '',
+      targetCompletionPercentage: rawProject.targetCompletionPercentage || 0,
+      budget: rawProject.budget || {
+        total: 0,
+        labor: 0,
+        materials: 0,
+        equipment: 0
+      },
+      kpiTargets: rawProject.kpiTargets || {
+        healthScore: 85,
+        qualityScore: 90,
+        scheduleScore: 85,
+        maxOvertimePercent: 15,
+        vendorOnTimeRate: 90
+      },
+      assignedManagers: rawProject.assignedManagers || [],
+      milestones: rawProject.milestones || [],
+      createdAt: rawProject.createdAt || new Date().toISOString(),
+      updatedAt: rawProject.updatedAt || new Date().toISOString(),
+      id: rawProject.projectId || rawProject.id
+    };
 
     return {
       statusCode: 200,

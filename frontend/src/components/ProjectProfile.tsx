@@ -393,7 +393,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                   <div className="col-span-2">
                     <label className="text-white/60">Location</label>
                     <p className="text-white">
-                      {selectedProject.location.address}, {selectedProject.location.city}, {selectedProject.location.state} {selectedProject.location.zip}
+                      {selectedProject.location?.address || 'N/A'}, {selectedProject.location?.city || 'N/A'}, {selectedProject.location?.state || 'N/A'} {selectedProject.location?.zip || ''}
                     </p>
                   </div>
                   <div>
@@ -418,15 +418,15 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <label className="text-white/60">Start Date</label>
-                    <p className="text-white font-semibold">{new Date(selectedProject.startDate).toLocaleDateString()}</p>
+                    <p className="text-white font-semibold">{selectedProject.startDate ? new Date(selectedProject.startDate).toLocaleDateString() : 'Not set'}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Estimated End Date</label>
-                    <p className="text-white font-semibold">{new Date(selectedProject.estimatedEndDate).toLocaleDateString()}</p>
+                    <p className="text-white font-semibold">{selectedProject.estimatedEndDate ? new Date(selectedProject.estimatedEndDate).toLocaleDateString() : 'Not set'}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Target Completion %</label>
-                    <p className="text-white font-semibold">{selectedProject.targetCompletionPercentage}%</p>
+                    <p className="text-white font-semibold">{selectedProject.targetCompletionPercentage || 0}%</p>
                   </div>
                 </div>
               </div>
@@ -442,19 +442,19 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                 <div className="grid grid-cols-4 gap-4 text-sm">
                   <div>
                     <label className="text-white/60">Total Budget</label>
-                    <p className="text-white font-bold text-lg">${selectedProject.budget.total.toLocaleString()}</p>
+                    <p className="text-white font-bold text-lg">${(selectedProject.budget?.total || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Labor</label>
-                    <p className="text-white font-semibold">${selectedProject.budget.labor.toLocaleString()}</p>
+                    <p className="text-white font-semibold">${(selectedProject.budget?.labor || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Materials</label>
-                    <p className="text-white font-semibold">${selectedProject.budget.materials.toLocaleString()}</p>
+                    <p className="text-white font-semibold">${(selectedProject.budget?.materials || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Equipment</label>
-                    <p className="text-white font-semibold">${selectedProject.budget.equipment.toLocaleString()}</p>
+                    <p className="text-white font-semibold">${(selectedProject.budget?.equipment || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -470,23 +470,23 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                 <div className="grid grid-cols-5 gap-4 text-sm">
                   <div>
                     <label className="text-white/60">Health Score Target</label>
-                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets.healthScore}</p>
+                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets?.healthScore || 85}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Quality Score Target</label>
-                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets.qualityScore}</p>
+                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets?.qualityScore || 90}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Schedule Score Target</label>
-                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets.scheduleScore}</p>
+                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets?.scheduleScore || 85}</p>
                   </div>
                   <div>
                     <label className="text-white/60">Max Overtime %</label>
-                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets.maxOvertimePercent}%</p>
+                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets?.maxOvertimePercent || 15}%</p>
                   </div>
                   <div>
                     <label className="text-white/60">Vendor On-Time Rate</label>
-                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets.vendorOnTimeRate}%</p>
+                    <p className="text-gold font-bold text-xl">{selectedProject.kpiTargets?.vendorOnTimeRate || 90}%</p>
                   </div>
                 </div>
                 <p className="text-xs text-white/50 mt-4">
@@ -559,7 +559,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                           {milestone.status.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-sm text-white/60 mb-2">Target: {new Date(milestone.targetDate).toLocaleDateString()}</p>
+                      <p className="text-sm text-white/60 mb-2">Target: {milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString() : 'Not set'}</p>
                       <p className="text-xs text-white/50">{milestone.deliverables}</p>
                     </div>
                   ))}
@@ -875,7 +875,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <label className="block text-sm text-white/80 mb-1">Address</label>
                     <input
                       type="text"
-                      value={editingProject.location.address}
+                      value={editingProject.location?.address || ''}
                       onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, address: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -884,7 +884,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <label className="block text-sm text-white/80 mb-1">City</label>
                     <input
                       type="text"
-                      value={editingProject.location.city}
+                      value={editingProject.location?.city || ''}
                       onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, city: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -893,7 +893,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <label className="block text-sm text-white/80 mb-1">State</label>
                     <input
                       type="text"
-                      value={editingProject.location.state}
+                      value={editingProject.location?.state || ''}
                       onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, state: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -902,7 +902,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <label className="block text-sm text-white/80 mb-1">ZIP Code</label>
                     <input
                       type="text"
-                      value={editingProject.location.zip}
+                      value={editingProject.location?.zip || ''}
                       onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, zip: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -943,7 +943,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       <label className="block text-sm text-white/80 mb-1">Total Budget</label>
                       <input
                         type="number"
-                        value={editingProject.budget.total}
+                        value={editingProject.budget?.total || 0}
                         onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, total: Number(e.target.value) } })}
                         className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                       />
@@ -953,7 +953,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                         <label className="block text-xs text-white/60 mb-1">Labor</label>
                         <input
                           type="number"
-                          value={editingProject.budget.labor}
+                          value={editingProject.budget?.labor || 0}
                           onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, labor: Number(e.target.value) } })}
                           className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                         />
@@ -962,7 +962,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                         <label className="block text-xs text-white/60 mb-1">Materials</label>
                         <input
                           type="number"
-                          value={editingProject.budget.materials}
+                          value={editingProject.budget?.materials || 0}
                           onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, materials: Number(e.target.value) } })}
                           className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                         />
@@ -971,7 +971,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                         <label className="block text-xs text-white/60 mb-1">Equipment</label>
                         <input
                           type="number"
-                          value={editingProject.budget.equipment}
+                          value={editingProject.budget?.equipment || 0}
                           onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, equipment: Number(e.target.value) } })}
                           className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                         />
@@ -991,7 +991,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       type="number"
                       min="0"
                       max="100"
-                      value={editingProject.kpiTargets.healthScore}
+                      value={editingProject.kpiTargets?.healthScore || 85}
                       onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, healthScore: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -1002,7 +1002,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       type="number"
                       min="0"
                       max="100"
-                      value={editingProject.kpiTargets.qualityScore}
+                      value={editingProject.kpiTargets?.qualityScore || 90}
                       onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, qualityScore: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -1013,7 +1013,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       type="number"
                       min="0"
                       max="100"
-                      value={editingProject.kpiTargets.scheduleScore}
+                      value={editingProject.kpiTargets?.scheduleScore || 85}
                       onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, scheduleScore: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -1024,7 +1024,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       type="number"
                       min="0"
                       max="100"
-                      value={editingProject.kpiTargets.maxOvertimePercent}
+                      value={editingProject.kpiTargets?.maxOvertimePercent || 15}
                       onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, maxOvertimePercent: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
@@ -1035,7 +1035,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       type="number"
                       min="0"
                       max="100"
-                      value={editingProject.kpiTargets.vendorOnTimeRate}
+                      value={editingProject.kpiTargets?.vendorOnTimeRate || 90}
                       onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, vendorOnTimeRate: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
