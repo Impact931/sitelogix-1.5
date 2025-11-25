@@ -876,7 +876,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <input
                       type="text"
                       value={editingProject.location?.address || ''}
-                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, address: e.target.value } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...(editingProject.location || {}), address: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -885,7 +885,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <input
                       type="text"
                       value={editingProject.location?.city || ''}
-                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, city: e.target.value } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...(editingProject.location || {}), city: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -894,7 +894,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <input
                       type="text"
                       value={editingProject.location?.state || ''}
-                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, state: e.target.value } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...(editingProject.location || {}), state: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -903,7 +903,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                     <input
                       type="text"
                       value={editingProject.location?.zip || ''}
-                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...editingProject.location, zip: e.target.value } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, location: { ...(editingProject.location || {}), zip: e.target.value } })}
                       className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -944,7 +944,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       <input
                         type="number"
                         value={editingProject.budget?.total || 0}
-                        onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, total: Number(e.target.value) } })}
+                        onChange={(e) => setEditingProject({ ...editingProject, budget: { ...(editingProject.budget || {}), total: Number(e.target.value) } })}
                         className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                       />
                     </div>
@@ -954,7 +954,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                         <input
                           type="number"
                           value={editingProject.budget?.labor || 0}
-                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, labor: Number(e.target.value) } })}
+                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...(editingProject.budget || {}), labor: Number(e.target.value) } })}
                           className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                         />
                       </div>
@@ -963,7 +963,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                         <input
                           type="number"
                           value={editingProject.budget?.materials || 0}
-                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, materials: Number(e.target.value) } })}
+                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...(editingProject.budget || {}), materials: Number(e.target.value) } })}
                           className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                         />
                       </div>
@@ -972,7 +972,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                         <input
                           type="number"
                           value={editingProject.budget?.equipment || 0}
-                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...editingProject.budget, equipment: Number(e.target.value) } })}
+                          onChange={(e) => setEditingProject({ ...editingProject, budget: { ...(editingProject.budget || {}), equipment: Number(e.target.value) } })}
                           className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                         />
                       </div>
@@ -992,7 +992,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       min="0"
                       max="100"
                       value={editingProject.kpiTargets?.healthScore || 85}
-                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, healthScore: Number(e.target.value) } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...(editingProject.kpiTargets || {}), healthScore: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -1003,7 +1003,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       min="0"
                       max="100"
                       value={editingProject.kpiTargets?.qualityScore || 90}
-                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, qualityScore: Number(e.target.value) } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...(editingProject.kpiTargets || {}), qualityScore: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -1014,7 +1014,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       min="0"
                       max="100"
                       value={editingProject.kpiTargets?.scheduleScore || 85}
-                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, scheduleScore: Number(e.target.value) } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...(editingProject.kpiTargets || {}), scheduleScore: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -1025,7 +1025,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       min="0"
                       max="100"
                       value={editingProject.kpiTargets?.maxOvertimePercent || 15}
-                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, maxOvertimePercent: Number(e.target.value) } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...(editingProject.kpiTargets || {}), maxOvertimePercent: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
@@ -1036,7 +1036,7 @@ export default function ProjectProfile({ onBack }: ProjectProfileProps) {
                       min="0"
                       max="100"
                       value={editingProject.kpiTargets?.vendorOnTimeRate || 90}
-                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...editingProject.kpiTargets, vendorOnTimeRate: Number(e.target.value) } })}
+                      onChange={(e) => setEditingProject({ ...editingProject, kpiTargets: { ...(editingProject.kpiTargets || {}), vendorOnTimeRate: Number(e.target.value) } })}
                       className="w-full px-2 py-1 text-sm bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold"
                     />
                   </div>
